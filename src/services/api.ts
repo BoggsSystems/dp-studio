@@ -82,12 +82,18 @@ export const api = {
   },
 
   async createProduct(product: Partial<Product>): Promise<Product> {
+    const images = Array.isArray(product.imageUrls) && product.imageUrls.length > 0
+      ? product.imageUrls
+      : (product.imageUrl ? [product.imageUrl] : ['https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&auto=format&fit=crop&q=80']);
+    const primaryImg = product.imageUrl || images[0];
+
     const newProduct: Product = {
       id: product.id || `prod_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       title: product.title || 'Untitled Product',
       price: product.price ?? 29.99,
       currency: product.currency || 'USD',
-      imageUrl: product.imageUrl || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&auto=format&fit=crop&q=80',
+      imageUrl: primaryImg,
+      imageUrls: images,
       description: product.description || '',
       stripePriceId: product.stripePriceId || '',
       externalUrl: product.externalUrl || '',
@@ -647,6 +653,11 @@ function getDefaultCatalog(): Product[] {
       price: 49.00,
       currency: 'USD',
       imageUrl: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&auto=format&fit=crop&q=80',
+      imageUrls: [
+        'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1508057198894-247b23fe5ade?w=400&auto=format&fit=crop&q=80',
+      ],
       stripePriceId: 'price_pro_pass',
       externalUrl: 'https://app.opportunityos.com/checkout?priceId=price_pro_pass',
       source: 'STRIPE',
@@ -660,6 +671,11 @@ function getDefaultCatalog(): Product[] {
       price: 34.00,
       currency: 'USD',
       imageUrl: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=400&auto=format&fit=crop&q=80',
+      imageUrls: [
+        'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=400&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=400&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1618354691373-d851c5c3a990?w=400&auto=format&fit=crop&q=80',
+      ],
       externalUrl: 'https://shop.digitpop.com/products/founder-tee',
       source: 'SHOPIFY',
       vendor: 'DigitPop Apparel',
@@ -672,6 +688,10 @@ function getDefaultCatalog(): Product[] {
       price: 129.99,
       currency: 'USD',
       imageUrl: 'https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?w=400&auto=format&fit=crop&q=80',
+      imageUrls: [
+        'https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?w=400&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400&auto=format&fit=crop&q=80',
+      ],
       externalUrl: 'https://amazon.com/dp/B082QHRZHM',
       source: 'AMAZON',
       vendor: 'Amazon / Elgato',
@@ -684,6 +704,10 @@ function getDefaultCatalog(): Product[] {
       price: 399.00,
       currency: 'USD',
       imageUrl: 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=400&auto=format&fit=crop&q=80',
+      imageUrls: [
+        'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=400&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=400&auto=format&fit=crop&q=80',
+      ],
       externalUrl: 'https://amazon.com/dp/B0002E4Z8M',
       source: 'AMAZON',
       vendor: 'Shure',

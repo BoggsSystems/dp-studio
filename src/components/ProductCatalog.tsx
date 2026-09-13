@@ -248,6 +248,26 @@ export default function ProductCatalog({
                 <div style={{ position: 'absolute', top: '8px', left: '8px' }}>
                   {getSourceBadge(product.source)}
                 </div>
+                {product.imageUrls && product.imageUrls.length > 1 && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '8px',
+                    right: '8px',
+                    background: 'rgba(0,0,0,0.75)',
+                    backdropFilter: 'blur(4px)',
+                    color: '#fff',
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}>
+                    <Layers size={10} />
+                    <span>{product.imageUrls.length} photos</span>
+                  </div>
+                )}
                 <div style={{ position: 'absolute', bottom: '8px', right: '8px', background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)', padding: '3px 8px', borderRadius: 'var(--radius-sm)', fontSize: '13px', fontWeight: 700, color: '#10B981' }}>
                   ${product.price.toFixed(2)}
                 </div>
