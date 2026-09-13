@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { Product } from '../types';
 import { api } from '../services/api';
+import CreateProductModal from './CreateProductModal';
 
 interface ProductPickerModalProps {
   isOpen: boolean;
@@ -38,6 +39,7 @@ export default function ProductPickerModal({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(
     new Set(currentlyAttachedProductIds)
   );
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   // Tab 2: URL Scrape State
   const [urlInput, setUrlInput] = useState('');
@@ -209,17 +211,28 @@ export default function ProductPickerModal({
         {/* TAB 1: Master Catalog List */}
         {activeTab === 'catalog' && (
           <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
-            {/* Search */}
-            <div style={{ position: 'relative', marginBottom: '12px' }}>
-              <Search size={14} color="var(--text-muted)" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
-              <input
-                type="text"
-                className="form-input"
-                style={{ paddingLeft: '32px', fontSize: '13px' }}
-                placeholder="Search catalog products to attach..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+            {/* Search & Create Action */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+              <div style={{ position: 'relative', flex: 1 }}>
+                <Search size={14} color="var(--text-muted)" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
+                <input
+                  type="text"
+                  className="form-input"
+                  style={{ paddingLeft: '32px', fontSize: '13px' }}
+                  placeholder="Search catalog products to attach..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap', fontSize: '12px' }}
+                onClick={() => setIsCreateModalOpen(true)}
+              >
+                <Plus size={14} color="var(--accent-teal)" />
+                <span>Create New</span>
+              </button>
             </div>
 
             {/* List */}
@@ -355,61 +368,47 @@ export default function ProductPickerModal({
           </div>
         )}
 
-        {/* TAB 3: Quick Create */}
+        {/* TAB 3: Quick Create Launch Card */}
         {activeTab === 'create' && (
-          <form onSubmit={handleQuickCreateAndAttach} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', alignItems: 'center', padding: '24px 16px', background: 'var(--bg-canvas)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', textAlign: 'center' }}>
+            <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(20, 184, 166, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent-teal)' }}>
+              <Sparkles size={24} />
+            </div>
             <div>
-              <label className="form-label">Product Title *</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="e.g. Vintage Leather Watch"
-                value={quickTitle}
-                onChange={(e) => setQuickTitle(e.target.value)}
-                required
-              />
+              <h4 style={{ fontSize: '15px', fontWeight: 700, margin: '0 0 6px 0', color: 'var(--text-primary)' }}>
+                Create Custom Product with Live Simulator
+              </h4>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0, maxWidth: '380px', lineHeight: 1.5 }}>
+                Upload media to R2, select price presets, specify checkout links, and preview the live interactive card before attaching it to this timeline group.
+              </p>
             </div>
+            <button
+              type="button"
+              className="btn btn-primary"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}
+              onClick={() => setIsCreateModalOpen(true)}
+            >
+              <Plus size={16} />
+              <span>Launch Product Studio Creator</span>
+            </button>
+          </div>
+        )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              <div>
-                <label className="form-label">Price (USD) *</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  className="form-input"
-                  value={quickPrice}
-                  onChange={(e) => setQuickPrice(e.target.value)}
-                  required
-                />
-              </div>
-              <div>
-                <label className="form-label">Image URL</label>
-                <input
-                  type="url"
-                  className="form-input"
-                  placeholder="https://..."
-                  value={quickImageUrl}
-                  onChange={(e) => setQuickImageUrl(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="form-label">Checkout / External URL</label>
-              <input
-                type="url"
-                className="form-input"
-                placeholder="https://checkout.stripe.com/... or https://store.com/..."
-                value={quickExternalUrl}
-                onChange={(e) => setQuickExternalUrl(e.target.value)}
-              />
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
-              <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
-              <button type="submit" className="btn btn-primary">Create & Attach</button>
-            </div>
-          </form>
+        {/* Full Polished Create Product Modal */}
+        {isCreateModalOpen && (
+          <CreateProductModal
+            isOpen={isCreateModalOpen}
+            onClose={() => setIsCreateModalOpen(false)}
+            onProductCreated={(created) => {
+              onCatalogUpdated([created, ...catalogProducts]);
+              onAttachProducts([
+                ...catalogProducts.filter((p) => selectedIds.has(p.id)),
+                created,
+              ]);
+              setIsCreateModalOpen(false);
+              onClose();
+            }}
+          />
         )}
       </div>
     </div>

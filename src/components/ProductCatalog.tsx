@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Product } from '../types';
 import { api } from '../services/api';
+import CreateProductModal from './CreateProductModal';
 
 interface ProductCatalogProps {
   products: Product[];
@@ -41,13 +42,6 @@ export default function ProductCatalog({
   const [isSyncingShopify, setIsSyncingShopify] = useState(false);
   const [shopifySyncSuccess, setShopifySyncSuccess] = useState<string | null>(null);
 
-  // Manual Create State
-  const [newTitle, setNewTitle] = useState('');
-  const [newPrice, setNewPrice] = useState('29.99');
-  const [newImageUrl, setNewImageUrl] = useState('');
-  const [newDescription, setNewDescription] = useState('');
-  const [newExternalUrl, setNewExternalUrl] = useState('');
-  const [newSource, setNewSource] = useState<'CUSTOM' | 'SHOPIFY' | 'AMAZON' | 'STRIPE'>('CUSTOM');
 
   // Filtered products
   const filteredProducts = products.filter((p) => {
@@ -106,28 +100,6 @@ export default function ProductCatalog({
     }
   };
 
-  // Handle Manual Product Create
-  const handleCreateProduct = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTitle.trim()) return;
-    const created = await api.createProduct({
-      title: newTitle.trim(),
-      price: parseFloat(newPrice) || 0,
-      currency: 'USD',
-      imageUrl: newImageUrl.trim() || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&auto=format&fit=crop&q=80',
-      description: newDescription.trim(),
-      externalUrl: newExternalUrl.trim(),
-      source: newSource,
-      vendor: newSource === 'CUSTOM' ? 'In-House' : newSource,
-    });
-    onProductsUpdated([created, ...products]);
-    setIsCreateModalOpen(false);
-    setNewTitle('');
-    setNewPrice('29.99');
-    setNewImageUrl('');
-    setNewDescription('');
-    setNewExternalUrl('');
-  };
 
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to remove this product from the central catalog?')) return;
@@ -443,101 +415,14 @@ export default function ProductCatalog({
         </div>
       )}
 
-      {/* MODAL 3: Custom Product Create */}
-      {isCreateModalOpen && (
-        <div className="modal-backdrop" onClick={() => setIsCreateModalOpen(false)}>
-          <div className="modal-card" style={{ maxWidth: '500px' }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Plus size={18} color="var(--accent-teal)" />
-                <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
-                  Add Custom Product
-                </h3>
-              </div>
-              <button className="icon-btn" onClick={() => setIsCreateModalOpen(false)}>✕</button>
-            </div>
-
-            <form onSubmit={handleCreateProduct}>
-              <div style={{ marginBottom: '12px' }}>
-                <label className="form-label">Product Title *</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="e.g. Signature Leather Watch"
-                  value={newTitle}
-                  onChange={(e) => setNewTitle(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-                <div>
-                  <label className="form-label">Price (USD) *</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    className="form-input"
-                    value={newPrice}
-                    onChange={(e) => setNewPrice(e.target.value)}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="form-label">Source Type</label>
-                  <select
-                    className="form-input"
-                    value={newSource}
-                    onChange={(e) => setNewSource(e.target.value as any)}
-                  >
-                    <option value="CUSTOM">Custom / In-House</option>
-                    <option value="STRIPE">Stripe Payment Link</option>
-                    <option value="SHOPIFY">Shopify</option>
-                    <option value="AMAZON">Amazon</option>
-                  </select>
-                </div>
-              </div>
-
-              <div style={{ marginBottom: '12px' }}>
-                <label className="form-label">Image URL</label>
-                <input
-                  type="url"
-                  className="form-input"
-                  placeholder="https://..."
-                  value={newImageUrl}
-                  onChange={(e) => setNewImageUrl(e.target.value)}
-                />
-              </div>
-
-              <div style={{ marginBottom: '12px' }}>
-                <label className="form-label">Checkout / External URL</label>
-                <input
-                  type="url"
-                  className="form-input"
-                  placeholder="https://checkout.stripe.com/... or https://store.com/..."
-                  value={newExternalUrl}
-                  onChange={(e) => setNewExternalUrl(e.target.value)}
-                />
-              </div>
-
-              <div style={{ marginBottom: '16px' }}>
-                <label className="form-label">Short Description</label>
-                <textarea
-                  className="form-input"
-                  rows={2}
-                  placeholder="Details shown to viewer upon inspect..."
-                  value={newDescription}
-                  onChange={(e) => setNewDescription(e.target.value)}
-                />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setIsCreateModalOpen(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary">Save to Catalog</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* High-Polish Reusable Modal: Custom Product Create */}
+      <CreateProductModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onProductCreated={(created) => {
+          onProductsUpdated([created, ...products]);
+        }}
+      />
     </div>
   );
 }
