@@ -28,6 +28,11 @@ export interface Product {
   externalUrl?: string;
   description?: string;
   variants?: ProductVariant[];
+  source?: 'CUSTOM' | 'SHOPIFY' | 'AMAZON' | 'STRIPE';
+  vendor?: string;
+  inventoryCount?: number;
+  handle?: string;
+  shopifyId?: string;
 }
 
 export interface ProductGroup {

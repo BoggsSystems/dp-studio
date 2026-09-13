@@ -10,12 +10,13 @@ import {
   LogIn, 
   LogOut, 
   User as UserIcon,
-  ChevronDown
+  ChevronDown,
+  ShoppingBag
 } from 'lucide-react';
 import { Project } from '../types';
 import { useAuth } from '../context/AuthContext';
 
-export type StudioTab = 'projects' | 'vod' | 'live' | 'campaigns' | 'clips' | 'quiz';
+export type StudioTab = 'projects' | 'vod' | 'products' | 'live' | 'campaigns' | 'clips' | 'quiz';
 
 interface HeaderProps {
   activeTab: StudioTab;
@@ -102,6 +103,14 @@ export default function Header({
           >
             <Film size={14} />
             <span>Timeline Editor</span>
+          </button>
+
+          <button
+            className={`tab-btn ${activeTab === 'products' ? 'active' : ''}`}
+            onClick={() => setActiveTab('products')}
+          >
+            <ShoppingBag size={14} color={activeTab === 'products' ? 'var(--accent-teal)' : undefined} />
+            <span>Products</span>
           </button>
 
           <button

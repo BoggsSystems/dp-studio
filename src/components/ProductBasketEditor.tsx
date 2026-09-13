@@ -1,17 +1,24 @@
+import { useState } from 'react';
 import { 
   Tag, 
   Trash2, 
   Plus, 
   CreditCard, 
-  ShoppingBag 
+  ShoppingBag,
+  ExternalLink,
+  Store,
+  Sparkles
 } from 'lucide-react';
 import { ProductGroup, Product, ViewingMode } from '../types';
+import ProductPickerModal from './ProductPickerModal';
 
 interface ProductBasketEditorProps {
   selectedGroup: ProductGroup | null;
   onUpdateGroup: (group: ProductGroup) => void;
   onDeleteGroup: (id: string) => void;
   currentTime: number;
+  catalogProducts: Product[];
+  onCatalogUpdated: (newCatalog: Product[]) => void;
 }
 
 export default function ProductBasketEditor({
@@ -19,7 +26,10 @@ export default function ProductBasketEditor({
   onUpdateGroup,
   onDeleteGroup,
   currentTime,
+  catalogProducts,
+  onCatalogUpdated,
 }: ProductBasketEditorProps) {
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
   if (!selectedGroup) {
     return (
       <div
@@ -190,8 +200,8 @@ export default function ProductBasketEditor({
           </span>
         </div>
 
-        <button className="btn btn-secondary" style={{ fontSize: '12px', padding: '5px 10px' }} onClick={handleAddProduct}>
-          <Plus size={12} /> Add Product
+        <button className="btn btn-secondary" style={{ fontSize: '12px', padding: '5px 12px', display: 'flex', alignItems: 'center', gap: '5px' }} onClick={() => setIsPickerOpen(true)}>
+          <Plus size={13} /> Select from Catalog / Import
         </button>
       </div>
 
@@ -290,6 +300,18 @@ export default function ProductBasketEditor({
           </div>
         ))}
       </div>
+
+      {/* Reusable Product Picker Modal */}
+      <ProductPickerModal
+        isOpen={isPickerOpen}
+        onClose={() => setIsPickerOpen(false)}
+        catalogProducts={catalogProducts}
+        currentlyAttachedProductIds={selectedGroup.products.map((p) => p.id)}
+        onAttachProducts={(attached) => {
+          onUpdateGroup({ ...selectedGroup, products: attached });
+        }}
+        onCatalogUpdated={onCatalogUpdated}
+      />
     </div>
   );
 }

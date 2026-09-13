@@ -3,6 +3,7 @@ import Header, { StudioTab } from './components/Header';
 import VideoUploadZone from './components/VideoUploadZone';
 import TimelineScrubber from './components/TimelineScrubber';
 import ProductBasketEditor from './components/ProductBasketEditor';
+import ProductCatalog from './components/ProductCatalog';
 import AiAutopilotPanel from './components/AiAutopilotPanel';
 import ClipStudio from './components/ClipStudio';
 import QuizEditor from './components/QuizEditor';
@@ -13,13 +14,14 @@ import CampaignList from './components/CampaignList';
 import LivestreamHub from './components/live/LivestreamHub';
 import OnAirStudio from './components/live/OnAirStudio';
 import { AuthProvider } from './context/AuthContext';
-import { Project, ProductGroup, AiTagDetection, Campaign, StreamSession } from './types';
+import { Project, ProductGroup, AiTagDetection, Campaign, StreamSession, Product } from './types';
 import { api } from './services/api';
 
 function StudioApp() {
   const [activeTab, setActiveTab] = useState<StudioTab>('vod');
   const [projects, setProjects] = useState<Project[]>([]);
   const [project, setProject] = useState<Project | null>(null);
+  const [catalogProducts, setCatalogProducts] = useState<Product[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [activeLiveSession, setActiveLiveSession] = useState<StreamSession | null>(null);
   const [currentTime, setCurrentTime] = useState<number>(14.5);
@@ -47,6 +49,10 @@ function StudioApp() {
 
     api.getCampaigns().then((camps) => {
       setCampaigns(camps);
+    });
+
+    api.getProducts().then((prods) => {
+      setCatalogProducts(prods);
     });
   }, []);
 
@@ -91,6 +97,17 @@ function StudioApp() {
   // Drop pin at current time
   const handleAddPinAtCurrentTime = () => {
     if (!project) return;
+
+    const initialProduct: Product = catalogProducts.length > 0 ? catalogProducts[0] : {
+      id: `prod_${Date.now()}`,
+      title: 'Featured Product Item',
+      price: 39.00,
+      currency: 'USD',
+      imageUrl: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&auto=format&fit=crop&q=80',
+      stripePriceId: '',
+      description: '1-click checkout item.',
+    };
+
     const newGroup: ProductGroup = {
       id: `pg_${Date.now()}`,
       projectId: project.id,
@@ -98,17 +115,7 @@ function StudioApp() {
       subtitle: 'Special In-Stream Offer',
       timestampSeconds: parseFloat(currentTime.toFixed(1)),
       viewingMode: 'SIDE_PANEL',
-      products: [
-        {
-          id: `prod_${Date.now()}`,
-          title: 'Featured Product Item',
-          price: 39.00,
-          currency: 'USD',
-          imageUrl: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&auto=format&fit=crop&q=80',
-          stripePriceId: '',
-          description: '1-click checkout item.',
-        },
-      ],
+      products: [initialProduct],
     };
 
     const updatedGroups = [...project.productGroups, newGroup].sort(
@@ -348,9 +355,19 @@ function StudioApp() {
                     onUpdateGroup={handleUpdateGroup}
                     onDeleteGroup={handleDeleteGroup}
                     currentTime={currentTime}
+                    catalogProducts={catalogProducts}
+                    onCatalogUpdated={setCatalogProducts}
                   />
                 </div>
               </div>
+            )}
+
+            {/* CENTRAL PRODUCTS CATALOG TAB */}
+            {activeTab === 'products' && (
+              <ProductCatalog
+                products={catalogProducts}
+                onProductsUpdated={setCatalogProducts}
+              />
             )}
 
             {/* LIVESTREAM BROADCAST HUB TAB */}
