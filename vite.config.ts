@@ -6,6 +6,9 @@ export default defineConfig({
   server: {
     port: 4205,
     host: true,
+    cors: true,
+    // @ts-expect-error vite 5/6 allowedHosts support
+    allowedHosts: true,
     proxy: {
       '/api': {
         target: 'http://localhost:9000',
