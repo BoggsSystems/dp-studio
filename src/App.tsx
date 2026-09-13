@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import Header from './components/Header';
+import Header, { StudioTab } from './components/Header';
 import VideoUploadZone from './components/VideoUploadZone';
 import TimelineScrubber from './components/TimelineScrubber';
 import ProductBasketEditor from './components/ProductBasketEditor';
@@ -7,31 +7,46 @@ import AiAutopilotPanel from './components/AiAutopilotPanel';
 import ClipStudio from './components/ClipStudio';
 import QuizEditor from './components/QuizEditor';
 import DeployModal from './components/DeployModal';
-import { Project, ProductGroup, AiTagDetection } from './types';
+import AuthModal from './components/AuthModal';
+import ProjectList from './components/ProjectList';
+import CampaignList from './components/CampaignList';
+import LivestreamHub from './components/live/LivestreamHub';
+import OnAirStudio from './components/live/OnAirStudio';
+import { AuthProvider } from './context/AuthContext';
+import { Project, ProductGroup, AiTagDetection, Campaign, StreamSession } from './types';
 import { api } from './services/api';
 
-export default function App() {
-  const [activeTab, setActiveTab] = useState<'vod' | 'clips' | 'quiz'>('vod');
+function StudioApp() {
+  const [activeTab, setActiveTab] = useState<StudioTab>('vod');
+  const [projects, setProjects] = useState<Project[]>([]);
   const [project, setProject] = useState<Project | null>(null);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [activeLiveSession, setActiveLiveSession] = useState<StreamSession | null>(null);
   const [currentTime, setCurrentTime] = useState<number>(14.5);
   const [duration, setDuration] = useState<number>(142.0);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [isDeployOpen, setIsDeployOpen] = useState<boolean>(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
 
   const videoElementRef = useRef<HTMLVideoElement>(null);
 
-  // Load initial project
+  // Load initial data
   useEffect(() => {
-    api.getProjects().then((projects) => {
-      if (projects.length > 0) {
-        setProject(projects[0]);
-        if (projects[0].durationSeconds) setDuration(projects[0].durationSeconds);
-        if (projects[0].productGroups?.length > 0) {
-          setSelectedGroupId(projects[0].productGroups[0].id);
+    api.getProjects().then((projs) => {
+      setProjects(projs);
+      if (projs.length > 0) {
+        setProject(projs[0]);
+        if (projs[0].durationSeconds) setDuration(projs[0].durationSeconds);
+        if (projs[0].productGroups?.length > 0) {
+          setSelectedGroupId(projs[0].productGroups[0].id);
         }
       }
+    });
+
+    api.getCampaigns().then((camps) => {
+      setCampaigns(camps);
     });
   }, []);
 
@@ -63,12 +78,14 @@ export default function App() {
   const handleVideoLoaded = (url: string, videoDuration: number, thumb?: string) => {
     if (!project) return;
     setDuration(videoDuration);
-    setProject({
+    const updated = {
       ...project,
       masterVodUrl: url,
       durationSeconds: videoDuration,
       ...(thumb && { thumbnailUrl: thumb }),
-    });
+    };
+    setProject(updated);
+    setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
   };
 
   // Drop pin at current time
@@ -97,22 +114,28 @@ export default function App() {
     const updatedGroups = [...project.productGroups, newGroup].sort(
       (a, b) => a.timestampSeconds - b.timestampSeconds
     );
-    setProject({ ...project, productGroups: updatedGroups });
+    const updated = { ...project, productGroups: updatedGroups };
+    setProject(updated);
+    setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
     setSelectedGroupId(newGroup.id);
   };
 
   // Update a product group
   const handleUpdateGroup = (updatedGroup: ProductGroup) => {
     if (!project) return;
-    const updated = project.productGroups.map((g) => (g.id === updatedGroup.id ? updatedGroup : g));
-    setProject({ ...project, productGroups: updated });
+    const updatedGroups = project.productGroups.map((g) => (g.id === updatedGroup.id ? updatedGroup : g));
+    const updated = { ...project, productGroups: updatedGroups };
+    setProject(updated);
+    setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
   };
 
   // Delete a product group
   const handleDeleteGroup = (groupId: string) => {
     if (!project) return;
     const filtered = project.productGroups.filter((g) => g.id !== groupId);
-    setProject({ ...project, productGroups: filtered });
+    const updated = { ...project, productGroups: filtered };
+    setProject(updated);
+    setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
     setSelectedGroupId(filtered.length > 0 ? filtered[0].id : null);
   };
 
@@ -138,8 +161,10 @@ export default function App() {
       ],
     };
 
-    const updated = [...project.productGroups, newGroup].sort((a, b) => a.timestampSeconds - b.timestampSeconds);
-    setProject({ ...project, productGroups: updated });
+    const updatedGroups = [...project.productGroups, newGroup].sort((a, b) => a.timestampSeconds - b.timestampSeconds);
+    const updated = { ...project, productGroups: updatedGroups };
+    setProject(updated);
+    setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
     setSelectedGroupId(newGroup.id);
   };
 
@@ -154,6 +179,7 @@ export default function App() {
     try {
       const saved = await api.saveProject(project);
       setProject(saved);
+      setProjects((prev) => prev.map((p) => (p.id === saved.id ? saved : p)));
       alert('Project saved successfully!');
     } catch (e: any) {
       alert(`Save error: ${e.message}`);
@@ -163,15 +189,18 @@ export default function App() {
   };
 
   const handleNewProject = () => {
-    setProject({
+    const newP: Project = {
       id: `proj_${Date.now()}`,
       name: 'New Shoppable Video Project',
       status: 'PROCESSING',
       isActive: true,
       productGroups: [],
-    });
+    };
+    setProjects([newP, ...projects]);
+    setProject(newP);
     setSelectedGroupId(null);
     setCurrentTime(0);
+    setActiveTab('vod');
   };
 
   if (!project) {
@@ -186,123 +215,183 @@ export default function App() {
 
   return (
     <div className="studio-root">
-      <Header
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        project={project}
-        onSave={handleSaveProject}
-        onOpenDeploy={() => setIsDeployOpen(true)}
-        isSaving={isSaving}
-        onNewProject={handleNewProject}
-      />
+      {/* If inside OnAirStudio fullscreen broadcast console, replace top layout */}
+      {activeLiveSession ? (
+        <main className="studio-main" style={{ padding: '16px' }}>
+          <OnAirStudio
+            session={activeLiveSession}
+            onExit={() => setActiveLiveSession(null)}
+          />
+        </main>
+      ) : (
+        <>
+          <Header
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            project={project}
+            onSave={handleSaveProject}
+            onOpenDeploy={() => setIsDeployOpen(true)}
+            isSaving={isSaving}
+            onNewProject={handleNewProject}
+            onOpenAuth={() => setIsAuthModalOpen(true)}
+          />
 
-      <main className="studio-main">
-        {activeTab === 'vod' && (
-          <div className="studio-grid-2col">
-            {/* Left Column: Media Player, Timeline Scrubber, AI Scanner */}
-            <div>
-              <VideoUploadZone
-                videoUrl={project.masterVodUrl}
-                thumbnailUrl={project.thumbnailUrl}
-                onVideoLoaded={handleVideoLoaded}
+          <main className="studio-main">
+            {/* PROJECTS CATALOG TAB */}
+            {activeTab === 'projects' && (
+              <ProjectList
+                projects={projects}
+                onSelectProject={(selected) => {
+                  setProject(selected);
+                  setActiveTab('vod');
+                }}
+                onProjectCreated={(newProj) => {
+                  setProjects([newProj, ...projects]);
+                  setProject(newProj);
+                  setActiveTab('vod');
+                }}
               />
+            )}
 
-              {/* Main Player Display */}
-              {project.masterVodUrl && (
-                <div
-                  style={{
-                    position: 'relative',
-                    width: '100%',
-                    aspectRatio: '16/9',
-                    background: '#000000',
-                    borderRadius: 'var(--radius-md)',
-                    overflow: 'hidden',
-                    border: '1px solid var(--border-medium)',
-                    boxShadow: 'var(--shadow-md)',
-                  }}
-                >
-                  <video
-                    ref={videoElementRef}
-                    src={project.masterVodUrl}
-                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                    onTimeUpdate={handleTimeUpdate}
-                    onPlay={() => setIsPlaying(true)}
-                    onPause={() => setIsPlaying(false)}
-                    controls={false}
+            {/* SHOPPABLE VOD TIMELINE EDITOR TAB */}
+            {activeTab === 'vod' && (
+              <div className="studio-grid-2col">
+                {/* Left Column: Media Player, Timeline Scrubber, AI Scanner */}
+                <div>
+                  <VideoUploadZone
+                    videoUrl={project.masterVodUrl}
+                    thumbnailUrl={project.thumbnailUrl}
+                    onVideoLoaded={handleVideoLoaded}
                   />
 
-                  {/* Active Pin Overlay Indicator */}
-                  {selectedGroup && Math.abs(currentTime - selectedGroup.timestampSeconds) < 4.0 && (
+                  {/* Main Player Display */}
+                  {project.masterVodUrl && (
                     <div
                       style={{
-                        position: 'absolute',
-                        top: '16px',
-                        right: '16px',
-                        background: 'rgba(15, 23, 42, 0.88)',
-                        backdropFilter: 'blur(8px)',
-                        border: '1px solid var(--accent-teal)',
-                        padding: '10px 14px',
-                        borderRadius: 'var(--radius-sm)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '10px',
-                        color: '#ffffff',
-                        boxShadow: '0 4px 14px rgba(0,0,0,0.5)',
-                        animation: 'fadeIn 0.2s ease',
+                        position: 'relative',
+                        width: '100%',
+                        aspectRatio: '16/9',
+                        background: '#000000',
+                        borderRadius: 'var(--radius-md)',
+                        overflow: 'hidden',
+                        border: '1px solid var(--border-medium)',
+                        boxShadow: 'var(--shadow-md)',
                       }}
                     >
-                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent-teal)' }} />
-                      <div>
-                        <div style={{ fontSize: '12px', fontWeight: 700 }}>{selectedGroup.title}</div>
-                        <div style={{ fontSize: '11px', color: 'var(--accent-teal-light)' }}>
-                          ${selectedGroup.products?.[0]?.price?.toFixed(2) || '0.00'} • 1-Click Buy Active
+                      <video
+                        ref={videoElementRef}
+                        src={project.masterVodUrl}
+                        style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                        onTimeUpdate={handleTimeUpdate}
+                        onPlay={() => setIsPlaying(true)}
+                        onPause={() => setIsPlaying(false)}
+                        controls={false}
+                      />
+
+                      {/* Active Pin Overlay Indicator */}
+                      {selectedGroup && Math.abs(currentTime - selectedGroup.timestampSeconds) < 4.0 && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: '16px',
+                            right: '16px',
+                            background: 'rgba(15, 23, 42, 0.88)',
+                            backdropFilter: 'blur(8px)',
+                            border: '1px solid var(--accent-teal)',
+                            padding: '10px 14px',
+                            borderRadius: 'var(--radius-sm)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '10px',
+                            color: '#ffffff',
+                            boxShadow: '0 4px 14px rgba(0,0,0,0.5)',
+                            animation: 'fadeIn 0.2s ease',
+                          }}
+                        >
+                          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent-teal)' }} />
+                          <div>
+                            <div style={{ fontSize: '12px', fontWeight: 700 }}>{selectedGroup.title}</div>
+                            <div style={{ fontSize: '11px', color: 'var(--accent-teal-light)' }}>
+                              ${selectedGroup.products?.[0]?.price?.toFixed(2) || '0.00'} • 1-Click Buy Active
+                            </div>
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
                   )}
+
+                  {/* Timeline Scrubber */}
+                  <TimelineScrubber
+                    currentTime={currentTime}
+                    duration={duration}
+                    isPlaying={isPlaying}
+                    onPlayPause={handlePlayPause}
+                    onSeek={handleSeek}
+                    productGroups={project.productGroups}
+                    selectedGroupId={selectedGroupId}
+                    onSelectGroup={(id) => setSelectedGroupId(id)}
+                    onAddPinAtCurrentTime={handleAddPinAtCurrentTime}
+                  />
+
+                  {/* AI Autopilot Scanner */}
+                  <AiAutopilotPanel
+                    videoUrl={project.masterVodUrl}
+                    onAdoptDetection={handleAdoptAiDetection}
+                    onAdoptAllDetections={handleAdoptAllAiDetections}
+                  />
                 </div>
-              )}
 
-              {/* Timeline Scrubber */}
-              <TimelineScrubber
-                currentTime={currentTime}
-                duration={duration}
-                isPlaying={isPlaying}
-                onPlayPause={handlePlayPause}
-                onSeek={handleSeek}
-                productGroups={project.productGroups}
-                selectedGroupId={selectedGroupId}
-                onSelectGroup={(id) => setSelectedGroupId(id)}
-                onAddPinAtCurrentTime={handleAddPinAtCurrentTime}
+                {/* Right Column: Product Group & Basket Configuration */}
+                <div>
+                  <ProductBasketEditor
+                    selectedGroup={selectedGroup}
+                    onUpdateGroup={handleUpdateGroup}
+                    onDeleteGroup={handleDeleteGroup}
+                    currentTime={currentTime}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* LIVESTREAM BROADCAST HUB TAB */}
+            {activeTab === 'live' && (
+              <LivestreamHub
+                onEnterOnAirStudio={(session) => setActiveLiveSession(session)}
+                availableProductGroups={project.productGroups}
               />
+            )}
 
-              {/* AI Autopilot Scanner */}
-              <AiAutopilotPanel
-                videoUrl={project.masterVodUrl}
-                onAdoptDetection={handleAdoptAiDetection}
-                onAdoptAllDetections={handleAdoptAllAiDetections}
+            {/* ENTERPRISE AD CAMPAIGNS TAB */}
+            {activeTab === 'campaigns' && (
+              <CampaignList
+                campaigns={campaigns}
+                projects={projects}
+                onCampaignCreated={(newCamp) => {
+                  setCampaigns([newCamp, ...campaigns]);
+                }}
               />
-            </div>
+            )}
 
-            {/* Right Column: Product Group & Basket Configuration */}
-            <div>
-              <ProductBasketEditor
-                selectedGroup={selectedGroup}
-                onUpdateGroup={handleUpdateGroup}
-                onDeleteGroup={handleDeleteGroup}
-                currentTime={currentTime}
-              />
-            </div>
-          </div>
-        )}
+            {/* AI VIRAL SHORTS (9:16) TAB */}
+            {activeTab === 'clips' && <ClipStudio projectId={project.id} />}
 
-        {activeTab === 'clips' && <ClipStudio projectId={project.id} />}
+            {/* WATCH-TO-EARN QUIZZES TAB */}
+            {activeTab === 'quiz' && <QuizEditor />}
+          </main>
+        </>
+      )}
 
-        {activeTab === 'quiz' && <QuizEditor />}
-      </main>
-
-      {/* Deploy Modal */}
+      {/* Modals */}
       {isDeployOpen && <DeployModal project={project} onClose={() => setIsDeployOpen(false)} />}
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <StudioApp />
+    </AuthProvider>
   );
 }

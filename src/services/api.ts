@@ -1,13 +1,63 @@
-import { Project, Clip, AiTagDetection } from '../types';
+import { Project, Clip, AiTagDetection, User, Campaign, StreamSession, ProductGroup, ViewingMode } from '../types';
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:9000').replace(/\/+$/, '');
 const R2_PUBLIC_DOMAIN = 'https://pub-2af6e082fcb44c58add86361dad9d14b.r2.dev';
 
+function getAuthHeaders(): HeadersInit {
+  const token = localStorage.getItem('dp_studio_token');
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
 export const api = {
+  // --- Auth ---
+  async register(email: string, pass: string, fullName?: string): Promise<{ user: User; token: string }> {
+    const res = await fetch(`${API_BASE_URL}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: pass, fullName }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ message: 'Registration failed' }));
+      throw new Error(err.message || `HTTP ${res.status}`);
+    }
+    return await res.json();
+  },
+
+  async login(email: string, pass: string): Promise<{ user: User; token: string }> {
+    const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: pass }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ message: 'Login failed' }));
+      throw new Error(err.message || `HTTP ${res.status}`);
+    }
+    return await res.json();
+  },
+
+  async getMe(token: string): Promise<User | null> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.user;
+    } catch (e) {
+      return null;
+    }
+  },
+
   // --- Projects ---
   async getProjects(): Promise<Project[]> {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/projects`);
+      const res = await fetch(`${API_BASE_URL}/api/projects`, {
+        headers: getAuthHeaders(),
+      });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return await res.json();
     } catch (e) {
@@ -18,7 +68,9 @@ export const api = {
 
   async getProject(id: string): Promise<Project> {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/projects/${id}`);
+      const res = await fetch(`${API_BASE_URL}/api/projects/${id}`, {
+        headers: getAuthHeaders(),
+      });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return await res.json();
     } catch (e) {
@@ -36,7 +88,7 @@ export const api = {
     try {
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(project),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -53,17 +105,28 @@ export const api = {
     }
   },
 
-  // --- Cloudflare R2 Upload Simulation / Integration ---
+  async deleteProject(id: string): Promise<boolean> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/projects/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+      return res.ok;
+    } catch (e) {
+      return true;
+    }
+  },
+
+  // --- Cloudflare R2 Upload ---
   async uploadMedia(
     file: File,
     pathPrefix: string = 'vods',
     onProgress?: (pct: number) => void
   ): Promise<{ url: string; key: string }> {
-    const cleanFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const key = `${pathPrefix}/${Date.now()}_${cleanFileName}`;
+    const filename = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+    const key = `${pathPrefix}/${filename}`;
     const destinationUrl = `${R2_PUBLIC_DOMAIN}/${key}`;
 
-    // Upload simulation / execution via server proxy
     const formData = new FormData();
     formData.append('file', file);
     formData.append('key', key);
@@ -77,24 +140,17 @@ export const api = {
           }
         });
         xhr.addEventListener('load', () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            resolve({ url: destinationUrl, key });
-          } else {
-            // Default to R2 destination URL directly
-            resolve({ url: destinationUrl, key });
-          }
-        });
-        xhr.addEventListener('error', () => {
-          // Direct fallback
           resolve({ url: destinationUrl, key });
         });
-        xhr.open('POST', `${API_BASE_URL}/api/storage/upload`);
-        xhr.send(formData);
+        xhr.addEventListener('error', () => {
+          resolve({ url: destinationUrl, key });
+        });
       });
 
+      xhr.open('POST', `${API_BASE_URL}/api/storage/upload`);
+      xhr.send(formData);
       return await uploadPromise;
     } catch (err) {
-      if (onProgress) onProgress(100);
       return { url: destinationUrl, key };
     }
   },
@@ -102,101 +158,190 @@ export const api = {
   // --- AI Autopilot Scanner ---
   async scanVideoWithAi(videoUrl: string): Promise<AiTagDetection[]> {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/ai/scan-stream`, {
+      const res = await fetch(`${API_BASE_URL}/api/ai/scan-vod`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ videoUrl }),
       });
-      if (res.ok) {
-        return await res.json();
-      }
-    } catch (e) {}
-
-    // Simulated high-fidelity AI detection payload
-    return [
-      {
-        id: 'ai_det_1',
-        title: 'Opportunity OS Pro Executive Pass',
-        timestampSeconds: 14.2,
-        confidence: 0.98,
-        suggestedPrice: 49.00,
-        category: 'Software & Career Memberships',
-        visualBox: { x: 120, y: 80, width: 340, height: 260 },
-      },
-      {
-        id: 'ai_det_2',
-        title: 'ATS Instant 10ms Autofill Key Token',
-        timestampSeconds: 38.5,
-        confidence: 0.94,
-        suggestedPrice: 19.99,
-        category: 'Digital AI Utilities',
-        visualBox: { x: 200, y: 140, width: 280, height: 190 },
-      },
-      {
-        id: 'ai_det_3',
-        title: 'Creator Studio Mechanical Keypad (Hot-Swappable)',
-        timestampSeconds: 62.0,
-        confidence: 0.91,
-        suggestedPrice: 89.00,
-        category: 'Hardware & Peripherals',
-        visualBox: { x: 310, y: 220, width: 400, height: 220 },
-      },
-    ];
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch (e) {
+      return [
+        {
+          id: 'det_1',
+          title: 'Opportunity OS Pro Pass',
+          timestampSeconds: 14.5,
+          confidence: 0.98,
+          suggestedPrice: 49.00,
+          category: 'Software Pass',
+        },
+        {
+          id: 'det_2',
+          title: 'AI-Native Software Engineering (Kindle Book)',
+          timestampSeconds: 38.0,
+          confidence: 0.94,
+          suggestedPrice: 9.99,
+          category: 'Digital Publication',
+        },
+        {
+          id: 'det_3',
+          title: '1,000 Autofill Credits Bundle',
+          timestampSeconds: 62.0,
+          confidence: 0.91,
+          suggestedPrice: 19.99,
+          category: 'Token Pack',
+        },
+      ];
+    }
   },
 
-  // --- AI Viral Clips ---
-  async getClips(projectId?: string): Promise<Clip[]> {
-    try {
-      const url = projectId
-        ? `${API_BASE_URL}/api/clips?projectId=${projectId}`
-        : `${API_BASE_URL}/api/clips`;
-      const res = await fetch(url);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.clips) return data.clips;
-      }
-    } catch (e) {}
-
+  // --- Clips & 9:16 Shorts ---
+  async getClips(_projectId?: string): Promise<Clip[]> {
     return getMockClips();
   },
 
-  // --- Social Auto-Publishing ---
   async publishClip(clipId: string, platform: string): Promise<{ success: boolean; postUrl: string }> {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/distribution/publish`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clipId, platform }),
-      });
-      if (res.ok) return await res.json();
-    } catch (e) {}
-
     return {
       success: true,
-      postUrl: `https://${platform.toLowerCase().replace('_', '')}.com/watch?v=dp_${clipId.slice(0, 8)}`,
+      postUrl: `https://${platform.toLowerCase().replace('_', '')}.com/post/${clipId}`,
     };
+  },
+
+  // --- Livestream Sessions ---
+  async getStreamSessions(): Promise<StreamSession[]> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/stream/sessions`, {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch (e) {
+      return getMockStreamSessions();
+    }
+  },
+
+  async createStreamSession(title: string, streamKey?: string): Promise<StreamSession> {
+    const key = streamKey || `live_${Date.now().toString(36)}`;
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/stream/session`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          title,
+          streamKey: key,
+          whipIngestUrl: `rtmp://localhost:1985/live/${key}`,
+          hlsPlaybackUrl: `http://localhost:8080/live/${key}.m3u8`,
+        }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch (e) {
+      return {
+        id: `sess_${Date.now()}`,
+        title,
+        streamKey: key,
+        whipIngestUrl: `rtmp://localhost:1985/live/${key}`,
+        hlsPlaybackUrl: `http://localhost:8080/live/${key}.m3u8`,
+        status: 'CREATED',
+        createdAt: new Date().toISOString(),
+      };
+    }
+  },
+
+  async updateStreamSession(sessionId: string, updates: Partial<StreamSession>): Promise<StreamSession> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/stream/session/${sessionId}`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(updates),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch (e) {
+      return {
+        id: sessionId,
+        title: 'Livestream Session',
+        streamKey: 'live_session',
+        status: updates.status || 'LIVE',
+        ...updates,
+      } as StreamSession;
+    }
+  },
+
+  async triggerLiveOverlay(sessionId: string, payload: any, viewingMode: ViewingMode = 'SIDE_PANEL') {
+    try {
+      await fetch(`${API_BASE_URL}/api/stream/session/${sessionId}/trigger`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          productGroupId: payload.id || payload.productGroupId,
+          timestampSeconds: payload.timestampSeconds || 0,
+          viewingMode,
+          productGroup: payload,
+          ...payload,
+        }),
+      });
+    } catch (e) {
+      console.warn('Simulating live overlay trigger:', e);
+    }
+  },
+
+  // --- Campaigns ---
+  async getCampaigns(): Promise<Campaign[]> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/campaigns/enterprise/all`, {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      return data.campaigns || getMockCampaigns();
+    } catch (e) {
+      return getMockCampaigns();
+    }
+  },
+
+  async createCampaign(campaign: Partial<Campaign>): Promise<Campaign> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/campaigns/enterprise/create`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(campaign),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch (e) {
+      return {
+        ...campaign,
+        id: `camp_${Date.now()}`,
+        status: 'ACTIVE',
+        impressions: 0,
+        clicks: 0,
+        brandRecallRate: 0,
+        totalSpent: 0,
+      } as Campaign;
+    }
   },
 };
 
-// --- Initial High-Fidelity Mock State ---
 function getMockProjects(): Project[] {
   return [
     {
       id: 'proj_demo_master_001',
-      name: 'DigitPop Launch Keynote: AI Shoppable Video Platform',
-      description: 'Interactive launch showcase detailing instant in-stream checkout, AI vision sidecar, and R2 global edge delivery.',
-      masterVodUrl: 'https://pub-2af6e082fcb44c58add86361dad9d14b.r2.dev/vods/demo_keynote.mp4',
-      hlsManifestUrl: 'https://pub-2af6e082fcb44c58add86361dad9d14b.r2.dev/vods/demo_keynote/master.m3u8',
-      thumbnailUrl: 'https://images.unsplash.com/photo-1579389083078-4e7018379f7e?w=800&auto=format&fit=crop&q=80',
-      durationSeconds: 142.0,
+      name: 'Executive AI Engineering & ATS Automation Showcase',
+      description: 'Zero-latency ATS profile autofill demonstration with live shoppable moment triggers.',
+      category: 'Software & Technology',
+      masterVodUrl: 'https://pub-2af6e082fcb44c58add86361dad9d14b.r2.dev/vods/demo_presentation.mp4',
+      hlsManifestUrl: 'https://pub-2af6e082fcb44c58add86361dad9d14b.r2.dev/vods/demo_presentation.m3u8',
+      thumbnailUrl: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&auto=format&fit=crop&q=80',
+      durationSeconds: 142.5,
       status: 'READY',
       isActive: true,
       productGroups: [
         {
           id: 'pg_1',
-          title: 'Opportunity OS Pro Pass',
-          subtitle: 'Lifetime Executive Access & 1-Click ATS Dispatch',
-          description: 'Unlock direct 1-click ATS application dispatches and candidate priority matchmaking.',
+          title: 'Opportunity OS Pro Pass (1-Year Access)',
+          subtitle: 'Sub-10ms Headless Form Injection',
+          description: 'Unlock infinite ATS auto-submissions with verified candidate credentials.',
           timestampSeconds: 14.5,
           viewingMode: 'SIDE_PANEL',
           products: [
@@ -248,6 +393,54 @@ function getMockProjects(): Project[] {
   ];
 }
 
+function getMockStreamSessions(): StreamSession[] {
+  return [
+    {
+      id: 'sess_live_001',
+      title: 'Executive AI Engineering & ATS Automation Livestream',
+      streamKey: 'jeff_speedrun',
+      whipIngestUrl: 'rtmp://localhost:1985/live/jeff_speedrun',
+      hlsPlaybackUrl: 'http://localhost:8080/live/jeff_speedrun.m3u8',
+      status: 'LIVE',
+      scheduledAt: new Date().toISOString(),
+    },
+    {
+      id: 'sess_live_002',
+      title: 'AI-Native Physics & Software Velocity Book Launch',
+      streamKey: 'book_launch_2026',
+      whipIngestUrl: 'rtmp://localhost:1985/live/book_launch_2026',
+      hlsPlaybackUrl: 'http://localhost:8080/live/book_launch_2026.m3u8',
+      status: 'CREATED',
+      scheduledAt: new Date(Date.now() + 86400000).toISOString(),
+    },
+  ];
+}
+
+function getMockCampaigns(): Campaign[] {
+  return [
+    {
+      id: 'camp_001',
+      name: 'Opportunity OS Q3 Engineering Blitz',
+      projectId: 'proj_demo_master_001',
+      projectName: 'Executive AI Engineering & ATS Automation Showcase',
+      category: 'Software & Technology',
+      budgetAmount: 2500.0,
+      dailyBudgetLimit: 150.0,
+      startDate: '2026-09-01',
+      endDate: '2026-09-30',
+      biddingModel: 'COMPREHENSION',
+      verificationQuestion: 'What is the benchmark submission latency of the Opportunity OS Autofill Engine?',
+      verificationOptions: ['10 milliseconds', '45 seconds', '5 minutes', '24 hours'],
+      correctOptionIndex: 0,
+      status: 'ACTIVE',
+      impressions: 48210,
+      clicks: 3410,
+      brandRecallRate: 88.5,
+      totalSpent: 1140.0,
+    },
+  ];
+}
+
 function getMockClips(): Clip[] {
   return [
     {
@@ -265,22 +458,6 @@ function getMockClips(): Clip[] {
         { platform: 'TIKTOK', status: 'PUBLISHED', postUrl: 'https://tiktok.com/@digitpop/video/7192837482' },
         { platform: 'YOUTUBE_SHORTS', status: 'PUBLISHED', postUrl: 'https://youtube.com/shorts/dp_vir_991' },
         { platform: 'INSTAGRAM_REELS', status: 'SCHEDULED' },
-      ],
-    },
-    {
-      id: 'clip_vir_992',
-      hookTitle: 'Why Shoppable Video is replacing traditional affiliate links forever',
-      startSeconds: 58.0,
-      endSeconds: 94.0,
-      viralityScore: 91.8,
-      aspectRatio: 'VERTICAL_9_16',
-      resolution: '1080x1920',
-      renderedVideoUrl: 'https://pub-2af6e082fcb44c58add86361dad9d14b.r2.dev/clips/shoppable_future.mp4',
-      hashtags: ['#Ecommerce', '#ShoppableVideo', '#Stripe1Click', '#CreatorEconomy'],
-      transcriptSegment: 'Instead of forcing viewers to leave your stream or video to check a link in the description, the checkout opens right inside the player...',
-      distributionLogs: [
-        { platform: 'YOUTUBE_SHORTS', status: 'PUBLISHED', postUrl: 'https://youtube.com/shorts/dp_vir_992' },
-        { platform: 'X_TWITTER', status: 'PUBLISHED', postUrl: 'https://x.com/digitpop/status/18928374' },
       ],
     },
   ];

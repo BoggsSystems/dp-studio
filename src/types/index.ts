@@ -2,6 +2,15 @@
 
 export type ViewingMode = 'SIDE_PANEL' | 'TAP_TO_REVEAL' | 'PAUSE_INSPECT';
 
+export interface User {
+  id: string;
+  email: string;
+  fullName?: string | null;
+  role: 'ADMIN' | 'PUBLISHER' | 'VIEWER';
+  earnedCredits?: number;
+  createdAt?: string;
+}
+
 export interface ProductVariant {
   id?: string;
   name: string; // e.g. "Size", "Color"
@@ -55,6 +64,7 @@ export interface Project {
   id: string;
   name: string;
   description?: string;
+  category?: string;
   masterVodUrl?: string;
   hlsManifestUrl?: string;
   thumbnailUrl?: string;
@@ -64,6 +74,41 @@ export interface Project {
   productGroups: ProductGroup[];
   baskets?: ProductBasket[];
   createdAt?: string;
+}
+
+export interface StreamSession {
+  id: string;
+  title: string;
+  streamKey: string;
+  whipIngestUrl?: string;
+  hlsPlaybackUrl?: string;
+  status: 'CREATED' | 'LIVE' | 'ENDED' | 'ERROR';
+  scheduledAt?: string;
+  startedAt?: string;
+  endedAt?: string;
+  productGroups?: ProductGroup[];
+  createdAt?: string;
+}
+
+export interface Campaign {
+  id: string;
+  name: string;
+  projectId?: string;
+  projectName?: string;
+  category: string;
+  budgetAmount: number;
+  dailyBudgetLimit?: number;
+  startDate: string;
+  endDate: string;
+  biddingModel: 'CPM' | 'CPC' | 'COMPREHENSION';
+  verificationQuestion: string;
+  verificationOptions: string[];
+  correctOptionIndex: number;
+  status: 'DRAFT' | 'ACTIVE' | 'COMPLETED' | 'PAUSED';
+  impressions?: number;
+  clicks?: number;
+  brandRecallRate?: number;
+  totalSpent?: number;
 }
 
 export interface Clip {
