@@ -100,10 +100,12 @@ export default function ProductPickerModal({
   const handleQuickCreateAndAttach = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!quickTitle.trim()) return;
+    const img = quickImageUrl.trim() || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&auto=format&fit=crop&q=80';
     const created = await api.createProduct({
       title: quickTitle.trim(),
       price: parseFloat(quickPrice) || 0,
-      imageUrl: quickImageUrl.trim() || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&auto=format&fit=crop&q=80',
+      imageUrl: img,
+      imageUrls: [img],
       externalUrl: quickExternalUrl.trim(),
       currency: 'USD',
       source: 'CUSTOM',
@@ -279,7 +281,7 @@ export default function ProductPickerModal({
 
                       {/* Image */}
                       <img
-                        src={product.imageUrl}
+                        src={product.imageUrl || product.imageUrls?.[0]}
                         alt={product.title}
                         style={{ width: '42px', height: '42px', borderRadius: '4px', objectFit: 'cover' }}
                       />

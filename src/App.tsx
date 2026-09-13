@@ -163,6 +163,7 @@ function StudioApp() {
           price: det.suggestedPrice,
           currency: 'USD',
           imageUrl: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&auto=format&fit=crop&q=80',
+          imageUrls: ['https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&auto=format&fit=crop&q=80'],
           stripePriceId: '',
         },
       ],

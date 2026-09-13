@@ -7,10 +7,13 @@ import {
   ShoppingBag,
   ExternalLink,
   Store,
-  Sparkles
+  Sparkles,
+  Layers,
+  Edit3
 } from 'lucide-react';
 import { ProductGroup, Product, ViewingMode } from '../types';
 import ProductPickerModal from './ProductPickerModal';
+import CreateProductModal from './CreateProductModal';
 
 interface ProductBasketEditorProps {
   selectedGroup: ProductGroup | null;
@@ -30,6 +33,7 @@ export default function ProductBasketEditor({
   onCatalogUpdated,
 }: ProductBasketEditorProps) {
   const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [editingProductIdx, setEditingProductIdx] = useState<number | null>(null);
   if (!selectedGroup) {
     return (
       <div
@@ -74,12 +78,14 @@ export default function ProductBasketEditor({
   };
 
   const handleAddProduct = () => {
+    const defaultImg = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&auto=format&fit=crop&q=80';
     const newProduct: Product = {
       id: `prod_${Date.now()}`,
       title: 'New Featured Product',
       price: 29.99,
       currency: 'USD',
-      imageUrl: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&auto=format&fit=crop&q=80',
+      imageUrl: defaultImg,
+      imageUrls: [defaultImg],
       stripePriceId: '',
       description: '',
     };
@@ -91,8 +97,30 @@ export default function ProductBasketEditor({
 
   const handleUpdateProduct = (index: number, field: keyof Product, value: any) => {
     const updatedProducts = [...selectedGroup.products];
-    updatedProducts[index] = { ...updatedProducts[index], [field]: value };
+    const current = { ...updatedProducts[index], [field]: value };
+    if (field === 'imageUrl') {
+      const currentGallery = current.imageUrls && current.imageUrls.length > 0 ? [...current.imageUrls] : [];
+      if (currentGallery.length > 0) {
+        currentGallery[0] = value;
+      } else {
+        currentGallery.push(value);
+      }
+      current.imageUrls = currentGallery;
+    }
+    updatedProducts[index] = current;
     onUpdateGroup({ ...selectedGroup, products: updatedProducts });
+  };
+
+  const handleProductSavedFromModal = (saved: Product) => {
+    if (editingProductIdx !== null) {
+      const updatedProducts = [...selectedGroup.products];
+      updatedProducts[editingProductIdx] = saved;
+      onUpdateGroup({ ...selectedGroup, products: updatedProducts });
+      if (catalogProducts.some((p) => p.id === saved.id)) {
+        onCatalogUpdated(catalogProducts.map((p) => (p.id === saved.id ? saved : p)));
+      }
+      setEditingProductIdx(null);
+    }
   };
 
   const handleDeleteProduct = (index: number) => {
@@ -217,9 +245,10 @@ export default function ProductBasketEditor({
             }}
           >
             <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-              {/* Product Thumbnail Preview */}
+              {/* Product Thumbnail Preview with Multi-Image Indicator */}
               <div
                 style={{
+                  position: 'relative',
                   width: '64px',
                   height: '64px',
                   borderRadius: 'var(--radius-sm)',
@@ -227,13 +256,44 @@ export default function ProductBasketEditor({
                   overflow: 'hidden',
                   flexShrink: 0,
                   border: '1px solid var(--border-subtle)',
+                  cursor: 'pointer',
                 }}
+                onClick={() => setEditingProductIdx(idx)}
+                title="Click to edit gallery and photos in Product Studio"
               >
-                {product.imageUrl ? (
-                  <img src={product.imageUrl} alt={product.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                {(product.imageUrl || product.imageUrls?.[0]) ? (
+                  <img
+                    src={product.imageUrl || product.imageUrls?.[0]}
+                    alt={product.title}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
                 ) : (
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)' }}>
                     <ShoppingBag size={20} />
+                  </div>
+                )}
+
+                {product.imageUrls && product.imageUrls.length > 1 && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      bottom: '2px',
+                      right: '2px',
+                      background: 'rgba(15, 23, 42, 0.85)',
+                      backdropFilter: 'blur(4px)',
+                      color: 'var(--accent-teal)',
+                      fontSize: '9px',
+                      fontWeight: 700,
+                      padding: '1px 4px',
+                      borderRadius: '3px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '2px',
+                      border: '1px solid rgba(20, 184, 166, 0.3)',
+                    }}
+                  >
+                    <Layers size={8} />
+                    <span>{product.imageUrls.length}</span>
                   </div>
                 )}
               </div>
@@ -287,15 +347,25 @@ export default function ProductBasketEditor({
                 </div>
               </div>
 
-              {/* Delete Product */}
-              <button
-                className="btn btn-ghost"
-                style={{ padding: '4px', color: 'var(--text-muted)' }}
-                onClick={() => handleDeleteProduct(idx)}
-                title="Remove Product"
-              >
-                <Trash2 size={14} />
-              </button>
+              {/* Actions */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <button
+                  className="btn btn-ghost"
+                  style={{ padding: '4px', color: 'var(--accent-teal)' }}
+                  onClick={() => setEditingProductIdx(idx)}
+                  title="Edit Product & Multi-Image Gallery in Studio"
+                >
+                  <Edit3 size={14} />
+                </button>
+                <button
+                  className="btn btn-ghost"
+                  style={{ padding: '4px', color: 'var(--text-muted)' }}
+                  onClick={() => handleDeleteProduct(idx)}
+                  title="Remove Product"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
             </div>
           </div>
         ))}
@@ -312,6 +382,16 @@ export default function ProductBasketEditor({
         }}
         onCatalogUpdated={onCatalogUpdated}
       />
+
+      {/* Product Studio Creator / Multi-Photo Gallery Modal */}
+      {editingProductIdx !== null && selectedGroup.products[editingProductIdx] && (
+        <CreateProductModal
+          isOpen={true}
+          initialValues={selectedGroup.products[editingProductIdx]}
+          onClose={() => setEditingProductIdx(null)}
+          onProductCreated={handleProductSavedFromModal}
+        />
+      )}
     </div>
   );
 }

@@ -11,7 +11,8 @@ import {
   Check, 
   Sparkles,
   Store,
-  Layers
+  Layers,
+  Edit3
 } from 'lucide-react';
 import { Product } from '../types';
 import { api } from '../services/api';
@@ -31,6 +32,7 @@ export default function ProductCatalog({
   const [isUrlModalOpen, setIsUrlModalOpen] = useState(false);
   const [isShopifyModalOpen, setIsShopifyModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   
   // URL Resolver State
   const [urlInput, setUrlInput] = useState('');
@@ -158,7 +160,10 @@ export default function ProductCatalog({
 
           <button 
             className="btn btn-primary" 
-            onClick={() => setIsCreateModalOpen(true)}
+            onClick={() => {
+              setEditingProduct(null);
+              setIsCreateModalOpen(true);
+            }}
             style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
           >
             <Plus size={15} />
@@ -304,14 +309,28 @@ export default function ProductCatalog({
                   <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Direct Checkout</span>
                 )}
 
-                <button
-                  className="icon-btn"
-                  onClick={() => handleDelete(product.id)}
-                  title="Remove from catalog"
-                  style={{ color: 'var(--accent-red)', width: '28px', height: '28px' }}
-                >
-                  <Trash2 size={13} />
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <button
+                    className="icon-btn"
+                    onClick={() => {
+                      setEditingProduct(product);
+                      setIsCreateModalOpen(true);
+                    }}
+                    title="Edit product & gallery"
+                    style={{ color: 'var(--accent-teal)', width: '28px', height: '28px' }}
+                  >
+                    <Edit3 size={13} />
+                  </button>
+
+                  <button
+                    className="icon-btn"
+                    onClick={() => handleDelete(product.id)}
+                    title="Remove from catalog"
+                    style={{ color: 'var(--accent-red)', width: '28px', height: '28px' }}
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
               </div>
             </div>
           ))}
@@ -435,12 +454,21 @@ export default function ProductCatalog({
         </div>
       )}
 
-      {/* High-Polish Reusable Modal: Custom Product Create */}
+      {/* High-Polish Reusable Modal: Custom Product Create / Edit */}
       <CreateProductModal
         isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        onProductCreated={(created) => {
-          onProductsUpdated([created, ...products]);
+        initialValues={editingProduct || undefined}
+        onClose={() => {
+          setIsCreateModalOpen(false);
+          setEditingProduct(null);
+        }}
+        onProductCreated={(saved) => {
+          if (editingProduct) {
+            onProductsUpdated(products.map((p) => (p.id === saved.id ? saved : p)));
+          } else {
+            onProductsUpdated([saved, ...products]);
+          }
+          setEditingProduct(null);
         }}
       />
     </div>

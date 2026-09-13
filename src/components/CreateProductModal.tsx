@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   ShoppingBag, 
   Upload, 
@@ -124,8 +124,6 @@ export default function CreateProductModal({
   onProductCreated,
   initialValues,
 }: CreateProductModalProps) {
-  if (!isOpen) return null;
-
   // Form State
   const [title, setTitle] = useState(initialValues?.title || '');
   const [price, setPrice] = useState(initialValues?.price ? String(initialValues.price) : '29.99');
@@ -158,6 +156,30 @@ export default function CreateProductModal({
   // Preview Mode
   const [previewTab, setPreviewTab] = useState<'drawer' | 'inspect' | 'catalog'>('drawer');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Sync state whenever modal opens or initialValues change
+  useEffect(() => {
+    if (isOpen) {
+      setTitle(initialValues?.title || '');
+      setPrice(initialValues?.price ? String(initialValues.price) : '29.99');
+      setSource(initialValues?.source || 'CUSTOM');
+      setVendor(initialValues?.vendor || 'In-House');
+      setDescription(initialValues?.description || '');
+      setExternalUrl(initialValues?.externalUrl || '');
+      setStripePriceId(initialValues?.stripePriceId || '');
+      setInventoryCount(initialValues?.inventoryCount ?? 100);
+      if (initialValues?.imageUrls && initialValues.imageUrls.length > 0) {
+        setImageUrls(initialValues.imageUrls);
+      } else if (initialValues?.imageUrl) {
+        setImageUrls([initialValues.imageUrl]);
+      } else {
+        setImageUrls(SAMPLE_PRESETS[0].imageUrls);
+      }
+      setActivePreviewIdx(0);
+    }
+  }, [isOpen, initialValues]);
+
+  if (!isOpen) return null;
 
   // Handle multi-file select or drag-drop
   const handleFilesSelect = async (files: FileList | File[]) => {
@@ -265,6 +287,8 @@ export default function CreateProductModal({
     setExternalUrl(preset.externalUrl);
   };
 
+  const isEditMode = Boolean(initialValues?.id);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
@@ -273,22 +297,39 @@ export default function CreateProductModal({
     }
 
     const primaryImg = imageUrls[0] || SAMPLE_PRESETS[0].imageUrl;
+    let resultProd: Product;
 
-    const newProd = await api.createProduct({
-      title: title.trim(),
-      price: parseFloat(price) || 0,
-      currency: 'USD',
-      imageUrl: primaryImg,
-      imageUrls: imageUrls.length > 0 ? imageUrls : [primaryImg],
-      source,
-      vendor: vendor.trim() || (source === 'CUSTOM' ? 'In-House' : source),
-      description: description.trim(),
-      externalUrl: externalUrl.trim(),
-      stripePriceId: source === 'STRIPE' ? stripePriceId.trim() : undefined,
-      inventoryCount,
-    });
+    if (initialValues?.id) {
+      resultProd = await api.updateProduct(initialValues.id, {
+        title: title.trim(),
+        price: parseFloat(price) || 0,
+        currency: 'USD',
+        imageUrl: primaryImg,
+        imageUrls: imageUrls.length > 0 ? imageUrls : [primaryImg],
+        source,
+        vendor: vendor.trim() || (source === 'CUSTOM' ? 'In-House' : source),
+        description: description.trim(),
+        externalUrl: externalUrl.trim(),
+        stripePriceId: source === 'STRIPE' ? stripePriceId.trim() : undefined,
+        inventoryCount,
+      });
+    } else {
+      resultProd = await api.createProduct({
+        title: title.trim(),
+        price: parseFloat(price) || 0,
+        currency: 'USD',
+        imageUrl: primaryImg,
+        imageUrls: imageUrls.length > 0 ? imageUrls : [primaryImg],
+        source,
+        vendor: vendor.trim() || (source === 'CUSTOM' ? 'In-House' : source),
+        description: description.trim(),
+        externalUrl: externalUrl.trim(),
+        stripePriceId: source === 'STRIPE' ? stripePriceId.trim() : undefined,
+        inventoryCount,
+      });
+    }
 
-    onProductCreated(newProd);
+    onProductCreated(resultProd);
     onClose();
   };
 
@@ -346,10 +387,10 @@ export default function CreateProductModal({
             </div>
             <div>
               <h3 style={{ fontSize: '17px', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
-                Create Shoppable Product
+                {isEditMode ? 'Edit Shoppable Product' : 'Create Shoppable Product'}
               </h3>
               <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
-                Add an item to your central catalog with multi-photo gallery and live video drawer preview
+                {isEditMode ? 'Update multi-photo gallery, pricing, and live interactive video preview' : 'Add an item to your central catalog with multi-photo gallery and live video drawer preview'}
               </p>
             </div>
           </div>
@@ -1151,7 +1192,7 @@ export default function CreateProductModal({
                 style={{ display: 'flex', alignItems: 'center', gap: '6px', opacity: (title.trim() && !isUploading) ? 1 : 0.5 }}
               >
                 <Check size={14} />
-                <span>Save to Catalog</span>
+                <span>{isEditMode ? 'Save Changes' : 'Save to Catalog'}</span>
               </button>
             </div>
           </div>
