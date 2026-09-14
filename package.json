@@ -8,7 +8,7 @@
     "build": "tsc && vite build",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
-    "start": "vite preview --host"
+    "start": "serve -s dist -l $PORT"
   },
   "dependencies": {
     "lucide-react": "^0.344.0",
@@ -19,6 +19,7 @@
     "@types/react": "^18.2.66",
     "@types/react-dom": "^18.2.22",
     "@vitejs/plugin-react": "^4.2.1",
+    "serve": "^14.2.6",
     "typescript": "^5.8.2",
     "vite": "^5.1.6"
   }
