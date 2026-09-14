@@ -16,4 +16,10 @@ export default defineConfig({
       },
     },
   },
+  preview: {
+    port: 4205,
+    host: true,
+    // @ts-expect-error vite 5/6 allowedHosts support
+    allowedHosts: true,
+  },
 });

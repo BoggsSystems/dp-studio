@@ -11,7 +11,8 @@ export default function DeployModal({ project, onClose }: DeployModalProps) {
   const [activeTab, setActiveTab] = useState<'iframe' | 'react' | 'qr'>('iframe');
   const [copiedType, setCopiedType] = useState<string | null>(null);
 
-  const playerUrl = `http://localhost:4201/ad/${project.id}`;
+  const playerBase = (import.meta.env.VITE_PLAYER_URL || 'http://localhost:4201').replace(/\/+$/, '');
+  const playerUrl = `${playerBase}/ad/${project.id}`;
   const iframeSnippet = `<iframe\n  width="100%"\n  height="540"\n  src="${playerUrl}"\n  title="${project.name}"\n  frameborder="0"\n  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"\n  allowfullscreen\n></iframe>`;
   const reactSnippet = `import { DigitPopPlayer } from '@digitpop/player-react';\n\nexport default function ShoppableFeature() {\n  return (\n    <DigitPopPlayer\n      projectId="${project.id}"\n      mode="responsive"\n      onProductClick={(product) => console.log('1-Click checkout:', product)}\n    />\n  );\n}`;
 

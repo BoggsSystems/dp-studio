@@ -19,8 +19,8 @@ export default function ProjectList({
   const [isWizardOpen, setIsWizardOpen] = useState(false);
 
   const handleOpenPlayer = (project: Project) => {
-    // Open player in new window pointing to dp-player-react on port 4201 or embedded
-    window.open(`http://localhost:4201/?projectId=${project.id}`, '_blank');
+    const playerBase = (import.meta.env.VITE_PLAYER_URL || 'http://localhost:4201').replace(/\/+$/, '');
+    window.open(`${playerBase}/?projectId=${project.id}`, '_blank');
   };
 
   return (
