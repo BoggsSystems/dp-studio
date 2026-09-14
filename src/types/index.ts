@@ -18,6 +18,8 @@ export interface ProductVariant {
   priceAdjustment?: number; // e.g. +5.00
 }
 
+export type CheckoutType = 'NATIVE_STRIPE' | 'AMAZON' | 'SHOPIFY' | 'EXTERNAL_LINK';
+
 export interface Product {
   id: string;
   title: string;
@@ -34,6 +36,8 @@ export interface Product {
   inventoryCount?: number;
   handle?: string;
   shopifyId?: string;
+  checkoutType?: CheckoutType;
+  buttonTextOverride?: string;
 }
 
 export interface ProductGroup {

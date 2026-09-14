@@ -22,7 +22,7 @@ import {
   ChevronRight,
   Plus
 } from 'lucide-react';
-import { Product } from '../types';
+import { Product, CheckoutType } from '../types';
 import { api } from '../services/api';
 
 interface CreateProductModalProps {
@@ -130,6 +130,10 @@ export default function CreateProductModal({
   const [source, setSource] = useState<'CUSTOM' | 'SHOPIFY' | 'STRIPE' | 'AMAZON'>(
     initialValues?.source || 'CUSTOM'
   );
+  const [checkoutType, setCheckoutType] = useState<CheckoutType>(
+    initialValues?.checkoutType || (initialValues?.source === 'AMAZON' ? 'AMAZON' : initialValues?.source === 'SHOPIFY' ? 'SHOPIFY' : 'NATIVE_STRIPE')
+  );
+  const [buttonTextOverride, setButtonTextOverride] = useState<string>(initialValues?.buttonTextOverride || '');
   const [vendor, setVendor] = useState(initialValues?.vendor || 'In-House');
   const [description, setDescription] = useState(initialValues?.description || '');
   const [externalUrl, setExternalUrl] = useState(initialValues?.externalUrl || '');
@@ -163,6 +167,8 @@ export default function CreateProductModal({
       setTitle(initialValues?.title || '');
       setPrice(initialValues?.price ? String(initialValues.price) : '29.99');
       setSource(initialValues?.source || 'CUSTOM');
+      setCheckoutType(initialValues?.checkoutType || (initialValues?.source === 'AMAZON' ? 'AMAZON' : initialValues?.source === 'SHOPIFY' ? 'SHOPIFY' : 'NATIVE_STRIPE'));
+      setButtonTextOverride(initialValues?.buttonTextOverride || '');
       setVendor(initialValues?.vendor || 'In-House');
       setDescription(initialValues?.description || '');
       setExternalUrl(initialValues?.externalUrl || '');
@@ -198,15 +204,14 @@ export default function CreateProductModal({
         (file) =>
           new Promise<string>((resolve) => {
             const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
+            reader.onload = (e) => resolve(e.target?.result as string);
             reader.readAsDataURL(file);
           })
       )
     );
-
-    // Append previews immediately to state
     setImageUrls((prev) => [...prev, ...localPreviews]);
 
+    // Perform background R2 cloud upload
     try {
       let completed = 0;
       const uploadedUrls: string[] = [];
@@ -283,6 +288,9 @@ export default function CreateProductModal({
     setActivePreviewIdx(0);
     setVendor(preset.vendor);
     setSource(preset.source);
+    const cType: CheckoutType = preset.source === 'AMAZON' ? 'AMAZON' : preset.source === 'SHOPIFY' ? 'SHOPIFY' : preset.source === 'STRIPE' ? 'NATIVE_STRIPE' : 'EXTERNAL_LINK';
+    setCheckoutType(cType);
+    setButtonTextOverride('');
     setDescription(preset.description);
     setExternalUrl(preset.externalUrl);
   };
@@ -307,6 +315,8 @@ export default function CreateProductModal({
         imageUrl: primaryImg,
         imageUrls: imageUrls.length > 0 ? imageUrls : [primaryImg],
         source,
+        checkoutType,
+        buttonTextOverride: buttonTextOverride.trim() || undefined,
         vendor: vendor.trim() || (source === 'CUSTOM' ? 'In-House' : source),
         description: description.trim(),
         externalUrl: externalUrl.trim(),
@@ -321,6 +331,8 @@ export default function CreateProductModal({
         imageUrl: primaryImg,
         imageUrls: imageUrls.length > 0 ? imageUrls : [primaryImg],
         source,
+        checkoutType,
+        buttonTextOverride: buttonTextOverride.trim() || undefined,
         vendor: vendor.trim() || (source === 'CUSTOM' ? 'In-House' : source),
         description: description.trim(),
         externalUrl: externalUrl.trim(),
@@ -830,46 +842,121 @@ export default function CreateProductModal({
                 </div>
               </div>
 
-              {/* Checkout / External Link */}
-              <div>
-                <label className="form-label">
-                  Checkout / Destination Link
-                </label>
-                <div style={{ position: 'relative' }}>
-                  <ExternalLink size={14} color="var(--text-muted)" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
-                  <input
-                    type="url"
-                    className="form-input"
-                    style={{ paddingLeft: '32px' }}
-                    placeholder={
-                      source === 'SHOPIFY' 
-                        ? 'https://store.myshopify.com/cart/{variant_id}:1'
-                        : source === 'STRIPE'
-                        ? 'https://buy.stripe.com/...'
-                        : source === 'AMAZON'
-                        ? 'https://amazon.com/dp/...'
-                        : 'https://store.com/product/...'
-                    }
-                    value={externalUrl}
-                    onChange={(e) => setExternalUrl(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              {/* If Stripe, show Stripe Price ID */}
-              {source === 'STRIPE' && (
+              {/* Checkout Destination & Call-To-Action Settings */}
+              <div style={{ background: 'var(--bg-canvas)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <div>
-                  <label className="form-label">Stripe Price ID (Optional)</label>
+                  <label className="form-label" style={{ marginBottom: '6px' }}>
+                    Checkout Destination / Gateway
+                  </label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
+                    {[
+                      { type: 'NATIVE_STRIPE' as const, label: 'Stripe Direct', icon: CreditCard },
+                      { type: 'AMAZON' as const, label: 'Amazon', icon: Tag },
+                      { type: 'SHOPIFY' as const, label: 'Shopify', icon: Store },
+                      { type: 'EXTERNAL_LINK' as const, label: 'Web Store', icon: ExternalLink },
+                    ].map((dest) => {
+                      const Icon = dest.icon;
+                      const active = checkoutType === dest.type;
+                      return (
+                        <button
+                          key={dest.type}
+                          type="button"
+                          onClick={() => {
+                            setCheckoutType(dest.type);
+                            if (dest.type === 'AMAZON') setSource('AMAZON');
+                            else if (dest.type === 'SHOPIFY') setSource('SHOPIFY');
+                            else if (dest.type === 'NATIVE_STRIPE') setSource('STRIPE');
+                            else setSource('CUSTOM');
+                          }}
+                          style={{
+                            padding: '6px 4px',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            borderRadius: '4px',
+                            border: `1px solid ${active ? 'var(--accent-teal)' : 'var(--border-medium)'}`,
+                            background: active ? 'rgba(20, 184, 166, 0.15)' : 'var(--bg-surface)',
+                            color: active ? 'var(--accent-teal)' : 'var(--text-secondary)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '4px',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <Icon size={14} />
+                          <span>{dest.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* External / Checkout URL */}
+                <div>
+                  <label className="form-label" style={{ marginBottom: '4px' }}>
+                    {checkoutType === 'AMAZON' ? 'Amazon Affiliate / Product Link' : checkoutType === 'SHOPIFY' ? 'Shopify Cart / Store Link' : checkoutType === 'EXTERNAL_LINK' ? 'Store Website URL' : 'Optional Direct Link (Fallback)'}
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <ExternalLink size={14} color="var(--text-muted)" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
+                    <input
+                      type="url"
+                      className="form-input"
+                      style={{ paddingLeft: '32px' }}
+                      placeholder={
+                        checkoutType === 'AMAZON'
+                          ? 'https://amazon.com/dp/B08...?tag=creator-20'
+                          : checkoutType === 'SHOPIFY'
+                          ? 'https://store.myshopify.com/cart/{variant_id}:1'
+                          : checkoutType === 'EXTERNAL_LINK'
+                          ? 'https://store.example.com/products/item'
+                          : 'https://buy.stripe.com/... (optional fallback)'
+                      }
+                      value={externalUrl}
+                      onChange={(e) => setExternalUrl(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Button Text Override */}
+                <div>
+                  <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <span>Button CTA Override (Optional)</span>
+                    <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                      Default: {checkoutType === 'AMAZON' ? 'BUY ON AMAZON' : checkoutType === 'SHOPIFY' ? 'BUY ON SHOPIFY' : checkoutType === 'EXTERNAL_LINK' ? 'VISIT STORE' : 'BUY NOW'}
+                    </span>
+                  </label>
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="price_1N..."
-                    style={{ fontFamily: 'var(--font-mono)', fontSize: '12px' }}
-                    value={stripePriceId}
-                    onChange={(e) => setStripePriceId(e.target.value)}
+                    placeholder={
+                      checkoutType === 'AMAZON'
+                        ? 'BUY ON AMAZON'
+                        : checkoutType === 'SHOPIFY'
+                        ? 'BUY ON SHOPIFY'
+                        : checkoutType === 'EXTERNAL_LINK'
+                        ? 'SHOP ON NIKE'
+                        : 'BUY NOW'
+                    }
+                    value={buttonTextOverride}
+                    onChange={(e) => setButtonTextOverride(e.target.value)}
                   />
                 </div>
-              )}
+
+                {/* If Stripe, show Stripe Price ID */}
+                {checkoutType === 'NATIVE_STRIPE' && (
+                  <div>
+                    <label className="form-label">Stripe Price ID (Optional)</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="price_1N..."
+                      style={{ fontFamily: 'var(--font-mono)', fontSize: '12px' }}
+                      value={stripePriceId}
+                      onChange={(e) => setStripePriceId(e.target.value)}
+                    />
+                  </div>
+                )}
+              </div>
 
               {/* Short Description */}
               <div>

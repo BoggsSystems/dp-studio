@@ -98,6 +98,8 @@ export const api = {
       stripePriceId: product.stripePriceId || '',
       externalUrl: product.externalUrl || '',
       source: product.source || 'CUSTOM',
+      checkoutType: product.checkoutType || (product.source === 'AMAZON' ? 'AMAZON' : product.source === 'SHOPIFY' ? 'SHOPIFY' : product.source === 'STRIPE' ? 'NATIVE_STRIPE' : 'NATIVE_STRIPE'),
+      buttonTextOverride: product.buttonTextOverride || '',
       vendor: product.vendor || 'In-House',
       inventoryCount: product.inventoryCount ?? 100,
       handle: product.handle,
