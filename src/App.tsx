@@ -13,11 +13,13 @@ import ProjectList from './components/ProjectList';
 import CampaignList from './components/CampaignList';
 import LivestreamHub from './components/live/LivestreamHub';
 import OnAirStudio from './components/live/OnAirStudio';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import AuthPortal from './components/AuthPortal';
 import { Project, ProductGroup, AiTagDetection, Campaign, StreamSession, Product } from './types';
 import { api } from './services/api';
 
 function StudioApp() {
+  const { user, isLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<StudioTab>('vod');
   const [projects, setProjects] = useState<Project[]>([]);
   const [project, setProject] = useState<Project | null>(null);
@@ -34,8 +36,14 @@ function StudioApp() {
 
   const videoElementRef = useRef<HTMLVideoElement>(null);
 
-  // Load initial data
+  // Load initial data only when authenticated
   useEffect(() => {
+    if (!user) {
+      setProjects([]);
+      setProject(null);
+      return;
+    }
+
     api.getProjects().then((projs) => {
       setProjects(projs);
       if (projs.length > 0) {
@@ -44,6 +52,16 @@ function StudioApp() {
         if (projs[0].productGroups?.length > 0) {
           setSelectedGroupId(projs[0].productGroups[0].id);
         }
+      } else {
+        const newP: Project = {
+          id: `proj_${Date.now()}`,
+          name: 'My First Shoppable Video',
+          status: 'PROCESSING',
+          isActive: true,
+          productGroups: [],
+        };
+        setProjects([newP]);
+        setProject(newP);
       }
     });
 
@@ -54,7 +72,8 @@ function StudioApp() {
     api.getProducts().then((prods) => {
       setCatalogProducts(prods);
     });
-  }, []);
+  }, [user]);
+
 
   // Sync video element time
   const handleTimeUpdate = () => {
@@ -211,6 +230,41 @@ function StudioApp() {
     setActiveTab('vod');
   };
 
+  if (isLoading) {
+    return (
+      <div
+        className="studio-root"
+        style={{
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '100vh',
+          background: 'var(--bg-primary)',
+        }}
+      >
+        <div style={{ textAlign: 'center' }}>
+          <div
+            style={{
+              width: '32px',
+              height: '32px',
+              border: '3px solid var(--border-medium)',
+              borderTopColor: 'var(--accent-teal)',
+              borderRadius: '50%',
+              animation: 'spin 0.8s linear infinite',
+              margin: '0 auto 16px',
+            }}
+          />
+          <div style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>
+            Verifying DigitPop Studio authentication...
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <AuthPortal />;
+  }
+
   if (!project) {
     return (
       <div className="studio-root" style={{ alignItems: 'center', justifyContent: 'center' }}>
@@ -218,6 +272,7 @@ function StudioApp() {
       </div>
     );
   }
+
 
   const selectedGroup = project.productGroups.find((g) => g.id === selectedGroupId) || null;
 

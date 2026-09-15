@@ -1,0 +1,10 @@
+node_modules
+node_modules/**
+dist
+dist/**
+.git
+.git/**
+public/videos
+public/videos/**
+*.mp4
+*.mov

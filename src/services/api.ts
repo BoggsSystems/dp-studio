@@ -241,27 +241,27 @@ export const api = {
       const res = await fetch(`${API_BASE_URL}/api/projects`, {
         headers: getAuthHeaders(),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        if (res.status === 401) {
+          return [];
+        }
+        throw new Error(`HTTP ${res.status}`);
+      }
       return await res.json();
     } catch (e) {
-      console.warn('Falling back to local cache or seed projects');
-      return getMockProjects();
+      console.warn('Projects fetch failed:', e);
+      return [];
     }
   },
 
   async getProject(id: string): Promise<Project> {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/projects/${id}`, {
-        headers: getAuthHeaders(),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return await res.json();
-    } catch (e) {
-      const mock = getMockProjects().find(p => p.id === id);
-      if (mock) return mock;
-      throw e;
-    }
+    const res = await fetch(`${API_BASE_URL}/api/projects/${id}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
   },
+
 
   async saveProject(project: Partial<Project>): Promise<Project> {
     const isNew = !project.id || project.id.startsWith('temp_');
