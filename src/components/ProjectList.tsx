@@ -43,8 +43,9 @@ export default function ProjectList({
               <span>Shoppable Video Projects</span>
             </div>
             <div className="panel-desc">
-              Create and manage interactive video catalogs with sub-second hotspot beacons, multi-product drawers, and AI tagging.
+              Create and manage interactive video catalogs with interactive product pins, multi-product drawers, and AI tagging.
             </div>
+
           </div>
 
           <button
@@ -67,8 +68,9 @@ export default function ProjectList({
           }}
         >
           {projects.map((proj) => {
-            const hotspotCount = proj.productGroups?.length || 0;
+            const pinCount = proj.productGroups?.length || 0;
             const basketCount = proj.baskets?.length || 0;
+
             const thumbSrc = getResolvedThumbnailUrl(proj.thumbnailUrl);
 
             return (
@@ -139,23 +141,8 @@ export default function ProjectList({
                   >
                     {proj.category || 'General'}
                   </div>
-
-                  <div
-                    style={{
-                      position: 'absolute',
-                      bottom: '10px',
-                      right: '10px',
-                      background: 'rgba(0, 0, 0, 0.8)',
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      fontSize: '11px',
-                      fontFamily: 'var(--font-mono)',
-                      color: '#fff',
-                    }}
-                  >
-                    {hotspotCount} Hotspots
-                  </div>
                 </div>
+
 
                 {/* Card Content */}
                 <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', flex: 1 }}>
@@ -203,8 +190,9 @@ export default function ProjectList({
                       }}
                     >
                       <Layers size={12} color="var(--accent-teal)" />
-                      <span>{hotspotCount} Beacons</span>
+                      <span>{pinCount} Pins</span>
                     </div>
+
 
                     <div
                       style={{
@@ -265,8 +253,9 @@ export default function ProjectList({
                       onClick={() => onSelectProject(proj)}
                     >
                       <Edit3 size={12} />
-                      <span>Edit Hotspots</span>
+                      <span>Edit Project</span>
                     </button>
+
                   </div>
                 </div>
               </div>
