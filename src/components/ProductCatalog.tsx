@@ -274,8 +274,9 @@ export default function ProductCatalog({
                   </div>
                 )}
                 <div style={{ position: 'absolute', bottom: '8px', right: '8px', background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)', padding: '3px 8px', borderRadius: 'var(--radius-sm)', fontSize: '13px', fontWeight: 700, color: '#10B981' }}>
-                  ${product.price.toFixed(2)}
+                  ${Number(product.price || 0).toFixed(2)}
                 </div>
+
               </div>
 
               {/* Product Info */}
@@ -385,8 +386,9 @@ export default function ProductCatalog({
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>{resolvedPreview.title}</div>
                     <div style={{ fontSize: '12px', color: '#10B981', fontWeight: 600 }}>
-                      ${resolvedPreview.price?.toFixed(2)} {resolvedPreview.currency || 'USD'}
+                      ${Number(resolvedPreview.price || 0).toFixed(2)} {resolvedPreview.currency || 'USD'}
                     </div>
+
                     <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Source: {resolvedPreview.source}</div>
                   </div>
                 </div>

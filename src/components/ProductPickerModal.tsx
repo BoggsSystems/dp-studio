@@ -293,8 +293,9 @@ export default function ProductPickerModal({
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
                           <span style={{ fontSize: '12px', fontWeight: 700, color: '#10B981' }}>
-                            ${product.price.toFixed(2)}
+                            ${Number(product.price || 0).toFixed(2)}
                           </span>
+
                           {getSourceBadge(product.source)}
                           {product.vendor && (
                             <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
@@ -352,7 +353,8 @@ export default function ProductPickerModal({
                   <img src={scrapedProduct.imageUrl} alt="Preview" style={{ width: '56px', height: '56px', objectFit: 'cover', borderRadius: 'var(--radius-sm)' }} />
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>{scrapedProduct.title}</div>
-                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#10B981' }}>${scrapedProduct.price?.toFixed(2)} USD</div>
+                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#10B981' }}>${Number(scrapedProduct.price || 0).toFixed(2)} USD</div>
+
                     <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Source: {scrapedProduct.source}</div>
                   </div>
                 </div>

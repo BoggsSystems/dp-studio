@@ -436,7 +436,8 @@ function StudioApp() {
                           <div>
                             <div style={{ fontSize: '12px', fontWeight: 700 }}>{selectedGroup.title}</div>
                             <div style={{ fontSize: '11px', color: 'var(--accent-teal-light)' }}>
-                              ${selectedGroup.products?.[0]?.price?.toFixed(2) || '0.00'} • 1-Click Buy Active
+                              ${Number(selectedGroup.products?.[0]?.price || 0).toFixed(2)} • 1-Click Buy Active
+
                             </div>
                           </div>
                         </div>

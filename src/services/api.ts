@@ -62,9 +62,13 @@ export const api = {
       if (res.ok) {
         const serverProducts = await res.json();
         if (Array.isArray(serverProducts) && serverProducts.length > 0) {
-          return serverProducts;
+          return serverProducts.map((p: any) => ({
+            ...p,
+            price: Number(p.price || 0),
+          }));
         }
       }
+
     } catch (e) {
       console.warn('Backend products endpoint offline, falling back to local catalog store');
     }
