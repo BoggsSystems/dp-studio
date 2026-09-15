@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { Play, Pause, RotateCcw, RotateCw, Plus, MapPin, Tag } from 'lucide-react';
+import { Play, Pause, RotateCcw, RotateCw, Plus, MapPin, Tag, Camera } from 'lucide-react';
 import { ProductGroup } from '../types';
 
 interface TimelineScrubberProps {
@@ -12,6 +12,8 @@ interface TimelineScrubberProps {
   selectedGroupId: string | null;
   onSelectGroup: (id: string) => void;
   onAddPinAtCurrentTime: () => void;
+  onCaptureThumbnail?: () => void;
+  isCapturingThumbnail?: boolean;
 }
 
 export default function TimelineScrubber({
@@ -24,6 +26,8 @@ export default function TimelineScrubber({
   selectedGroupId,
   onSelectGroup,
   onAddPinAtCurrentTime,
+  onCaptureThumbnail,
+  isCapturingThumbnail = false,
 }: TimelineScrubberProps) {
   const trackRef = useRef<HTMLDivElement>(null);
 
@@ -82,15 +86,32 @@ export default function TimelineScrubber({
           </div>
         </div>
 
-        <button
-          className="btn btn-success"
-          onClick={onAddPinAtCurrentTime}
-          style={{ fontSize: '12px', padding: '6px 14px' }}
-        >
-          <Plus size={14} />
-          <span>Drop Shoppable Pin @ {formatTime(currentTime).split('.')[0]}</span>
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {onCaptureThumbnail && (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={onCaptureThumbnail}
+              disabled={isCapturingThumbnail}
+              title="Set current video frame as project thumbnail"
+              style={{ fontSize: '12px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              <Camera size={14} color="var(--accent-teal)" />
+              <span>{isCapturingThumbnail ? 'Capturing...' : 'Set Thumbnail'}</span>
+            </button>
+          )}
+
+          <button
+            className="btn btn-success"
+            onClick={onAddPinAtCurrentTime}
+            style={{ fontSize: '12px', padding: '6px 14px' }}
+          >
+            <Plus size={14} />
+            <span>Drop Shoppable Pin @ {formatTime(currentTime).split('.')[0]}</span>
+          </button>
+        </div>
       </div>
+
 
       {/* Visual Timeline Track */}
       <div

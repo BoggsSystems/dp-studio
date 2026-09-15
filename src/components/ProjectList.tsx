@@ -10,6 +10,15 @@ interface ProjectListProps {
   onDeleteProject?: (projectId: string) => void;
 }
 
+const getResolvedThumbnailUrl = (url?: string | null) => {
+  if (!url) return null;
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
+    return url;
+  }
+  const apiBase = (import.meta.env.VITE_API_URL || 'http://localhost:9000').replace(/\/+$/, '');
+  return `${apiBase}${url.startsWith('/') ? '' : '/'}${url}`;
+};
+
 export default function ProjectList({
   projects,
   onSelectProject,
@@ -60,6 +69,7 @@ export default function ProjectList({
           {projects.map((proj) => {
             const hotspotCount = proj.productGroups?.length || 0;
             const basketCount = proj.baskets?.length || 0;
+            const thumbSrc = getResolvedThumbnailUrl(proj.thumbnailUrl);
 
             return (
               <div
@@ -87,11 +97,14 @@ export default function ProjectList({
                   }}
                   onClick={() => onSelectProject(proj)}
                 >
-                  {proj.thumbnailUrl ? (
+                  {thumbSrc ? (
                     <img
-                      src={proj.thumbnailUrl}
+                      src={thumbSrc}
                       alt={proj.name}
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = 'none';
+                      }}
                     />
                   ) : (
                     <div
@@ -107,6 +120,7 @@ export default function ProjectList({
                       <span style={{ fontSize: '12px' }}>Interactive Video Stream</span>
                     </div>
                   )}
+
 
                   <div
                     style={{

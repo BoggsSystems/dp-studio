@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { CheckCircle } from 'lucide-react';
 import Header, { StudioTab } from './components/Header';
 import VideoUploadZone from './components/VideoUploadZone';
 import TimelineScrubber from './components/TimelineScrubber';
@@ -20,7 +21,7 @@ import { api } from './services/api';
 
 function StudioApp() {
   const { user, isLoading } = useAuth();
-  const [activeTab, setActiveTab] = useState<StudioTab>('vod');
+  const [activeTab, setActiveTab] = useState<StudioTab>('projects');
   const [projects, setProjects] = useState<Project[]>([]);
   const [project, setProject] = useState<Project | null>(null);
   const [catalogProducts, setCatalogProducts] = useState<Product[]>([]);
@@ -33,6 +34,8 @@ function StudioApp() {
   const [isDeployOpen, setIsDeployOpen] = useState<boolean>(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [isCapturingThumbnail, setIsCapturingThumbnail] = useState<boolean>(false);
+  const [thumbnailToast, setThumbnailToast] = useState<string | null>(null);
 
   const videoElementRef = useRef<HTMLVideoElement>(null);
 
@@ -215,6 +218,59 @@ function StudioApp() {
     }
   };
 
+  const captureFrameFromVideo = (video: HTMLVideoElement): string => {
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth || 1280;
+      canvas.height = video.videoHeight || 720;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return '';
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL('image/jpeg', 0.85);
+    } catch (e) {
+      console.warn('Canvas frame capture error:', e);
+      return '';
+    }
+  };
+
+  // 1-Click Scrub-to-Set Thumbnail (Option C)
+  const handleCaptureThumbnail = async () => {
+    if (!videoElementRef.current || !project) return;
+    setIsCapturingThumbnail(true);
+
+    try {
+      const dataUrl = captureFrameFromVideo(videoElementRef.current);
+      if (!dataUrl) throw new Error('Could not capture frame from video');
+
+      const updated = { ...project, thumbnailUrl: dataUrl };
+      setProject(updated);
+      setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+
+      // Persist to backend so it shows in Projects catalog
+      await api.saveProject(updated);
+
+      setThumbnailToast(`Thumbnail updated at ${currentTime.toFixed(1)}s!`);
+      setTimeout(() => setThumbnailToast(null), 3000);
+    } catch (err: any) {
+      console.error('Failed to capture thumbnail:', err);
+      alert(`Thumbnail capture failed: ${err.message}`);
+    } finally {
+      setIsCapturingThumbnail(false);
+    }
+  };
+
+  // Smart Auto-Extract on Video Load (Option C)
+  const handleAutoCaptureInitialThumbnail = async () => {
+    if (!videoElementRef.current || !project || project.thumbnailUrl) return;
+    const dataUrl = captureFrameFromVideo(videoElementRef.current);
+    if (!dataUrl) return;
+
+    const updated = { ...project, thumbnailUrl: dataUrl };
+    setProject(updated);
+    setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+    api.saveProject(updated).catch(() => {});
+  };
+
   const handleNewProject = () => {
     const newP: Project = {
       id: `proj_${Date.now()}`,
@@ -348,6 +404,11 @@ function StudioApp() {
                         onTimeUpdate={handleTimeUpdate}
                         onPlay={() => setIsPlaying(true)}
                         onPause={() => setIsPlaying(false)}
+                        onLoadedData={() => {
+                          if (!project.thumbnailUrl && videoElementRef.current) {
+                            handleAutoCaptureInitialThumbnail();
+                          }
+                        }}
                         controls={false}
                       />
 
@@ -383,7 +444,7 @@ function StudioApp() {
                     </div>
                   )}
 
-                  {/* Timeline Scrubber */}
+                  {/* Timeline Scrubber with 1-Click Frame Capture */}
                   <TimelineScrubber
                     currentTime={currentTime}
                     duration={duration}
@@ -394,6 +455,8 @@ function StudioApp() {
                     selectedGroupId={selectedGroupId}
                     onSelectGroup={(id) => setSelectedGroupId(id)}
                     onAddPinAtCurrentTime={handleAddPinAtCurrentTime}
+                    onCaptureThumbnail={handleCaptureThumbnail}
+                    isCapturingThumbnail={isCapturingThumbnail}
                   />
 
                   {/* AI Autopilot Scanner */}
@@ -457,6 +520,32 @@ function StudioApp() {
       {/* Modals */}
       {isDeployOpen && <DeployModal project={project} onClose={() => setIsDeployOpen(false)} />}
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+
+      {/* Toast Notification */}
+      {thumbnailToast && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '24px',
+            right: '24px',
+            background: 'var(--bg-surface-elevated)',
+            border: '1px solid var(--accent-teal)',
+            color: 'var(--text-primary)',
+            padding: '10px 18px',
+            borderRadius: 'var(--radius-md)',
+            boxShadow: 'var(--shadow-lg)',
+            fontSize: '13px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            zIndex: 9999,
+            animation: 'fadeIn 0.2s ease',
+          }}
+        >
+          <CheckCircle size={16} color="var(--accent-teal)" />
+          <span>{thumbnailToast}</span>
+        </div>
+      )}
     </div>
   );
 }
