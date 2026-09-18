@@ -369,6 +369,9 @@ function StudioApp() {
                   setProject(newProj);
                   setActiveTab('vod');
                 }}
+                onOpenShort={() => {
+                  setActiveTab('clips');
+                }}
               />
             )}
 

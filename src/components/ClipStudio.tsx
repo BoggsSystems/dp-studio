@@ -6,19 +6,25 @@ import {
   Smartphone, 
   Send,
   Wand2,
-  ListVideo
+  ListVideo,
+  Video,
+  FolderKanban
 } from 'lucide-react';
-import { Clip } from '../types';
+import { Clip, FormattedShortProject } from '../types';
 import { api } from '../services/api';
 import ShortsFormatterStudio from './ShortsFormatterStudio';
+import SavedShortsManager from './SavedShortsManager';
+import { getAllShortProjects } from '../services/videoStorage';
 
 interface ClipStudioProps {
   projectId?: string;
+  initialView?: 'FORMATTER' | 'EXTRACTED' | 'LIBRARY';
 }
 
-export default function ClipStudio({ projectId }: ClipStudioProps) {
-  const [activeView, setActiveView] = useState<'FORMATTER' | 'EXTRACTED'>('FORMATTER');
+export default function ClipStudio({ projectId, initialView = 'FORMATTER' }: ClipStudioProps) {
+  const [activeView, setActiveView] = useState<'FORMATTER' | 'EXTRACTED' | 'LIBRARY'>(initialView);
   const [clips, setClips] = useState<Clip[]>([]);
+  const [savedShortsCount, setSavedShortsCount] = useState<number>(0);
   const [selectedClip, setSelectedClip] = useState<Clip | null>(null);
   const [publishingClipId, setPublishingClipId] = useState<string | null>(null);
 
@@ -27,7 +33,9 @@ export default function ClipStudio({ projectId }: ClipStudioProps) {
       setClips(data);
       if (data.length > 0) setSelectedClip(data[0]);
     });
-  }, [projectId]);
+
+    setSavedShortsCount(getAllShortProjects().length);
+  }, [projectId, activeView]);
 
   const handlePublish = async (clipId: string, platform: 'YOUTUBE_SHORTS' | 'TIKTOK' | 'INSTAGRAM_REELS' | 'X_TWITTER') => {
     setPublishingClipId(`${clipId}_${platform}`);
@@ -68,6 +76,14 @@ export default function ClipStudio({ projectId }: ClipStudioProps) {
           <span>🎨 Shorts Formatter & Studio</span>
         </button>
         <button
+          onClick={() => setActiveView('LIBRARY')}
+          className={`btn ${activeView === 'LIBRARY' ? 'btn--primary' : 'btn--outline'}`}
+          style={{ padding: '8px 16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}
+        >
+          <FolderKanban size={16} />
+          <span>📁 My Shorts & Published Library ({savedShortsCount})</span>
+        </button>
+        <button
           onClick={() => setActiveView('EXTRACTED')}
           className={`btn ${activeView === 'EXTRACTED' ? 'btn--primary' : 'btn--outline'}`}
           style={{ padding: '8px 16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}
@@ -79,6 +95,15 @@ export default function ClipStudio({ projectId }: ClipStudioProps) {
 
       {activeView === 'FORMATTER' ? (
         <ShortsFormatterStudio />
+      ) : activeView === 'LIBRARY' ? (
+        <SavedShortsManager
+          onOpenInStudio={(short) => {
+            setActiveView('FORMATTER');
+          }}
+          onNewShort={() => {
+            setActiveView('FORMATTER');
+          }}
+        />
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '24px' }}>
           {/* Left Column: Clips List */}

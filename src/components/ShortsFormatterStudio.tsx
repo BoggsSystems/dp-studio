@@ -35,8 +35,8 @@ import {
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { api } from '../services/api';
-import { saveDraftVideoBlob, getDraftVideoBlob, clearDraftVideoBlob } from '../services/videoStorage';
-import { Product } from '../types';
+import { saveDraftVideoBlob, getDraftVideoBlob, clearDraftVideoBlob, saveShortProject } from '../services/videoStorage';
+import { Product, FormattedShortProject } from '../types';
 
 interface WordItem {
   id: string;
@@ -527,6 +527,51 @@ export default function ShortsFormatterStudio() {
     setTranscribeError(null);
     setIsDraftRestored(false);
     setThumbnailImage(null);
+  };
+
+  const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
+
+  // Explicitly Save Short to Library
+  const handleManualSaveShort = async () => {
+    if (!videoUrl && !videoFile) return;
+    const shortProject: FormattedShortProject = {
+      id: `short_${Date.now()}`,
+      title: thumbnailTitle || 'AI Shoppable Short',
+      videoFileName: videoFile?.name || 'short_video.mp4',
+      thumbnailUrl: thumbnailImage || undefined,
+      durationSeconds: duration || 30,
+      words,
+      editableTranscript,
+      highlightColor,
+      fontSize,
+      verticalPosition,
+      wordPacing,
+      autoEmojis,
+      uppercase,
+      layoutMode,
+      showShoppableDrawer,
+      showQrCode,
+      qrPlacement,
+      qrCustomUrl,
+      productId: selectedProduct?.id,
+      productTitle: selectedProduct?.title,
+      productPrice: selectedProduct?.price,
+      thumbnailTitle,
+      thumbnailStyle,
+      thumbnailFontSize,
+      thumbnailPosition,
+      thumbnailBadge,
+      thumbnailStrokeWidth,
+      thumbnailUppercase,
+      publishedYouTubeUrl: publishedYouTubeUrl || undefined,
+      status: publishedYouTubeUrl ? 'PUBLISHED' : 'DRAFT',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    await saveShortProject(shortProject, videoFile || undefined);
+    setSaveSuccessMsg('💾 Saved to Shorts Library!');
+    setTimeout(() => setSaveSuccessMsg(null), 3000);
   };
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
@@ -1320,6 +1365,46 @@ export default function ShortsFormatterStudio() {
       setPublishYouTubeStage('DONE');
       setPublishYouTubePercent(100);
       setPublishedYouTubeUrl(result.url);
+
+      // Automatically sync published short to library
+      try {
+        const shortRecord: FormattedShortProject = {
+          id: `short_${Date.now()}`,
+          title: thumbnailTitle || 'AI Shoppable Short',
+          videoFileName: videoFile?.name || 'short_video.mp4',
+          thumbnailUrl: thumbnailImage || undefined,
+          durationSeconds: duration || 30,
+          words,
+          editableTranscript,
+          highlightColor,
+          fontSize,
+          verticalPosition,
+          wordPacing,
+          autoEmojis,
+          uppercase,
+          layoutMode,
+          showShoppableDrawer,
+          showQrCode,
+          qrPlacement,
+          qrCustomUrl,
+          productId: selectedProduct?.id,
+          productTitle: selectedProduct?.title,
+          productPrice: selectedProduct?.price,
+          thumbnailTitle,
+          thumbnailStyle,
+          thumbnailFontSize,
+          thumbnailPosition,
+          thumbnailBadge,
+          thumbnailStrokeWidth,
+          thumbnailUppercase,
+          publishedYouTubeUrl: result.url,
+          publishedAt: new Date().toISOString(),
+          status: 'PUBLISHED',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        await saveShortProject(shortRecord, videoBlobToUpload);
+      } catch (e) {}
     } catch (err: any) {
       console.error('Direct YouTube publish failed:', err);
       setPublishYouTubeError(err.message || 'Failed to publish to YouTube.');
@@ -1430,7 +1515,28 @@ export default function ShortsFormatterStudio() {
               </div>
             </div>
             {videoFile && (
-              <div style={{ display: 'flex', gap: '8px' }}>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                {saveSuccessMsg && (
+                  <span style={{ fontSize: '12px', color: '#10B981', fontWeight: 600 }}>
+                    {saveSuccessMsg}
+                  </span>
+                )}
+                <button
+                  onClick={handleManualSaveShort}
+                  className="btn btn--outline"
+                  style={{
+                    padding: '6px 12px',
+                    fontSize: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    borderColor: 'rgba(16, 185, 129, 0.4)',
+                    color: '#10B981',
+                  }}
+                  title="Save this formatted short into your library"
+                >
+                  <Check size={14} /> <span>Save Short</span>
+                </button>
                 <button
                   onClick={() => videoFile && runTranscription(videoFile)}
                   disabled={isTranscribing}

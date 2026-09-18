@@ -164,3 +164,41 @@ export interface AiTagDetection {
   category: string;
   visualBox?: { x: number; y: number; width: number; height: number };
 }
+
+export interface FormattedShortProject {
+  id: string;
+  title: string;
+  videoUrl?: string;
+  videoFileName?: string;
+  thumbnailUrl?: string;
+  durationSeconds?: number;
+  words: { id: string; word: string; start: number; end: number }[];
+  editableTranscript: string;
+  highlightColor: string;
+  fontSize: number;
+  verticalPosition: number;
+  wordPacing: string;
+  autoEmojis: boolean;
+  uppercase: boolean;
+  layoutMode: 'FIT_BLUR' | 'COVER_CROP';
+  showShoppableDrawer: boolean;
+  showQrCode: boolean;
+  qrPlacement: string;
+  qrCustomUrl: string;
+  productId?: string;
+  productTitle?: string;
+  productPrice?: number;
+  thumbnailTitle?: string;
+  thumbnailStyle?: string;
+  thumbnailFontSize?: number;
+  thumbnailPosition?: number;
+  thumbnailBadge?: string;
+  thumbnailStrokeWidth?: number;
+  thumbnailUppercase?: boolean;
+  publishedYouTubeUrl?: string;
+  publishedAt?: string;
+  status: 'DRAFT' | 'PUBLISHED';
+  createdAt: string;
+  updatedAt: string;
+}
+
