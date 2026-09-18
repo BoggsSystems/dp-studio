@@ -2013,7 +2013,7 @@ export default function ShortsFormatterStudio() {
                 {/* Platform Selector Tabs */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
                   {[
-                    { key: 'YOUTUBE', label: 'YouTube Shorts', icon: '▶️', color: '#FF0000' },
+                    { key: 'YOUTUBE', label: 'YouTube Shorts', icon: '▶️', color: '#FF334B' },
                     { key: 'TIKTOK', label: 'TikTok', icon: '🎵', color: '#00F2FE' },
                     { key: 'INSTAGRAM', label: 'IG Reels', icon: '📸', color: '#E1306C' },
                     { key: 'TWITTER', label: 'X (Twitter)', icon: '✖️', color: '#FFFFFF' },
@@ -2026,7 +2026,7 @@ export default function ShortsFormatterStudio() {
                         style={{
                           padding: '10px 8px',
                           borderRadius: 'var(--radius-sm)',
-                          border: isSelected ? `2px solid ${p.color}` : '1px solid var(--border-color)',
+                          border: isSelected ? `1px solid ${p.color}` : '1px solid var(--border-color)',
                           background: isSelected ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.3)',
                           display: 'flex',
                           flexDirection: 'column',
@@ -2050,11 +2050,11 @@ export default function ShortsFormatterStudio() {
                   {selectedSocialPlatform === 'YOUTUBE' && (
                     <>
                       {/* OAuth Connection Status & Direct Dispatch */}
-                      <div style={{ padding: '12px 14px', borderRadius: 'var(--radius-sm)', background: youtubeAccount ? 'rgba(16, 185, 129, 0.08)' : 'rgba(255, 0, 0, 0.08)', border: youtubeAccount ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(255, 0, 0, 0.3)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <div style={{ padding: '12px 14px', borderRadius: 'var(--radius-sm)', background: youtubeAccount ? 'rgba(16, 185, 129, 0.05)' : 'rgba(255, 255, 255, 0.02)', border: youtubeAccount ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: youtubeAccount ? '#10B981' : '#EF4444' }} />
-                            <span style={{ fontSize: '12px', fontWeight: 600, color: youtubeAccount ? '#10B981' : '#FF6B6B' }}>
+                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: youtubeAccount ? '#10B981' : '#64748B' }} />
+                            <span style={{ fontSize: '12px', fontWeight: 600, color: youtubeAccount ? '#10B981' : 'var(--text-secondary)' }}>
                               {youtubeAccount ? `Connected: @${youtubeAccount.accountName || (youtubeAccount as any).account_name || 'Channel'}` : 'YouTube Channel Not Connected'}
                             </span>
                           </div>
@@ -2071,8 +2071,8 @@ export default function ShortsFormatterStudio() {
                           ) : (
                             <button
                               onClick={handleConnectYouTube}
-                              className="btn btn--primary"
-                              style={{ padding: '6px 12px', fontSize: '12px', background: '#FF0000', color: '#fff', fontWeight: 700 }}
+                              className="btn btn--outline"
+                              style={{ padding: '5px 12px', fontSize: '12px', background: 'rgba(255, 51, 75, 0.1)', border: '1px solid rgba(255, 51, 75, 0.35)', color: '#FF7588', fontWeight: 600 }}
                             >
                               ▶️ Connect YouTube
                             </button>
@@ -2119,15 +2119,17 @@ export default function ShortsFormatterStudio() {
                               width: '100%',
                               padding: '10px',
                               fontSize: '13px',
-                              fontWeight: 700,
-                              background: isPublishingYouTube ? 'var(--bg-tertiary)' : 'linear-gradient(135deg, #FF0000 0%, #CC0000 100%)',
+                              fontWeight: 600,
+                              background: isPublishingYouTube ? 'var(--bg-tertiary)' : 'linear-gradient(135deg, rgba(255, 51, 75, 0.18) 0%, rgba(180, 20, 40, 0.28) 100%)',
+                              border: isPublishingYouTube ? '1px solid var(--border-color)' : '1px solid rgba(255, 51, 75, 0.45)',
                               color: '#fff',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              gap: '6px',
-                              boxShadow: '0 4px 15px rgba(255, 0, 0, 0.4)',
+                              gap: '8px',
+                              boxShadow: isPublishingYouTube ? 'none' : '0 4px 16px rgba(255, 51, 75, 0.12)',
                               cursor: isPublishingYouTube ? 'wait' : 'pointer',
+                              borderRadius: 'var(--radius-sm)',
                             }}
                           >
                             {isPublishingYouTube ? (
@@ -2137,7 +2139,7 @@ export default function ShortsFormatterStudio() {
                               </>
                             ) : (
                               <>
-                                <Send size={14} />
+                                <Send size={14} color="#FF7588" />
                                 🚀 Publish Directly to YouTube Shorts (1-Click)
                               </>
                             )}
