@@ -30,6 +30,8 @@ import {
   CheckCircle2,
   Radio,
   Layers,
+  ExternalLink,
+  LogOut,
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { api } from '../services/api';
@@ -216,17 +218,40 @@ export default function ShortsFormatterStudio() {
   const [embedPosition, setEmbedPosition] = useState<'BOTTOM_RIGHT' | 'BOTTOM_LEFT'>('BOTTOM_RIGHT');
   const [selectedSocialPlatform, setSelectedSocialPlatform] = useState<'YOUTUBE' | 'TIKTOK' | 'INSTAGRAM' | 'TWITTER'>('YOUTUBE');
 
+  // YouTube OAuth & Publishing State
+  const [socialAccounts, setSocialAccounts] = useState<any[]>([]);
+  const [isPublishingYouTube, setIsPublishingYouTube] = useState<boolean>(false);
+  const [publishedYouTubeUrl, setPublishedYouTubeUrl] = useState<string | null>(null);
+  const [publishYouTubeError, setPublishYouTubeError] = useState<string | null>(null);
+  const [youtubeConnectSuccessMsg, setYoutubeConnectSuccessMsg] = useState<string | null>(null);
+
   // Social copy state
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [exportProgress, setExportProgress] = useState<number>(0);
 
-  // Load catalog products
+  // Load catalog products and connected social accounts
   useEffect(() => {
     api.getProducts().then((data) => {
       setProducts(data);
       if (data.length > 0) setSelectedProduct(data[0]);
     });
+
+    api.getSocialAccounts().then((accounts) => {
+      setSocialAccounts(accounts);
+    });
+
+    // Check for OAuth redirect query params
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('youtube_connected') === 'true') {
+      const channel = params.get('channel') || 'YouTube Channel';
+      setYoutubeConnectSuccessMsg(`🎉 Successfully connected YouTube Channel: ${channel}`);
+      api.getSocialAccounts().then((accounts) => setSocialAccounts(accounts));
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (params.get('youtube_error')) {
+      setPublishYouTubeError(`YouTube Connection Error: ${params.get('youtube_error')}`);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
   }, []);
 
   // Generate QR code data URL dynamically
@@ -481,6 +506,66 @@ export default function ShortsFormatterStudio() {
       return `import { DigitPopShorts } from '@digitpop/react-player';\n\nexport default function AboutPageVideo() {\n  return (\n    <DigitPopShorts\n      mode="bubble"\n      theme="${embedTheme}"\n      position="${embedPosition.toLowerCase().replace('_', '-')}"\n      productId="${selectedProduct?.id || 'prod_opportunity_os'}"\n      videoTitle="${thumbnailTitle}"\n      autoPlay={${embedAutoplay}}\n    />\n  );\n}`;
     }
   }, [embedMode, embedPosition, embedTheme, selectedProduct, thumbnailTitle, embedAutoplay]);
+
+  // YouTube OAuth & Publishing Handlers
+  const youtubeAccount = useMemo(() => {
+    return socialAccounts.find((a) => a.platform === 'YOUTUBE_SHORTS') || null;
+  }, [socialAccounts]);
+
+  const handleConnectYouTube = () => {
+    const authUrl = api.getYouTubeAuthUrl();
+    window.location.href = authUrl;
+  };
+
+  const handleDisconnectYouTube = async () => {
+    await api.disconnectSocialAccount('YOUTUBE_SHORTS');
+    setSocialAccounts((prev) => prev.filter((a) => a.platform !== 'YOUTUBE_SHORTS'));
+  };
+
+  const handlePublishDirectToYouTube = async () => {
+    if (!videoFile && !videoUrl) return;
+    setIsPublishingYouTube(true);
+    setPublishYouTubeError(null);
+    setPublishedYouTubeUrl(null);
+
+    try {
+      // 1. Prepare video blob
+      let videoBlobToUpload: Blob;
+      if (videoFile) {
+        videoBlobToUpload = videoFile;
+      } else {
+        const response = await fetch(videoUrl!);
+        videoBlobToUpload = await response.blob();
+      }
+
+      // 2. Prepare thumbnail blob if available
+      let thumbnailBlob: Blob | undefined;
+      if (thumbnailImage) {
+        try {
+          const thumbRes = await fetch(thumbnailImage);
+          thumbnailBlob = await thumbRes.blob();
+        } catch (e) {}
+      }
+
+      const fullDesc = `${editableTranscript.slice(0, 300)}...\n\n👉 Grab the Blueprint & Opportunity OS: https://opportunity-system.com/about\n⚡ Featured Product: ${selectedProduct?.title || 'Opportunity OS'}\n\n#Shorts #Programming #SoftwareEngineering #AI #TechCareers #OpportunityOS`;
+
+      const result = await api.publishYouTubeShort({
+        videoBlob: videoBlobToUpload,
+        thumbnailBlob,
+        title: thumbnailTitle,
+        description: fullDesc,
+        tags: ['Shorts', 'Coding', 'SoftwareEngineering', 'AI', 'OpportunityOS'],
+        privacy: 'public',
+      });
+
+      setPublishedYouTubeUrl(result.url);
+    } catch (err: any) {
+      console.error('Direct YouTube publish failed:', err);
+      setPublishYouTubeError(err.message || 'Failed to publish to YouTube.');
+    } finally {
+      setIsPublishingYouTube(false);
+    }
+  };
 
   // Download High-CTR Thumbnail (9:16 or 16:9)
   const downloadThumbnail = (aspect: '9:16' | '16:9') => {
@@ -1914,6 +1999,102 @@ export default function ShortsFormatterStudio() {
                   {/* YouTube Shorts View */}
                   {selectedSocialPlatform === 'YOUTUBE' && (
                     <>
+                      {/* OAuth Connection Status & Direct Dispatch */}
+                      <div style={{ padding: '12px 14px', borderRadius: 'var(--radius-sm)', background: youtubeAccount ? 'rgba(16, 185, 129, 0.08)' : 'rgba(255, 0, 0, 0.08)', border: youtubeAccount ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(255, 0, 0, 0.3)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: youtubeAccount ? '#10B981' : '#EF4444' }} />
+                            <span style={{ fontSize: '12px', fontWeight: 600, color: youtubeAccount ? '#10B981' : '#FF6B6B' }}>
+                              {youtubeAccount ? `Connected: @${youtubeAccount.account_name}` : 'YouTube Channel Not Connected'}
+                            </span>
+                          </div>
+                          {youtubeAccount ? (
+                            <button
+                              onClick={handleDisconnectYouTube}
+                              className="btn btn--outline"
+                              style={{ padding: '4px 8px', fontSize: '11px', color: 'var(--text-muted)' }}
+                              title="Disconnect YouTube Channel"
+                            >
+                              <LogOut size={12} style={{ marginRight: '4px' }} />
+                              Disconnect
+                            </button>
+                          ) : (
+                            <button
+                              onClick={handleConnectYouTube}
+                              className="btn btn--primary"
+                              style={{ padding: '6px 12px', fontSize: '12px', background: '#FF0000', color: '#fff', fontWeight: 700 }}
+                            >
+                              ▶️ Connect YouTube
+                            </button>
+                          )}
+                        </div>
+
+                        {youtubeConnectSuccessMsg && (
+                          <div style={{ fontSize: '11px', color: '#10B981', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <CheckCircle2 size={12} />
+                            {youtubeConnectSuccessMsg}
+                          </div>
+                        )}
+
+                        {publishYouTubeError && (
+                          <div style={{ fontSize: '11px', color: '#EF4444', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <AlertCircle size={12} />
+                            {publishYouTubeError}
+                          </div>
+                        )}
+
+                        {publishedYouTubeUrl && (
+                          <div style={{ padding: '8px 10px', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.15)', border: '1px solid #10B981', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#10B981', fontWeight: 600 }}>
+                              <CheckCircle2 size={14} />
+                              <span>Live on YouTube Shorts!</span>
+                            </div>
+                            <a
+                              href={publishedYouTubeUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#00F2FE', textDecoration: 'underline', fontWeight: 700 }}
+                            >
+                              View Short <ExternalLink size={11} />
+                            </a>
+                          </div>
+                        )}
+
+                        {youtubeAccount && (
+                          <button
+                            onClick={handlePublishDirectToYouTube}
+                            disabled={isPublishingYouTube || (!videoFile && !videoUrl)}
+                            className="btn btn--primary"
+                            style={{
+                              width: '100%',
+                              padding: '10px',
+                              fontSize: '13px',
+                              fontWeight: 700,
+                              background: isPublishingYouTube ? 'var(--bg-tertiary)' : 'linear-gradient(135deg, #FF0000 0%, #CC0000 100%)',
+                              color: '#fff',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '6px',
+                              boxShadow: '0 4px 15px rgba(255, 0, 0, 0.4)',
+                              cursor: isPublishingYouTube ? 'wait' : 'pointer',
+                            }}
+                          >
+                            {isPublishingYouTube ? (
+                              <>
+                                <RefreshCw size={14} className="spin" />
+                                Uploading Video & High-CTR Thumbnail to YouTube...
+                              </>
+                            ) : (
+                              <>
+                                <Send size={14} />
+                                🚀 Publish Directly to YouTube Shorts (1-Click)
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </div>
+
                       <div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
                           <span>Optimized Video Title (with #Shorts):</span>

@@ -457,6 +457,68 @@ export const api = {
     return await groqRes.json();
   },
 
+  // --- Social Multi-Channel Distribution & YouTube Publishing ---
+  async getSocialAccounts(): Promise<Array<{ platform: string; accountName?: string; accountId?: string; avatarUrl?: string; createdAt: string }>> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/social/accounts`);
+      if (!res.ok) return [];
+      return await res.json();
+    } catch (e) {
+      return [];
+    }
+  },
+
+  getYouTubeAuthUrl(origin?: string): string {
+    const clientOrigin = origin || (typeof window !== 'undefined' ? window.location.origin : 'https://studio.opportunity-system.com');
+    return `${API_BASE_URL}/api/social/auth/youtube?origin=${encodeURIComponent(clientOrigin)}`;
+  },
+
+  async disconnectSocialAccount(platform: string): Promise<boolean> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/social/accounts/${platform}`, {
+        method: 'DELETE',
+      });
+      return res.ok;
+    } catch (e) {
+      return false;
+    }
+  },
+
+  async publishYouTubeShort(payload: {
+    videoBlob: Blob;
+    thumbnailBlob?: Blob;
+    title: string;
+    description: string;
+    tags?: string[];
+    privacy?: 'public' | 'unlisted' | 'private';
+  }): Promise<{ success: boolean; videoId: string; url: string; title: string }> {
+    const formData = new FormData();
+    formData.append('video', payload.videoBlob, 'short_video.mp4');
+    if (payload.thumbnailBlob) {
+      formData.append('thumbnail', payload.thumbnailBlob, 'thumbnail.jpg');
+    }
+    formData.append('title', payload.title);
+    formData.append('description', payload.description);
+    if (payload.tags) {
+      formData.append('tags', JSON.stringify(payload.tags));
+    }
+    if (payload.privacy) {
+      formData.append('privacy', payload.privacy);
+    }
+
+    const res = await fetch(`${API_BASE_URL}/api/social/publish/youtube`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ message: 'Publishing to YouTube failed' }));
+      throw new Error(err.message || `HTTP ${res.status}`);
+    }
+
+    return await res.json();
+  },
+
   // --- Livestream Sessions ---
   async getStreamSessions(): Promise<StreamSession[]> {
     try {
