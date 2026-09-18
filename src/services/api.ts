@@ -517,6 +517,7 @@ export const api = {
       // Stage 1: Request Direct Google Resumable Upload Session URL from Backend
       if (onProgress) onProgress({ stage: 'INITIALIZING', percent: 5 });
 
+      const clientOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://studio.opportunity-system.com';
       const sessionRes = await fetch(`${API_BASE_URL}/api/social/youtube/create-upload-session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -526,6 +527,7 @@ export const api = {
           tags: payload.tags,
           privacy: payload.privacy,
           contentLength: payload.videoBlob.size,
+          origin: clientOrigin,
         }),
       });
 
