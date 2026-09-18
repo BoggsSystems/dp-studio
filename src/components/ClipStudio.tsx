@@ -4,16 +4,20 @@ import {
   TrendingUp, 
   CheckCircle2, 
   Smartphone, 
-  Send 
+  Send,
+  Wand2,
+  ListVideo
 } from 'lucide-react';
 import { Clip } from '../types';
 import { api } from '../services/api';
+import ShortsFormatterStudio from './ShortsFormatterStudio';
 
 interface ClipStudioProps {
   projectId?: string;
 }
 
 export default function ClipStudio({ projectId }: ClipStudioProps) {
+  const [activeView, setActiveView] = useState<'FORMATTER' | 'EXTRACTED'>('FORMATTER');
   const [clips, setClips] = useState<Clip[]>([]);
   const [selectedClip, setSelectedClip] = useState<Clip | null>(null);
   const [publishingClipId, setPublishingClipId] = useState<string | null>(null);
@@ -52,20 +56,44 @@ export default function ClipStudio({ projectId }: ClipStudioProps) {
   };
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '24px' }}>
-      {/* Left Column: Clips List */}
-      <div className="surface-panel">
-        <div className="panel-header">
-          <div>
-            <div className="panel-title">
-              <Sparkles size={16} color="var(--accent-amber)" />
-              <span>AI Content Repurposing Engine (9:16 Shorts)</span>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {/* Top Sub-Nav Switcher */}
+      <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+        <button
+          onClick={() => setActiveView('FORMATTER')}
+          className={`btn ${activeView === 'FORMATTER' ? 'btn--primary' : 'btn--outline'}`}
+          style={{ padding: '8px 16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}
+        >
+          <Wand2 size={16} />
+          <span>🎨 Shorts Formatter & Studio</span>
+        </button>
+        <button
+          onClick={() => setActiveView('EXTRACTED')}
+          className={`btn ${activeView === 'EXTRACTED' ? 'btn--primary' : 'btn--outline'}`}
+          style={{ padding: '8px 16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}
+        >
+          <ListVideo size={16} />
+          <span>📋 Auto-Extracted Stream Clips ({clips.length})</span>
+        </button>
+      </div>
+
+      {activeView === 'FORMATTER' ? (
+        <ShortsFormatterStudio />
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '24px' }}>
+          {/* Left Column: Clips List */}
+          <div className="surface-panel">
+            <div className="panel-header">
+              <div>
+                <div className="panel-title">
+                  <Sparkles size={16} color="var(--accent-amber)" />
+                  <span>AI Content Repurposing Engine (9:16 Shorts)</span>
+                </div>
+                <div className="panel-desc">
+                  Long-form streams and VODs automatically extracted into high-converting vertical clips with animated captions.
+                </div>
+              </div>
             </div>
-            <div className="panel-desc">
-              Long-form streams and VODs automatically extracted into high-converting vertical clips with animated captions.
-            </div>
-          </div>
-        </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {clips.map((clip) => {
@@ -273,11 +301,13 @@ export default function ClipStudio({ projectId }: ClipStudioProps) {
             </div>
           </div>
         ) : (
-          <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '40px' }}>
+          <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '40px', textAlign: 'center' }}>
             Select a clip to preview mobile rendering.
           </div>
         )}
       </div>
     </div>
+  )}
+</div>
   );
 }

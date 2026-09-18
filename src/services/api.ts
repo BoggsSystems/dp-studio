@@ -394,6 +394,57 @@ export const api = {
     };
   },
 
+  // --- AI Transcription with Groq Whisper Large v3 Turbo ---
+  async transcribeVideo(file: File): Promise<{
+    text: string;
+    duration: number;
+    language: string;
+    words: Array<{ word: string; start: number; end: number }>;
+    segments?: any[];
+  }> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/videos/transcribe`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (e) {
+      console.warn('Backend transcription failed, attempting direct Groq fallback:', e);
+    }
+
+    // Direct Groq fallback for zero-latency client-side processing
+    const groqKey = import.meta.env.VITE_GROQ_API_KEY || (typeof window !== 'undefined' ? (window as any).__GROQ_API_KEY__ : '') || '';
+    if (!groqKey) {
+      throw new Error('Transcription failed: Backend service unavailable and no GROQ_API_KEY configured.');
+    }
+    const groqForm = new FormData();
+    groqForm.append('file', file);
+    groqForm.append('model', 'whisper-large-v3-turbo');
+    groqForm.append('response_format', 'verbose_json');
+    groqForm.append('timestamp_granularities[]', 'word');
+
+    const groqRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${groqKey}`,
+      },
+      body: groqForm,
+    });
+
+    if (!groqRes.ok) {
+      const err = await groqRes.json().catch(() => ({ error: { message: 'Transcription failed' } }));
+      throw new Error(err.error?.message || `Groq HTTP ${groqRes.status}`);
+    }
+
+    return await groqRes.json();
+  },
+
   // --- Livestream Sessions ---
   async getStreamSessions(): Promise<StreamSession[]> {
     try {
