@@ -23,6 +23,13 @@ import {
   QrCode,
   Camera,
   Image as ImageIcon,
+  Share2,
+  Code,
+  Globe,
+  Send,
+  CheckCircle2,
+  Radio,
+  Layers,
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { api } from '../services/api';
@@ -200,6 +207,14 @@ export default function ShortsFormatterStudio() {
   const [thumbnailStrokeWidth, setThumbnailStrokeWidth] = useState<number>(14);
   const [thumbnailUppercase, setThumbnailUppercase] = useState<boolean>(true);
   const [isGeneratingThumbnail, setIsGeneratingThumbnail] = useState<boolean>(false);
+
+  // Multi-Channel Distribution & Embed Generator State
+  const [activeDistTab, setActiveDistTab] = useState<'EMBED_WEB' | 'SOCIAL_CHANNELS'>('EMBED_WEB');
+  const [embedMode, setEmbedMode] = useState<'FLOATING_BUBBLE' | 'INLINE_CARD' | 'REACT_NATIVE'>('FLOATING_BUBBLE');
+  const [embedAutoplay, setEmbedAutoplay] = useState<boolean>(true);
+  const [embedTheme, setEmbedTheme] = useState<'dark' | 'glass'>('dark');
+  const [embedPosition, setEmbedPosition] = useState<'BOTTOM_RIGHT' | 'BOTTOM_LEFT'>('BOTTOM_RIGHT');
+  const [selectedSocialPlatform, setSelectedSocialPlatform] = useState<'YOUTUBE' | 'TIKTOK' | 'INSTAGRAM' | 'TWITTER'>('YOUTUBE');
 
   // Social copy state
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -455,6 +470,17 @@ export default function ShortsFormatterStudio() {
 
     return list;
   }, [editableTranscript, selectedProduct]);
+
+  // Generated Web Embed Code Snippet for opportunity-system.com
+  const generatedEmbedCode = useMemo(() => {
+    if (embedMode === 'FLOATING_BUBBLE') {
+      return `<!-- DigitPop Shoppable Shorts: Floating Video Bubble -->\n<script \n  src="https://digitpop.opportunity-system.com/player/v1/digitpop-shorts.js"\n  data-mode="bubble"\n  data-position="${embedPosition.toLowerCase().replace('_', '-')}"\n  data-theme="${embedTheme}"\n  data-product-id="${selectedProduct?.id || 'prod_opportunity_os'}"\n  data-title="${thumbnailTitle}"\n  async>\n</script>`;
+    } else if (embedMode === 'INLINE_CARD') {
+      return `<!-- DigitPop Shoppable Shorts: 9:16 Interactive Frame -->\n<div style="max-width: 380px; margin: 0 auto; aspect-ratio: 9/16; border-radius: 28px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.6);">\n  <iframe \n    src="https://digitpop.opportunity-system.com/player/v1/embed?theme=${embedTheme}&product=${selectedProduct?.id || ''}&autoplay=${embedAutoplay ? 1 : 0}"\n    width="100%" \n    height="100%" \n    frameborder="0" \n    allow="autoplay; encrypted-media; fullscreen"\n    style="border: none; width: 100%; height: 100%;">\n  </iframe>\n</div>`;
+    } else {
+      return `import { DigitPopShorts } from '@digitpop/react-player';\n\nexport default function AboutPageVideo() {\n  return (\n    <DigitPopShorts\n      mode="bubble"\n      theme="${embedTheme}"\n      position="${embedPosition.toLowerCase().replace('_', '-')}"\n      productId="${selectedProduct?.id || 'prod_opportunity_os'}"\n      videoTitle="${thumbnailTitle}"\n      autoPlay={${embedAutoplay}}\n    />\n  );\n}`;
+    }
+  }, [embedMode, embedPosition, embedTheme, selectedProduct, thumbnailTitle, embedAutoplay]);
 
   // Download High-CTR Thumbnail (9:16 or 16:9)
   const downloadThumbnail = (aspect: '9:16' | '16:9') => {
@@ -1690,6 +1716,324 @@ export default function ShortsFormatterStudio() {
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* 🚀 Multi-Channel Distribution & Embed Generator */}
+        {videoUrl && (
+          <div className="surface-panel" style={{ padding: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div style={{ fontSize: '15px', fontWeight: '700', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Share2 size={18} color="var(--accent-cyan)" />
+                <span>Multi-Channel Distribution & Embed Generator</span>
+              </div>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <button
+                  onClick={() => setActiveDistTab('EMBED_WEB')}
+                  className={`btn ${activeDistTab === 'EMBED_WEB' ? 'btn--primary' : 'btn--outline'}`}
+                  style={{ padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <Globe size={14} /> Web Layer (opportunity-system.com)
+                </button>
+                <button
+                  onClick={() => setActiveDistTab('SOCIAL_CHANNELS')}
+                  className={`btn ${activeDistTab === 'SOCIAL_CHANNELS' ? 'btn--primary' : 'btn--outline'}`}
+                  style={{ padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <Send size={14} /> Social Channels (YouTube, TikTok, X)
+                </button>
+              </div>
+            </div>
+
+            {/* TAB 1: WEB LAYER EMBED GENERATOR */}
+            {activeDistTab === 'EMBED_WEB' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                  Deploy this shoppable 9:16 short directly to <strong style={{ color: '#fff' }}>opportunity-system.com/about</strong> or any landing page with 1-click checkout and zero platform fee friction.
+                </div>
+
+                {/* Embed Mode Selector */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                  {[
+                    { key: 'FLOATING_BUBBLE', label: 'Floating Video Bubble', desc: 'Sleek TikTok-style corner avatar that pops out on click (Recommended)' },
+                    { key: 'INLINE_CARD', label: 'Inline 9:16 Frame', desc: 'Responsive interactive video card embedded directly in page layout' },
+                    { key: 'REACT_NATIVE', label: 'React / Next.js Component', desc: 'Clean TypeScript import for Next.js app router' },
+                  ].map((m) => {
+                    const isSelected = embedMode === m.key;
+                    return (
+                      <div
+                        key={m.key}
+                        onClick={() => setEmbedMode(m.key as any)}
+                        style={{
+                          padding: '12px',
+                          borderRadius: 'var(--radius-sm)',
+                          border: isSelected ? '2px solid var(--accent-cyan)' : '1px solid var(--border-color)',
+                          background: isSelected ? 'rgba(0, 242, 254, 0.08)' : 'rgba(0,0,0,0.3)',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <div style={{ fontSize: '13px', fontWeight: 700, color: isSelected ? '#fff' : 'var(--text-primary)', marginBottom: '4px' }}>
+                          {m.label}
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                          {m.desc}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Embed Customization Controls */}
+                <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', padding: '12px', background: 'rgba(0,0,0,0.2)', borderRadius: 'var(--radius-sm)' }}>
+                  {embedMode === 'FLOATING_BUBBLE' && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Position:</span>
+                      <button
+                        onClick={() => setEmbedPosition('BOTTOM_RIGHT')}
+                        className={`btn ${embedPosition === 'BOTTOM_RIGHT' ? 'btn--primary' : 'btn--outline'}`}
+                        style={{ padding: '4px 8px', fontSize: '11px' }}
+                      >
+                        Bottom Right
+                      </button>
+                      <button
+                        onClick={() => setEmbedPosition('BOTTOM_LEFT')}
+                        className={`btn ${embedPosition === 'BOTTOM_LEFT' ? 'btn--primary' : 'btn--outline'}`}
+                        style={{ padding: '4px 8px', fontSize: '11px' }}
+                      >
+                        Bottom Left
+                      </button>
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Theme:</span>
+                    <button
+                      onClick={() => setEmbedTheme('dark')}
+                      className={`btn ${embedTheme === 'dark' ? 'btn--primary' : 'btn--outline'}`}
+                      style={{ padding: '4px 8px', fontSize: '11px' }}
+                    >
+                      Dark Obsidian
+                    </button>
+                    <button
+                      onClick={() => setEmbedTheme('glass')}
+                      className={`btn ${embedTheme === 'glass' ? 'btn--primary' : 'btn--outline'}`}
+                      style={{ padding: '4px 8px', fontSize: '11px' }}
+                    >
+                      Glassmorphic
+                    </button>
+                  </div>
+
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '12px', color: '#fff' }}>
+                    <input
+                      type="checkbox"
+                      checked={embedAutoplay}
+                      onChange={(e) => setEmbedAutoplay(e.target.checked)}
+                    />
+                    <span>Autoplay Muted</span>
+                  </label>
+                </div>
+
+                {/* Generated Code Display with 1-Click Copy */}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--accent-cyan)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Code size={14} />
+                      <span>Embed Code Snippet (Paste into opportunity-system.com/about):</span>
+                    </div>
+                    <button
+                      onClick={() => copyToClipboard(generatedEmbedCode, 'embed_code')}
+                      className="btn btn--primary"
+                      style={{ padding: '4px 10px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      {copiedKey === 'embed_code' ? <Check size={12} color="#10b981" /> : <Copy size={12} />}
+                      {copiedKey === 'embed_code' ? 'Copied to Clipboard!' : 'Copy Embed Code'}
+                    </button>
+                  </div>
+
+                  <pre
+                    style={{
+                      background: 'rgba(0,0,0,0.6)',
+                      padding: '14px',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--border-color)',
+                      color: '#00F2FE',
+                      fontFamily: 'monospace',
+                      fontSize: '12px',
+                      overflowX: 'auto',
+                      lineHeight: '1.5',
+                      margin: 0,
+                    }}
+                  >
+                    {generatedEmbedCode}
+                  </pre>
+                </div>
+              </div>
+            ) : (
+              /* TAB 2: SOCIAL CHANNELS DISTRIBUTION HUB */
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                  Pre-packaged viral metadata, tags, and direct publishing payloads tailored to each platform's algorithm requirements.
+                </div>
+
+                {/* Platform Selector Tabs */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+                  {[
+                    { key: 'YOUTUBE', label: 'YouTube Shorts', icon: '▶️', color: '#FF0000' },
+                    { key: 'TIKTOK', label: 'TikTok', icon: '🎵', color: '#00F2FE' },
+                    { key: 'INSTAGRAM', label: 'IG Reels', icon: '📸', color: '#E1306C' },
+                    { key: 'TWITTER', label: 'X (Twitter)', icon: '✖️', color: '#FFFFFF' },
+                  ].map((p) => {
+                    const isSelected = selectedSocialPlatform === p.key;
+                    return (
+                      <button
+                        key={p.key}
+                        onClick={() => setSelectedSocialPlatform(p.key as any)}
+                        style={{
+                          padding: '10px 8px',
+                          borderRadius: 'var(--radius-sm)',
+                          border: isSelected ? `2px solid ${p.color}` : '1px solid var(--border-color)',
+                          background: isSelected ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.3)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: '4px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <span style={{ fontSize: '16px' }}>{p.icon}</span>
+                        <span style={{ fontSize: '11px', fontWeight: isSelected ? 700 : 500, color: isSelected ? '#fff' : 'var(--text-secondary)' }}>
+                          {p.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Platform-Specific Publishing Package */}
+                <div style={{ padding: '16px', borderRadius: 'var(--radius-sm)', background: 'rgba(0,0,0,0.4)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {/* YouTube Shorts View */}
+                  {selectedSocialPlatform === 'YOUTUBE' && (
+                    <>
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                          <span>Optimized Video Title (with #Shorts):</span>
+                          <button
+                            onClick={() => copyToClipboard(`${thumbnailTitle} #Shorts`, 'yt_title')}
+                            className="btn btn--outline"
+                            style={{ padding: '2px 6px', fontSize: '10px' }}
+                          >
+                            {copiedKey === 'yt_title' ? <Check size={10} color="#10b981" /> : <Copy size={10} />}
+                            {copiedKey === 'yt_title' ? 'Copied' : 'Copy'}
+                          </button>
+                        </div>
+                        <div style={{ padding: '8px 10px', background: 'rgba(255,255,255,0.04)', borderRadius: '4px', color: '#fff', fontSize: '13px', fontWeight: 600 }}>
+                          {thumbnailTitle} #Shorts
+                        </div>
+                      </div>
+
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                          <span>Full Description & Conversion Links:</span>
+                          <button
+                            onClick={() => copyToClipboard(`${editableTranscript.slice(0, 240)}...\n\n👉 Grab the Blueprint & Opportunity OS: https://opportunity-system.com/about\n⚡ Featured Product: ${selectedProduct?.title || 'Opportunity OS'}\n\n#Shorts #Programming #SoftwareEngineering #AI #TechCareers #OpportunityOS`, 'yt_desc')}
+                            className="btn btn--outline"
+                            style={{ padding: '2px 6px', fontSize: '10px' }}
+                          >
+                            {copiedKey === 'yt_desc' ? <Check size={10} color="#10b981" /> : <Copy size={10} />}
+                            {copiedKey === 'yt_desc' ? 'Copied' : 'Copy'}
+                          </button>
+                        </div>
+                        <div style={{ padding: '8px 10px', background: 'rgba(255,255,255,0.04)', borderRadius: '4px', color: 'var(--text-secondary)', fontSize: '12px', lineHeight: '1.5', whiteSpace: 'pre-line' }}>
+                          {editableTranscript.slice(0, 240)}...
+                          {'\n\n'}👉 Grab the Blueprint & Opportunity OS: <span style={{ color: '#00F2FE' }}>https://opportunity-system.com/about</span>
+                          {'\n'}⚡ Featured Product: {selectedProduct?.title || 'Opportunity OS'}
+                          {'\n\n'}#Shorts #Programming #SoftwareEngineering #AI #TechCareers #OpportunityOS
+                        </div>
+                      </div>
+
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                          <span>Pinned Comment (Auto-Copy):</span>
+                          <button
+                            onClick={() => copyToClipboard(`👉 Access the blueprint & software tools: https://opportunity-system.com/about (Link in Bio ⚡)`, 'yt_pin')}
+                            className="btn btn--outline"
+                            style={{ padding: '2px 6px', fontSize: '10px' }}
+                          >
+                            {copiedKey === 'yt_pin' ? <Check size={10} color="#10b981" /> : <Copy size={10} />}
+                            {copiedKey === 'yt_pin' ? 'Copied' : 'Copy'}
+                          </button>
+                        </div>
+                        <div style={{ padding: '8px 10px', background: 'rgba(255,255,255,0.04)', borderRadius: '4px', color: '#FFB800', fontSize: '12px', fontWeight: 600 }}>
+                          👉 Access the blueprint & software tools: https://opportunity-system.com/about (Link in Bio ⚡)
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* TikTok View */}
+                  {selectedSocialPlatform === 'TIKTOK' && (
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                        <span>TikTok Viral Caption & Hashtags:</span>
+                        <button
+                          onClick={() => copyToClipboard(`${thumbnailTitle} 🔥 Watch till the end! Link in bio for full blueprint ⚡ #coding #ai #softwareengineer #tech #developer #opportunityos`, 'tt_cap')}
+                          className="btn btn--outline"
+                          style={{ padding: '2px 6px', fontSize: '10px' }}
+                        >
+                          {copiedKey === 'tt_cap' ? <Check size={10} color="#10b981" /> : <Copy size={10} />}
+                          {copiedKey === 'tt_cap' ? 'Copied' : 'Copy'}
+                        </button>
+                      </div>
+                      <div style={{ padding: '10px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: '4px', color: '#fff', fontSize: '13px', lineHeight: '1.5' }}>
+                        {thumbnailTitle} 🔥 Watch till the end! Link in bio for full blueprint ⚡ <span style={{ color: '#00F2FE' }}>#coding #ai #softwareengineer #tech #developer #opportunityos</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Instagram View */}
+                  {selectedSocialPlatform === 'INSTAGRAM' && (
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                        <span>Instagram Reels Caption:</span>
+                        <button
+                          onClick={() => copyToClipboard(`${thumbnailTitle} 🚀 Grab the free Chapter 1 blueprint via link in bio! #reels #ai #coding #softwarevelocity #developer`, 'ig_cap')}
+                          className="btn btn--outline"
+                          style={{ padding: '2px 6px', fontSize: '10px' }}
+                        >
+                          {copiedKey === 'ig_cap' ? <Check size={10} color="#10b981" /> : <Copy size={10} />}
+                          {copiedKey === 'ig_cap' ? 'Copied' : 'Copy'}
+                        </button>
+                      </div>
+                      <div style={{ padding: '10px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: '4px', color: '#fff', fontSize: '13px', lineHeight: '1.5' }}>
+                        {thumbnailTitle} 🚀 Grab the free Chapter 1 blueprint via link in bio! <span style={{ color: '#E1306C' }}>#reels #ai #coding #softwarevelocity #developer</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Twitter / X View */}
+                  {selectedSocialPlatform === 'TWITTER' && (
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                        <span>X / Twitter Post Payload:</span>
+                        <button
+                          onClick={() => copyToClipboard(`${thumbnailTitle}\n\nThe old way of memorizing syntax is dead. AI-native engineering is about architecture, velocity, and leverage.\n\n👉 Full blueprint: https://opportunity-system.com/about ⚡`, 'x_post')}
+                          className="btn btn--outline"
+                          style={{ padding: '2px 6px', fontSize: '10px' }}
+                        >
+                          {copiedKey === 'x_post' ? <Check size={10} color="#10b981" /> : <Copy size={10} />}
+                          {copiedKey === 'x_post' ? 'Copied' : 'Copy'}
+                        </button>
+                      </div>
+                      <div style={{ padding: '10px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: '4px', color: '#fff', fontSize: '13px', lineHeight: '1.5', whiteSpace: 'pre-line' }}>
+                        {thumbnailTitle}
+                        {'\n\n'}The old way of memorizing syntax is dead. AI-native engineering is about architecture, velocity, and leverage.
+                        {'\n\n'}👉 Full blueprint: <span style={{ color: '#00F2FE' }}>https://opportunity-system.com/about</span> ⚡
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
