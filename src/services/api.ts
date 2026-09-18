@@ -470,7 +470,25 @@ export const api = {
 
   getYouTubeAuthUrl(origin?: string): string {
     const clientOrigin = origin || (typeof window !== 'undefined' ? window.location.origin : 'https://studio.opportunity-system.com');
-    return `${API_BASE_URL}/api/social/auth/youtube?origin=${encodeURIComponent(clientOrigin)}`;
+    const rootUrl = 'https://accounts.google.com/o/oauth2/v2/auth';
+    const redirectUri = 'https://digitpop.opportunity-system.com/api/social/auth/youtube/callback';
+    const clientId = '162204893839-dfcn0b0j2tek36j07271i8edqkefkng7.apps.googleusercontent.com';
+    const state = typeof btoa !== 'undefined' ? btoa(JSON.stringify({ origin: clientOrigin })) : '';
+    const params = new URLSearchParams({
+      redirect_uri: redirectUri,
+      client_id: clientId,
+      access_type: 'offline',
+      response_type: 'code',
+      prompt: 'consent',
+      scope: [
+        'https://www.googleapis.com/auth/youtube.upload',
+        'https://www.googleapis.com/auth/youtube',
+        'https://www.googleapis.com/auth/youtube.readonly',
+        'https://www.googleapis.com/auth/userinfo.profile',
+      ].join(' '),
+      state,
+    });
+    return `${rootUrl}?${params.toString()}`;
   },
 
   async disconnectSocialAccount(platform: string): Promise<boolean> {
