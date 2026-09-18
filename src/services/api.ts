@@ -1,6 +1,11 @@
 import { Project, Clip, AiTagDetection, User, Campaign, StreamSession, ProductGroup, ViewingMode, Product } from '../types';
 
-const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:9000').replace(/\/+$/, '');
+const API_BASE_URL = (
+  import.meta.env.VITE_API_URL ||
+  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'http://localhost:9000'
+    : 'https://digitpop.opportunity-system.com')
+).replace(/\/+$/, '');
 const R2_PUBLIC_DOMAIN = 'https://pub-2af6e082fcb44c58add86361dad9d14b.r2.dev';
 const LOCAL_PRODUCTS_KEY = 'dp_studio_catalog_products';
 
@@ -395,7 +400,7 @@ export const api = {
   },
 
   // --- AI Transcription with Groq Whisper Large v3 Turbo ---
-  async transcribeVideo(file: File): Promise<{
+  async transcribeVideo(file: File | Blob, filename = 'audio.mp3'): Promise<{
     text: string;
     duration: number;
     language: string;
@@ -403,28 +408,35 @@ export const api = {
     segments?: any[];
   }> {
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', file, filename);
+
+    const targetUrl = `${API_BASE_URL}/api/videos/transcribe`;
+    console.log(`🎙️ [dp-studio] Sending audio to ${targetUrl}...`);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/videos/transcribe`, {
+      const res = await fetch(targetUrl, {
         method: 'POST',
         body: formData,
       });
 
       if (res.ok) {
-        return await res.json();
+        const data = await res.json();
+        console.log('✅ [dp-studio] Backend transcription succeeded:', data);
+        return data;
       }
+      const errJson = await res.json().catch(() => ({}));
+      console.warn('Backend transcription returned error status:', res.status, errJson);
     } catch (e) {
-      console.warn('Backend transcription failed, attempting direct Groq fallback:', e);
+      console.warn('Backend transcription network failed, attempting direct Groq fallback:', e);
     }
 
     // Direct Groq fallback for zero-latency client-side processing
     const groqKey = import.meta.env.VITE_GROQ_API_KEY || (typeof window !== 'undefined' ? (window as any).__GROQ_API_KEY__ : '') || '';
     if (!groqKey) {
-      throw new Error('Transcription failed: Backend service unavailable and no GROQ_API_KEY configured.');
+      throw new Error(`Transcription failed: Could not connect to ${targetUrl}.`);
     }
     const groqForm = new FormData();
-    groqForm.append('file', file);
+    groqForm.append('file', file, filename);
     groqForm.append('model', 'whisper-large-v3-turbo');
     groqForm.append('response_format', 'verbose_json');
     groqForm.append('timestamp_granularities[]', 'word');

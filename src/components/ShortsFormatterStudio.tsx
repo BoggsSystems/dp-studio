@@ -16,6 +16,10 @@ import {
   Sliders,
   Flame,
   Zap,
+  Edit3,
+  RefreshCw,
+  AlertCircle,
+  FileAudio,
 } from 'lucide-react';
 import { api } from '../services/api';
 import { Product } from '../types';
@@ -68,12 +72,84 @@ const EMOJI_MAP: Record<string, string> = {
   apply: '✅',
 };
 
+// Helper: Convert AudioBuffer to 16kHz mono WAV Blob for sub-second network transfer
+function audioBufferToWav(buffer: AudioBuffer): Blob {
+  const numChannels = 1;
+  const sampleRate = buffer.sampleRate;
+  const format = 1; // PCM
+  const bitDepth = 16;
+  const channelData = buffer.getChannelData(0);
+  const dataLength = channelData.length * (bitDepth / 8);
+  const bufferLength = 44 + dataLength;
+
+  const arrayBuffer = new ArrayBuffer(bufferLength);
+  const view = new DataView(arrayBuffer);
+
+  function writeString(offset: number, string: string) {
+    for (let i = 0; i < string.length; i++) {
+      view.setUint8(offset + i, string.charCodeAt(i));
+    }
+  }
+
+  writeString(0, 'RIFF');
+  view.setUint32(4, 36 + dataLength, true);
+  writeString(8, 'WAVE');
+  writeString(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, format, true);
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * numChannels * (bitDepth / 8), true);
+  view.setUint16(32, numChannels * (bitDepth / 8), true);
+  view.setUint16(34, bitDepth, true);
+  writeString(36, 'data');
+  view.setUint32(40, dataLength, true);
+
+  let offset = 44;
+  for (let i = 0; i < channelData.length; i++, offset += 2) {
+    const s = Math.max(-1, Math.min(1, channelData[i]));
+    view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+  }
+
+  return new Blob([view], { type: 'audio/wav' });
+}
+
+// Client-side lightweight audio extractor
+async function extractAudioFromVideo(file: File): Promise<Blob> {
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return file;
+
+    const audioCtx = new AudioContextClass();
+    const decodedBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+
+    // Downsample to 16kHz mono offline
+    const targetSampleRate = 16000;
+    const offlineCtx = new OfflineAudioContext(1, decodedBuffer.duration * targetSampleRate, targetSampleRate);
+    const source = offlineCtx.createBufferSource();
+    source.buffer = decodedBuffer;
+    source.connect(offlineCtx.destination);
+    source.start(0);
+
+    const renderedBuffer = await offlineCtx.startRendering();
+    return audioBufferToWav(renderedBuffer);
+  } catch (err) {
+    console.warn('Client audio decode failed, falling back to raw file:', err);
+    return file;
+  }
+}
+
 export default function ShortsFormatterStudio() {
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [transcribeProgress, setTranscribeProgress] = useState<string>('');
+  const [transcribeError, setTranscribeError] = useState<string | null>(null);
   const [words, setWords] = useState<WordItem[]>([]);
+  const [editableTranscript, setEditableTranscript] = useState<string>('');
+  const [isEditingTranscript, setIsEditingTranscript] = useState<boolean>(false);
+
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
@@ -107,6 +183,54 @@ export default function ShortsFormatterStudio() {
     });
   }, []);
 
+  // Transcription trigger function
+  const runTranscription = async (fileToProcess: File) => {
+    setIsTranscribing(true);
+    setTranscribeError(null);
+    setTranscribeProgress('⚡ Extracting lightweight audio track for instant transcription...');
+
+    try {
+      // 1. Extract audio in browser to send 500KB instead of 100MB
+      const audioBlob = await extractAudioFromVideo(fileToProcess);
+      setTranscribeProgress('🚀 Transcribing with Groq Whisper Large v3 Turbo (~0.4s)...');
+
+      // 2. Call transcription API
+      const res = await api.transcribeVideo(audioBlob, 'short_audio.wav');
+
+      if (res && res.words && res.words.length > 0) {
+        const formattedWords: WordItem[] = res.words.map((w, idx) => ({
+          id: `w_${idx}_${Date.now()}`,
+          word: w.word.trim(),
+          start: w.start,
+          end: w.end,
+        }));
+        setWords(formattedWords);
+        const fullText = formattedWords.map((w) => w.word).join(' ');
+        setEditableTranscript(fullText);
+      } else if (res && res.text) {
+        const split = res.text.split(/\s+/).filter(Boolean);
+        const estDuration = res.duration || duration || 30;
+        const wordTime = estDuration / split.length;
+        const formattedWords: WordItem[] = split.map((word, idx) => ({
+          id: `w_${idx}_${Date.now()}`,
+          word,
+          start: idx * wordTime,
+          end: (idx + 1) * wordTime,
+        }));
+        setWords(formattedWords);
+        setEditableTranscript(res.text);
+      } else {
+        throw new Error('No words or text returned from Whisper API.');
+      }
+    } catch (err: any) {
+      console.error('Transcription error:', err);
+      setTranscribeError(err.message || 'Failed to transcribe audio.');
+    } finally {
+      setIsTranscribing(false);
+      setTranscribeProgress('');
+    }
+  };
+
   // Handle Video File Selection
   const handleFileChange = async (file: File) => {
     if (!file) return;
@@ -116,40 +240,8 @@ export default function ShortsFormatterStudio() {
     setIsPlaying(false);
     setCurrentTime(0);
 
-    // Auto-transcribe with Groq Whisper Large v3 Turbo
-    setIsTranscribing(true);
-    setTranscribeProgress('Transcribing audio with Groq Whisper Large v3 Turbo...');
-
-    try {
-      const res = await api.transcribeVideo(file);
-      if (res && res.words && res.words.length > 0) {
-        const formattedWords: WordItem[] = res.words.map((w, idx) => ({
-          id: `w_${idx}_${Date.now()}`,
-          word: w.word.trim(),
-          start: w.start,
-          end: w.end,
-        }));
-        setWords(formattedWords);
-      } else if (res && res.text) {
-        // Fallback segment splitting
-        const split = res.text.split(/\s+/).filter(Boolean);
-        const estDuration = res.duration || 30;
-        const wordTime = estDuration / split.length;
-        const formattedWords: WordItem[] = split.map((word, idx) => ({
-          id: `w_${idx}_${Date.now()}`,
-          word,
-          start: idx * wordTime,
-          end: (idx + 1) * wordTime,
-        }));
-        setWords(formattedWords);
-      }
-    } catch (err: any) {
-      console.error('Transcription error:', err);
-      alert(`Transcription error: ${err.message || 'Failed to transcribe'}`);
-    } finally {
-      setIsTranscribing(false);
-      setTranscribeProgress('');
-    }
+    // Run transcription automatically
+    await runTranscription(file);
   };
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
@@ -157,6 +249,33 @@ export default function ShortsFormatterStudio() {
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       handleFileChange(e.dataTransfer.files[0]);
     }
+  };
+
+  // Save changes from the Full Transcript Editor back into words array
+  const handleSaveTranscriptEdits = () => {
+    const splitWords = editableTranscript.split(/\s+/).filter(Boolean);
+    if (splitWords.length === 0) return;
+
+    if (words.length > 0 && splitWords.length === words.length) {
+      // Direct 1-to-1 word replacement preserving exact timestamps
+      const updated = words.map((w, idx) => ({
+        ...w,
+        word: splitWords[idx],
+      }));
+      setWords(updated);
+    } else {
+      // Re-interpolate timestamps across the video duration
+      const totalDuration = duration || (words.length > 0 ? words[words.length - 1].end : 30);
+      const wordDuration = totalDuration / splitWords.length;
+      const updated: WordItem[] = splitWords.map((word, idx) => ({
+        id: `w_${idx}_${Date.now()}`,
+        word,
+        start: idx * wordDuration,
+        end: (idx + 1) * wordDuration,
+      }));
+      setWords(updated);
+    }
+    setIsEditingTranscript(false);
   };
 
   // Group words into display chunks based on pacing
@@ -243,18 +362,14 @@ export default function ShortsFormatterStudio() {
   };
 
   // Social Copy Generation
-  const fullTranscript = useMemo(() => {
-    return words.map((w) => w.word).join(' ');
-  }, [words]);
-
   const socialTitles = useMemo(() => {
-    if (!fullTranscript) return ['How to build AI systems ⚡', 'Bypassing 45-min portals in 10ms 🚀'];
+    if (!editableTranscript) return ['How to build AI systems ⚡', 'Bypassing 45-min portals in 10ms 🚀'];
     return [
       `How to bypass 45-minute ATS portals in 10 milliseconds ⚡`,
       `The AI Engineering Secret Nobody Tells You (Speedrun) 🔥`,
       `I automated my entire application pipeline with Opportunity OS 🚀`,
     ];
-  }, [fullTranscript]);
+  }, [editableTranscript]);
 
   const pinnedComment = useMemo(() => {
     const productTitle = selectedProduct ? selectedProduct.title : 'Opportunity OS Platform';
@@ -289,7 +404,6 @@ export default function ShortsFormatterStudio() {
       const stream = canvas.captureStream(30);
       let combinedStream = stream;
 
-      // Capture audio from video element if possible
       try {
         const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
         const source = audioCtx.createMediaElementSource(video);
@@ -340,29 +454,24 @@ export default function ShortsFormatterStudio() {
           return;
         }
 
-        // 1. Draw Background
         ctx.fillStyle = '#000000';
         ctx.fillRect(0, 0, 1080, 1920);
 
         if (layoutMode === 'FIT_BLUR') {
-          // Blurred background
           ctx.save();
           ctx.filter = 'blur(30px) brightness(0.4)';
           ctx.drawImage(video, -200, -200, 1480, 2320);
           ctx.restore();
 
-          // Center video fit
           const videoAspect = (video.videoWidth || 16) / (video.videoHeight || 9);
           const drawWidth = 1080;
           const drawHeight = 1080 / videoAspect;
           const drawY = (1920 - drawHeight) / 2;
           ctx.drawImage(video, 0, drawY, drawWidth, drawHeight);
         } else {
-          // Cover crop
           ctx.drawImage(video, 0, 0, 1080, 1920);
         }
 
-        // 2. Draw Bouncing Subtitles
         const currentT = video.currentTime;
         const currChunk = chunks.find((c) => currentT >= c.start - 0.05 && currentT <= c.end + 0.15);
         if (currChunk) {
@@ -371,7 +480,6 @@ export default function ShortsFormatterStudio() {
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
 
-          // Measure total width to space words
           const wordsToDraw = currChunk.words;
           const activeIndex = wordsToDraw.findIndex(
             (w) => currentT >= w.start - 0.05 && currentT <= w.end + 0.05
@@ -423,17 +531,30 @@ export default function ShortsFormatterStudio() {
               </div>
             </div>
             {videoFile && (
-              <button
-                onClick={() => {
-                  setVideoFile(null);
-                  setVideoUrl(null);
-                  setWords([]);
-                }}
-                className="btn btn--outline"
-                style={{ padding: '6px 12px', fontSize: '12px' }}
-              >
-                <RotateCcw size={14} /> New Video
-              </button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={() => videoFile && runTranscription(videoFile)}
+                  disabled={isTranscribing}
+                  className="btn btn--primary"
+                  style={{ padding: '6px 14px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <RefreshCw size={14} className={isTranscribing ? 'animate-spin' : ''} />
+                  <span>{isTranscribing ? 'Transcribing...' : '⚡ Generate Captions'}</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setVideoFile(null);
+                    setVideoUrl(null);
+                    setWords([]);
+                    setEditableTranscript('');
+                    setTranscribeError(null);
+                  }}
+                  className="btn btn--outline"
+                  style={{ padding: '6px 12px', fontSize: '12px' }}
+                >
+                  <RotateCcw size={14} /> New Video
+                </button>
+              </div>
             )}
           </div>
 
@@ -488,14 +609,44 @@ export default function ShortsFormatterStudio() {
               </div>
             </div>
           )}
+
+          {/* Error Banner with Retry */}
+          {transcribeError && (
+            <div style={{ marginTop: '16px', padding: '14px', borderRadius: 'var(--radius-md)', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <AlertCircle size={20} color="#ef4444" />
+                <span style={{ fontSize: '13px', color: '#ef4444', fontWeight: 600 }}>{transcribeError}</span>
+              </div>
+              {videoFile && (
+                <button
+                  onClick={() => runTranscription(videoFile)}
+                  className="btn btn--primary"
+                  style={{ padding: '6px 12px', fontSize: '12px' }}
+                >
+                  Retry Transcription
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Customization Controls Panel */}
         {videoUrl && (
           <div className="surface-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div style={{ fontSize: '15px', fontWeight: '700', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Sliders size={16} color="var(--accent-cyan)" />
-              <span>Subtitle & Canvas Customization</span>
+            <div style={{ fontSize: '15px', fontWeight: '700', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Sliders size={16} color="var(--accent-cyan)" />
+                <span>Subtitle & Canvas Customization</span>
+              </div>
+              {words.length === 0 && !isTranscribing && videoFile && (
+                <button
+                  onClick={() => runTranscription(videoFile)}
+                  className="btn btn--primary"
+                  style={{ padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <Zap size={14} /> ⚡ Generate Captions Now
+                </button>
+              )}
             </div>
 
             {/* 1. Kinetic Highlight Color */}
@@ -701,53 +852,134 @@ export default function ShortsFormatterStudio() {
           </div>
         )}
 
-        {/* Interactive Transcript Editor & Word Timeline */}
-        {words.length > 0 && (
+        {/* 📝 Full Video Transcript & Editor */}
+        {videoUrl && (
           <div className="surface-panel" style={{ padding: '20px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
               <div style={{ fontSize: '15px', fontWeight: '700', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Type size={16} color="var(--accent-emerald)" />
-                <span>Interactive Word Timeline ({words.length} words extracted)</span>
+                <Edit3 size={16} color="var(--accent-amber)" />
+                <span>Full Video Transcript & Editor</span>
+                {words.length > 0 && (
+                  <span className="badge badge--cyan" style={{ fontSize: '11px' }}>
+                    {words.length} words
+                  </span>
+                )}
               </div>
-              <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Click any word to seek playback</span>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {isEditingTranscript ? (
+                  <>
+                    <button
+                      onClick={handleSaveTranscriptEdits}
+                      className="btn btn--primary"
+                      style={{ padding: '6px 12px', fontSize: '12px' }}
+                    >
+                      Save & Sync Captions
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditableTranscript(words.map((w) => w.word).join(' '));
+                        setIsEditingTranscript(false);
+                      }}
+                      className="btn btn--outline"
+                      style={{ padding: '6px 10px', fontSize: '12px' }}
+                    >
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => setIsEditingTranscript(true)}
+                    className="btn btn--outline"
+                    style={{ padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <Edit3 size={12} /> Edit Text
+                  </button>
+                )}
+              </div>
             </div>
 
-            <div
-              style={{
-                maxHeight: '180px',
-                overflowY: 'auto',
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: '6px',
-                padding: '12px',
-                background: 'rgba(0,0,0,0.4)',
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--border-color)',
-              }}
-            >
-              {words.map((wordObj) => {
-                const isActive = currentTime >= wordObj.start && currentTime <= wordObj.end;
-                return (
-                  <span
-                    key={wordObj.id}
-                    onClick={() => seekTo(wordObj.start)}
-                    style={{
-                      padding: '4px 8px',
-                      borderRadius: '4px',
-                      fontSize: '13px',
-                      fontWeight: isActive ? 800 : 500,
-                      background: isActive ? HIGHLIGHT_COLORS[highlightColor].hex : 'rgba(255,255,255,0.06)',
-                      color: isActive ? '#000' : '#fff',
-                      cursor: 'pointer',
-                      transition: 'all 0.1s',
-                      boxShadow: isActive ? `0 0 10px ${HIGHLIGHT_COLORS[highlightColor].glow}` : 'none',
-                    }}
-                  >
-                    {wordObj.word}
-                  </span>
-                );
-              })}
-            </div>
+            {/* Editable Text Box */}
+            {isEditingTranscript ? (
+              <textarea
+                value={editableTranscript}
+                onChange={(e) => setEditableTranscript(e.target.value)}
+                placeholder="Edit transcript text here..."
+                rows={5}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'rgba(0,0,0,0.5)',
+                  border: '1px solid var(--accent-amber)',
+                  color: '#fff',
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: '14px',
+                  lineHeight: '1.6',
+                  resize: 'vertical',
+                  outline: 'none',
+                }}
+              />
+            ) : (
+              <div
+                style={{
+                  padding: '14px',
+                  background: 'rgba(0,0,0,0.3)',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--border-color)',
+                  color: editableTranscript ? '#fff' : 'var(--text-muted)',
+                  fontSize: '14px',
+                  lineHeight: '1.6',
+                  maxHeight: '160px',
+                  overflowY: 'auto',
+                }}
+              >
+                {editableTranscript || 'No transcript generated yet. Click "⚡ Generate Captions" above.'}
+              </div>
+            )}
+
+            {/* Word Timeline */}
+            {words.length > 0 && (
+              <div style={{ marginTop: '14px' }}>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
+                  Word Timing Inspector (Click word to jump playback):
+                </div>
+                <div
+                  style={{
+                    maxHeight: '120px',
+                    overflowY: 'auto',
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '6px',
+                    padding: '10px',
+                    background: 'rgba(0,0,0,0.2)',
+                    borderRadius: 'var(--radius-sm)',
+                  }}
+                >
+                  {words.map((wordObj) => {
+                    const isActive = currentTime >= wordObj.start && currentTime <= wordObj.end;
+                    return (
+                      <span
+                        key={wordObj.id}
+                        onClick={() => seekTo(wordObj.start)}
+                        style={{
+                          padding: '3px 6px',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                          fontWeight: isActive ? 800 : 500,
+                          background: isActive ? HIGHLIGHT_COLORS[highlightColor].hex : 'rgba(255,255,255,0.06)',
+                          color: isActive ? '#000' : '#fff',
+                          cursor: 'pointer',
+                          transition: 'all 0.1s',
+                          boxShadow: isActive ? `0 0 10px ${HIGHLIGHT_COLORS[highlightColor].glow}` : 'none',
+                        }}
+                      >
+                        {wordObj.word}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
