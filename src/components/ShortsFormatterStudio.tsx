@@ -178,6 +178,9 @@ export default function ShortsFormatterStudio() {
 
   // Playback state
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const audioDestRef = useRef<MediaStreamAudioDestinationNode | null>(null);
+  const audioSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -221,7 +224,7 @@ export default function ShortsFormatterStudio() {
   // YouTube OAuth & Publishing State
   const [socialAccounts, setSocialAccounts] = useState<any[]>([]);
   const [isPublishingYouTube, setIsPublishingYouTube] = useState<boolean>(false);
-  const [publishYouTubeStage, setPublishYouTubeStage] = useState<'IDLE' | 'INITIALIZING' | 'UPLOADING' | 'SETTING_THUMBNAIL' | 'DONE'>('IDLE');
+  const [publishYouTubeStage, setPublishYouTubeStage] = useState<'IDLE' | 'RENDERING' | 'INITIALIZING' | 'UPLOADING' | 'SETTING_THUMBNAIL' | 'DONE'>('IDLE');
   const [publishYouTubePercent, setPublishYouTubePercent] = useState<number>(0);
   const [publishYouTubeLoadedMb, setPublishYouTubeLoadedMb] = useState<string>('0');
   const [publishYouTubeTotalMb, setPublishYouTubeTotalMb] = useState<string>('0');
@@ -576,37 +579,487 @@ export default function ShortsFormatterStudio() {
     setSocialAccounts((prev) => prev.filter((a) => a.platform !== 'YOUTUBE_SHORTS'));
   };
 
+  // Render High-CTR Thumbnail Blob (9:16 or 16:9)
+  const renderThumbnailBlob = async (aspect: '9:16' | '16:9' = '9:16'): Promise<Blob | null> => {
+    let currentImgUrl = thumbnailImage;
+    if (!currentImgUrl && videoRef.current) {
+      captureFrameAtCurrentTime();
+      currentImgUrl = thumbnailImage;
+    }
+
+    const width = aspect === '9:16' ? 1080 : 1920;
+    const height = aspect === '9:16' ? 1920 : 1080;
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    if (currentImgUrl) {
+      const img = new Image();
+      img.src = currentImgUrl;
+      await new Promise((resolve) => {
+        if (img.complete) resolve(true);
+        else {
+          img.onload = () => resolve(true);
+          img.onerror = () => resolve(false);
+        }
+      });
+      if (aspect === '9:16') {
+        ctx.drawImage(img, 0, 0, 1080, 1920);
+      } else {
+        ctx.save();
+        ctx.drawImage(img, 0, -420, 1920, 1920);
+        ctx.restore();
+      }
+    } else if (videoRef.current) {
+      const video = videoRef.current;
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, width, height);
+      if (aspect === '9:16') {
+        if (layoutMode === 'FIT_BLUR') {
+          ctx.save();
+          ctx.filter = 'blur(30px) brightness(0.4)';
+          ctx.drawImage(video, -200, -200, 1480, 2320);
+          ctx.restore();
+          const videoAspect = (video.videoWidth || 16) / (video.videoHeight || 9);
+          const drawWidth = 1080;
+          const drawHeight = 1080 / videoAspect;
+          const drawY = (1920 - drawHeight) / 2;
+          ctx.drawImage(video, 0, drawY, drawWidth, drawHeight);
+        } else {
+          ctx.drawImage(video, 0, 0, 1080, 1920);
+        }
+      } else {
+        ctx.drawImage(video, 0, 0, 1920, 1080);
+      }
+    }
+
+    // Top Badge
+    if (thumbnailBadge) {
+      ctx.save();
+      const badgeY = aspect === '9:16' ? 100 : 60;
+      ctx.font = '900 28px Inter, sans-serif';
+      const badgeTextWidth = ctx.measureText(thumbnailBadge).width;
+      const badgeWidth = badgeTextWidth + 48;
+      const badgeX = (width - badgeWidth) / 2;
+
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+      ctx.strokeStyle = THUMBNAIL_STYLES[thumbnailStyle].fontColor;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      if (typeof (ctx as any).roundRect === 'function') {
+        (ctx as any).roundRect(badgeX, badgeY, badgeWidth, 54, 14);
+      } else {
+        ctx.rect(badgeX, badgeY, badgeWidth, 54);
+      }
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#FFFFFF';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(thumbnailBadge, width / 2, badgeY + 27);
+      ctx.restore();
+    }
+
+    // Main Bold Viral Hook Text (Wrapped)
+    const textToDraw = thumbnailUppercase ? thumbnailTitle.toUpperCase() : thumbnailTitle;
+    const yCenter = height * (thumbnailPosition / 100);
+    const conf = THUMBNAIL_STYLES[thumbnailStyle];
+
+    ctx.save();
+    const baseFontSize = thumbnailFontSize * (aspect === '9:16' ? 1.6 : 1.4);
+    ctx.font = `900 ${baseFontSize}px Inter, Impact, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineWidth = thumbnailStrokeWidth * 1.5;
+    ctx.strokeStyle = conf.strokeColor;
+    ctx.shadowColor = conf.glow;
+    ctx.shadowBlur = 24;
+
+    const wordsArr = textToDraw.split(' ');
+    const lines: string[] = [];
+    let currentLine = wordsArr[0] || '';
+
+    for (let i = 1; i < wordsArr.length; i++) {
+      const testLine = currentLine + ' ' + wordsArr[i];
+      if (ctx.measureText(testLine).width < width * 0.86) {
+        currentLine = testLine;
+      } else {
+        lines.push(currentLine);
+        currentLine = wordsArr[i];
+      }
+    }
+    if (currentLine) lines.push(currentLine);
+
+    const lineHeight = baseFontSize * 1.18;
+    const startY = yCenter - ((lines.length - 1) * lineHeight) / 2;
+
+    lines.forEach((line, idx) => {
+      const lineY = startY + idx * lineHeight;
+      ctx.strokeText(line, width / 2, lineY);
+      ctx.fillStyle = conf.fontColor;
+      ctx.fillText(line, width / 2, lineY);
+    });
+    ctx.restore();
+
+    return new Promise<Blob | null>((resolve) => {
+      canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.95);
+    });
+  };
+
+  // Download High-CTR Thumbnail (9:16 or 16:9)
+  const downloadThumbnail = async (aspect: '9:16' | '16:9') => {
+    const blob = await renderThumbnailBlob(aspect);
+    if (!blob) return;
+    const downloadUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.download = `thumbnail_${aspect.replace(':', 'x')}_${Date.now()}.jpg`;
+    link.href = downloadUrl;
+    link.click();
+    URL.revokeObjectURL(downloadUrl);
+  };
+
+  // Bakes 1080x1920 short with kinetic bouncing subtitles, layout framing (FIT_BLUR), and overlays
+  const renderFormattedVideoBlob = async (
+    onProgress?: (percent: number) => void
+  ): Promise<Blob> => {
+    return new Promise(async (resolve, reject) => {
+      if (!videoRef.current || !videoUrl) {
+        return reject(new Error('No video loaded to render'));
+      }
+
+      const video = videoRef.current;
+      const canvas = document.createElement('canvas');
+      canvas.width = 1080;
+      canvas.height = 1920;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        return reject(new Error('Could not initialize canvas 2D context'));
+      }
+
+      // Pre-load QR image for canvas drawing if enabled
+      let qrImg: HTMLImageElement | null = null;
+      if (showQrCode && qrDataUrl) {
+        qrImg = new Image();
+        qrImg.src = qrDataUrl;
+        await new Promise((res) => {
+          if (qrImg!.complete) res(true);
+          else {
+            qrImg!.onload = () => res(true);
+            qrImg!.onerror = () => res(false);
+          }
+        });
+      }
+
+      const stream = canvas.captureStream(30);
+      let audioStreamTracks: MediaStreamTrack[] = [];
+      try {
+        if (!audioContextRef.current) {
+          const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
+          audioContextRef.current = new AudioCtxClass();
+          audioDestRef.current = audioContextRef.current.createMediaStreamDestination();
+          audioSourceRef.current = audioContextRef.current.createMediaElementSource(video);
+          audioSourceRef.current.connect(audioDestRef.current);
+          audioSourceRef.current.connect(audioContextRef.current.destination);
+        }
+        if (audioContextRef.current.state === 'suspended') {
+          await audioContextRef.current.resume();
+        }
+        if (audioDestRef.current && audioDestRef.current.stream.getAudioTracks().length > 0) {
+          audioStreamTracks = audioDestRef.current.stream.getAudioTracks();
+        }
+      } catch (e) {
+        console.warn('AudioContext routing fallback:', e);
+        if ((video as any).captureStream) {
+          const vStream = (video as any).captureStream();
+          audioStreamTracks = vStream.getAudioTracks();
+        }
+      }
+
+      const combinedStream = new MediaStream([
+        ...stream.getVideoTracks(),
+        ...audioStreamTracks,
+      ]);
+
+      const mimeType = MediaRecorder.isTypeSupported('video/mp4;codecs=avc1')
+        ? 'video/mp4;codecs=avc1'
+        : MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+        ? 'video/webm;codecs=vp9'
+        : 'video/webm';
+
+      const mediaRecorder = new MediaRecorder(combinedStream, {
+        mimeType,
+        videoBitsPerSecond: 8000000,
+      });
+
+      const chunksRecorded: Blob[] = [];
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRecorded.push(e.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        const finalBlob = new Blob(chunksRecorded, {
+          type: mimeType.startsWith('video/mp4') ? 'video/mp4' : 'video/webm',
+        });
+        resolve(finalBlob);
+      };
+
+      mediaRecorder.onerror = (e) => {
+        reject(new Error('MediaRecorder error: ' + (e as any).error?.message));
+      };
+
+      let animationFrameId: number;
+      let isRenderingStopped = false;
+
+      const stopRecording = () => {
+        if (isRenderingStopped) return;
+        isRenderingStopped = true;
+        cancelAnimationFrame(animationFrameId);
+        video.removeEventListener('ended', handleEnded);
+        video.removeEventListener('pause', handlePause);
+        if (mediaRecorder.state === 'recording') {
+          mediaRecorder.stop();
+        }
+      };
+
+      const handleEnded = () => stopRecording();
+      const handlePause = () => {
+        if (video.currentTime >= video.duration - 0.2) {
+          stopRecording();
+        }
+      };
+
+      video.addEventListener('ended', handleEnded);
+      video.addEventListener('pause', handlePause);
+
+      // Start recording and playback from beginning
+      video.currentTime = 0;
+      await video.play();
+      setIsPlaying(true);
+      mediaRecorder.start(100);
+
+      const renderFrame = () => {
+        if (isRenderingStopped) return;
+
+        if (video.ended || (video.duration && video.currentTime >= video.duration - 0.05)) {
+          stopRecording();
+          return;
+        }
+
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, 1080, 1920);
+
+        // 1. Layout Framing (FIT_BLUR or FULL_BLEED)
+        if (layoutMode === 'FIT_BLUR') {
+          ctx.save();
+          ctx.filter = 'blur(30px) brightness(0.4)';
+          ctx.drawImage(video, -200, -200, 1480, 2320);
+          ctx.restore();
+
+          const videoAspect = (video.videoWidth || 16) / (video.videoHeight || 9);
+          const drawWidth = 1080;
+          const drawHeight = 1080 / videoAspect;
+          const drawY = (1920 - drawHeight) / 2;
+          ctx.drawImage(video, 0, drawY, drawWidth, drawHeight);
+        } else {
+          ctx.drawImage(video, 0, 0, 1080, 1920);
+        }
+
+        // 2. Word-by-Word Kinetic Subtitle Overlay
+        const currentT = video.currentTime;
+        const currChunk = chunks.find((c) => currentT >= c.start - 0.05 && currentT <= c.end + 0.15);
+        if (currChunk) {
+          const yPos = 1920 * (verticalPosition / 100);
+          const baseFontPx = fontSize * 2.2;
+          const wordsToDraw = currChunk.words;
+          const activeIndex = wordsToDraw.findIndex(
+            (w) => currentT >= w.start - 0.05 && currentT <= w.end + 0.05
+          );
+
+          ctx.textBaseline = 'middle';
+          const gap = 16;
+
+          const wordSpacings = wordsToDraw.map((w, idx) => {
+            const wordText = getWordDisplay(w);
+            const isActive = idx === activeIndex;
+            ctx.font = `900 ${isActive ? baseFontPx * 1.15 : baseFontPx}px Inter, sans-serif`;
+            return {
+              word: wordText,
+              width: ctx.measureText(wordText).width,
+              isActive,
+            };
+          });
+
+          const totalWidth = wordSpacings.reduce((sum, item) => sum + item.width, 0) + (wordSpacings.length - 1) * gap;
+          let currentX = (1080 - totalWidth) / 2;
+
+          wordSpacings.forEach((item) => {
+            const fontPx = item.isActive ? baseFontPx * 1.15 : baseFontPx;
+            ctx.font = `900 ${fontPx}px Inter, sans-serif`;
+            ctx.textAlign = 'left';
+
+            ctx.save();
+            ctx.lineWidth = 14;
+            ctx.strokeStyle = '#000000';
+            ctx.shadowColor = item.isActive ? HIGHLIGHT_COLORS[highlightColor].glow : 'rgba(0,0,0,0.9)';
+            ctx.shadowBlur = item.isActive ? 24 : 14;
+
+            ctx.strokeText(item.word, currentX, yPos + (item.isActive ? -4 : 0));
+
+            ctx.fillStyle = item.isActive ? HIGHLIGHT_COLORS[highlightColor].hex : '#FFFFFF';
+            ctx.fillText(item.word, currentX, yPos + (item.isActive ? -4 : 0));
+            ctx.restore();
+
+            currentX += item.width + gap;
+          });
+        }
+
+        // 3. QR Code Badge
+        if (showQrCode && qrImg && qrImg.complete) {
+          const qrX = qrPlacement === 'TOP_RIGHT' ? 1080 - 220 - 40 : qrPlacement === 'TOP_LEFT' ? 40 : 1080 - 220 - 40;
+          const qrY = qrPlacement === 'BOTTOM_RIGHT' ? 1920 - 380 : 70;
+          const w = 220;
+          const h = 270;
+          const r = 24;
+
+          ctx.save();
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+          ctx.strokeStyle = HIGHLIGHT_COLORS[highlightColor].hex;
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          if (typeof (ctx as any).roundRect === 'function') {
+            (ctx as any).roundRect(qrX, qrY, w, h, r);
+          } else {
+            ctx.rect(qrX, qrY, w, h);
+          }
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = '#FFFFFF';
+          ctx.beginPath();
+          if (typeof (ctx as any).roundRect === 'function') {
+            (ctx as any).roundRect(qrX + 20, qrY + 20, 180, 180, 12);
+          } else {
+            ctx.rect(qrX + 20, qrY + 20, 180, 180);
+          }
+          ctx.fill();
+
+          ctx.drawImage(qrImg, qrX + 24, qrY + 24, 172, 172);
+
+          ctx.font = '900 20px Inter, sans-serif';
+          ctx.fillStyle = HIGHLIGHT_COLORS[highlightColor].hex;
+          ctx.textAlign = 'center';
+          ctx.fillText('⚡ SCAN TO BUY', qrX + w / 2, qrY + 234);
+
+          if (selectedProduct) {
+            ctx.font = '700 16px Inter, sans-serif';
+            ctx.fillStyle = '#10B981';
+            ctx.fillText(`$${selectedProduct.price.toFixed(2)}`, qrX + w / 2, qrY + 256);
+          }
+          ctx.restore();
+        }
+
+        // 4. Shoppable Product Drawer
+        if (showShoppableDrawer && selectedProduct) {
+          const drawerY = 1920 - 200;
+          const dx = 40;
+          const dw = 1000;
+          const dh = 140;
+          const dr = 24;
+
+          ctx.save();
+          ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+          ctx.strokeStyle = 'rgba(255, 184, 0, 0.6)';
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          if (typeof (ctx as any).roundRect === 'function') {
+            (ctx as any).roundRect(dx, drawerY, dw, dh, dr);
+          } else {
+            ctx.rect(dx, drawerY, dw, dh);
+          }
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.font = '800 20px Inter, sans-serif';
+          ctx.fillStyle = '#FFB800';
+          ctx.textAlign = 'left';
+          ctx.fillText('⚡ FEATURED IN CLIP', dx + 30, drawerY + 45);
+
+          ctx.font = '700 28px Inter, sans-serif';
+          ctx.fillStyle = '#FFFFFF';
+          const maxTitleLen = 42;
+          const titleText =
+            selectedProduct.title.length > maxTitleLen
+              ? selectedProduct.title.slice(0, maxTitleLen) + '...'
+              : selectedProduct.title;
+          ctx.fillText(titleText, dx + 30, drawerY + 90);
+
+          ctx.font = '800 36px Inter, sans-serif';
+          ctx.fillStyle = '#10B981';
+          ctx.textAlign = 'right';
+          ctx.fillText(`$${selectedProduct.price.toFixed(2)}`, dx + dw - 40, drawerY + 80);
+          ctx.restore();
+        }
+
+        if (onProgress) {
+          const pct = Math.min(100, Math.round((video.currentTime / (video.duration || 1)) * 100));
+          onProgress(pct);
+        }
+
+        animationFrameId = requestAnimationFrame(renderFrame);
+      };
+
+      animationFrameId = requestAnimationFrame(renderFrame);
+    });
+  };
+
   const handlePublishDirectToYouTube = async () => {
-    if (!videoFile && !videoUrl) return;
+    if (!videoRef.current && !videoFile && !videoUrl) return;
     setIsPublishingYouTube(true);
-    setPublishYouTubeStage('INITIALIZING');
-    setPublishYouTubePercent(5);
+    setPublishYouTubeStage('RENDERING');
+    setPublishYouTubePercent(0);
     setPublishYouTubeLoadedMb('0');
     setPublishYouTubeTotalMb('0');
     setPublishYouTubeError(null);
     setPublishedYouTubeUrl(null);
 
     try {
-      // 1. Prepare video blob
+      // 1. Bake video canvas with kinetic subtitles, layout framing, and overlays
       let videoBlobToUpload: Blob;
-      if (videoFile) {
+      if (videoRef.current && videoUrl) {
+        setPublishYouTubeStage('RENDERING');
+        videoBlobToUpload = await renderFormattedVideoBlob((renderPercent) => {
+          // Baking phase is 0% to 40%
+          setPublishYouTubePercent(Math.round(renderPercent * 0.4));
+        });
+      } else if (videoFile) {
         videoBlobToUpload = videoFile;
       } else {
         const response = await fetch(videoUrl!);
         videoBlobToUpload = await response.blob();
       }
 
-      // 2. Prepare thumbnail blob if available
+      // 2. Prepare high-CTR thumbnail blob (9:16)
+      setPublishYouTubeStage('INITIALIZING');
+      setPublishYouTubePercent(45);
       let thumbnailBlob: Blob | undefined;
-      if (thumbnailImage) {
-        try {
+      try {
+        const generatedThumb = await renderThumbnailBlob('9:16');
+        if (generatedThumb) {
+          thumbnailBlob = generatedThumb;
+        } else if (thumbnailImage) {
           const thumbRes = await fetch(thumbnailImage);
           thumbnailBlob = await thumbRes.blob();
-        } catch (e) {}
+        }
+      } catch (thumbErr) {
+        console.warn('Thumbnail generation warning:', thumbErr);
       }
 
       const fullDesc = `${editableTranscript.slice(0, 300)}...\n\n👉 Grab the Blueprint & Opportunity OS: https://opportunity-system.com/about\n⚡ Featured Product: ${selectedProduct?.title || 'Opportunity OS'}\n\n#Shorts #Programming #SoftwareEngineering #AI #TechCareers #OpportunityOS`;
 
+      // 3. Stream direct to Google YouTube Resumable Cloud Session
       const result = await api.publishYouTubeShort(
         {
           videoBlob: videoBlobToUpload,
@@ -617,16 +1070,27 @@ export default function ShortsFormatterStudio() {
           privacy: 'public',
         },
         (progress) => {
-          setPublishYouTubeStage(progress.stage);
-          setPublishYouTubePercent(progress.percent);
-          if (progress.loadedBytes && progress.totalBytes) {
-            setPublishYouTubeLoadedMb((progress.loadedBytes / (1024 * 1024)).toFixed(1));
-            setPublishYouTubeTotalMb((progress.totalBytes / (1024 * 1024)).toFixed(1));
+          if (progress.stage === 'INITIALIZING') {
+            setPublishYouTubeStage('INITIALIZING');
+            setPublishYouTubePercent(48);
+          } else if (progress.stage === 'UPLOADING') {
+            setPublishYouTubeStage('UPLOADING');
+            // Upload phase scaled from 50% to 90%
+            const uploadScaled = 50 + Math.round((progress.percent / 100) * 40);
+            setPublishYouTubePercent(uploadScaled);
+            if (progress.loadedBytes && progress.totalBytes) {
+              setPublishYouTubeLoadedMb((progress.loadedBytes / (1024 * 1024)).toFixed(1));
+              setPublishYouTubeTotalMb((progress.totalBytes / (1024 * 1024)).toFixed(1));
+            }
+          } else if (progress.stage === 'SETTING_THUMBNAIL') {
+            setPublishYouTubeStage('SETTING_THUMBNAIL');
+            setPublishYouTubePercent(95);
           }
         }
       );
 
       setPublishYouTubeStage('DONE');
+      setPublishYouTubePercent(100);
       setPublishedYouTubeUrl(result.url);
     } catch (err: any) {
       console.error('Direct YouTube publish failed:', err);
@@ -634,110 +1098,6 @@ export default function ShortsFormatterStudio() {
     } finally {
       setIsPublishingYouTube(false);
     }
-  };
-
-  // Download High-CTR Thumbnail (9:16 or 16:9)
-  const downloadThumbnail = (aspect: '9:16' | '16:9') => {
-    if (!thumbnailImage) {
-      captureFrameAtCurrentTime();
-    }
-    const currentImgUrl = thumbnailImage;
-    if (!currentImgUrl) return;
-
-    const img = new Image();
-    img.src = currentImgUrl;
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      const width = aspect === '9:16' ? 1080 : 1920;
-      const height = aspect === '9:16' ? 1920 : 1080;
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-
-      if (aspect === '9:16') {
-        ctx.drawImage(img, 0, 0, 1080, 1920);
-      } else {
-        // Landscape center crop
-        ctx.save();
-        ctx.drawImage(img, 0, -420, 1920, 1920);
-        ctx.restore();
-      }
-
-      // Top Badge
-      if (thumbnailBadge) {
-        ctx.save();
-        const badgeY = aspect === '9:16' ? 100 : 60;
-        ctx.font = '900 28px Inter, sans-serif';
-        const badgeTextWidth = ctx.measureText(thumbnailBadge).width;
-        const badgeWidth = badgeTextWidth + 48;
-        const badgeX = (width - badgeWidth) / 2;
-
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
-        ctx.strokeStyle = THUMBNAIL_STYLES[thumbnailStyle].fontColor;
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        if (typeof (ctx as any).roundRect === 'function') {
-          (ctx as any).roundRect(badgeX, badgeY, badgeWidth, 54, 14);
-        } else {
-          ctx.rect(badgeX, badgeY, badgeWidth, 54);
-        }
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.fillStyle = '#FFFFFF';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(thumbnailBadge, width / 2, badgeY + 27);
-        ctx.restore();
-      }
-
-      // Main Bold Viral Hook Text (Wrapped)
-      const textToDraw = thumbnailUppercase ? thumbnailTitle.toUpperCase() : thumbnailTitle;
-      const yCenter = height * (thumbnailPosition / 100);
-      const conf = THUMBNAIL_STYLES[thumbnailStyle];
-
-      ctx.save();
-      const baseFontSize = thumbnailFontSize * (aspect === '9:16' ? 1.6 : 1.4);
-      ctx.font = `900 ${baseFontSize}px Inter, Impact, sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.lineWidth = thumbnailStrokeWidth * 1.5;
-      ctx.strokeStyle = conf.strokeColor;
-      ctx.shadowColor = conf.glow;
-      ctx.shadowBlur = 24;
-
-      const wordsArr = textToDraw.split(' ');
-      const lines: string[] = [];
-      let currentLine = wordsArr[0] || '';
-
-      for (let i = 1; i < wordsArr.length; i++) {
-        const testLine = currentLine + ' ' + wordsArr[i];
-        if (ctx.measureText(testLine).width < width * 0.86) {
-          currentLine = testLine;
-        } else {
-          lines.push(currentLine);
-          currentLine = wordsArr[i];
-        }
-      }
-      if (currentLine) lines.push(currentLine);
-
-      const lineHeight = baseFontSize * 1.18;
-      const startY = yCenter - ((lines.length - 1) * lineHeight) / 2;
-
-      lines.forEach((line, idx) => {
-        const lineY = startY + idx * lineHeight;
-        ctx.strokeText(line, width / 2, lineY);
-        ctx.fillStyle = conf.fontColor;
-        ctx.fillText(line, width / 2, lineY);
-      });
-      ctx.restore();
-
-      const link = document.createElement('a');
-      link.download = `thumbnail_${aspect.replace(':', 'x')}_${Date.now()}.jpg`;
-      link.href = canvas.toDataURL('image/jpeg', 0.95);
-      link.click();
-    };
   };
 
   const seekTo = (seconds: number) => {
@@ -783,230 +1143,25 @@ export default function ShortsFormatterStudio() {
   const handleExportShort = async () => {
     if (!videoRef.current || !videoUrl) return;
     setIsExporting(true);
-    setExportProgress(10);
-
-    const video = videoRef.current;
-    const canvas = document.createElement('canvas');
-    canvas.width = 1080;
-    canvas.height = 1920;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      alert('Could not initialize canvas context');
-      setIsExporting(false);
-      return;
-    }
+    setExportProgress(5);
 
     try {
-      // Pre-load QR image for canvas drawing if enabled
-      let qrImg: HTMLImageElement | null = null;
-      if (showQrCode && qrDataUrl) {
-        qrImg = new Image();
-        qrImg.src = qrDataUrl;
-        await new Promise((resolve) => {
-          if (qrImg!.complete) resolve(true);
-          else {
-            qrImg!.onload = () => resolve(true);
-            qrImg!.onerror = () => resolve(false);
-          }
-        });
-      }
-
-      const stream = canvas.captureStream(30);
-      let combinedStream = stream;
-
-      try {
-        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-        const source = audioCtx.createMediaElementSource(video);
-        const dest = audioCtx.createMediaStreamDestination();
-        source.connect(dest);
-        source.connect(audioCtx.destination);
-        if (dest.stream.getAudioTracks().length > 0) {
-          combinedStream = new MediaStream([
-            ...stream.getVideoTracks(),
-            ...dest.stream.getAudioTracks(),
-          ]);
-        }
-      } catch (e) {}
-
-      const mediaRecorder = new MediaRecorder(combinedStream, {
-        mimeType: MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
-          ? 'video/webm;codecs=vp9'
-          : 'video/webm',
-        videoBitsPerSecond: 6000000,
+      const blob = await renderFormattedVideoBlob((pct) => {
+        setExportProgress(pct);
       });
-
-      const chunksRecorded: Blob[] = [];
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRecorded.push(e.data);
-      };
-
-      mediaRecorder.onstop = () => {
-        const blob = new Blob(chunksRecorded, { type: 'video/mp4' });
-        const downloadUrl = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = downloadUrl;
-        a.download = `digitpop_short_${Date.now()}.mp4`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setIsExporting(false);
-        setExportProgress(100);
-      };
-
-      mediaRecorder.start();
-      video.currentTime = 0;
-      await video.play();
-      setIsPlaying(true);
-
-      const renderFrame = () => {
-        if (video.ended || video.paused || !isExporting) {
-          if (mediaRecorder.state === 'recording') mediaRecorder.stop();
-          return;
-        }
-
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(0, 0, 1080, 1920);
-
-        if (layoutMode === 'FIT_BLUR') {
-          ctx.save();
-          ctx.filter = 'blur(30px) brightness(0.4)';
-          ctx.drawImage(video, -200, -200, 1480, 2320);
-          ctx.restore();
-
-          const videoAspect = (video.videoWidth || 16) / (video.videoHeight || 9);
-          const drawWidth = 1080;
-          const drawHeight = 1080 / videoAspect;
-          const drawY = (1920 - drawHeight) / 2;
-          ctx.drawImage(video, 0, drawY, drawWidth, drawHeight);
-        } else {
-          ctx.drawImage(video, 0, 0, 1080, 1920);
-        }
-
-        // Subtitle text rendering
-        const currentT = video.currentTime;
-        const currChunk = chunks.find((c) => currentT >= c.start - 0.05 && currentT <= c.end + 0.15);
-        if (currChunk) {
-          const yPos = 1920 * (verticalPosition / 100);
-          ctx.font = `900 ${fontSize * 2.2}px Inter, sans-serif`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-
-          const wordsToDraw = currChunk.words;
-          const activeIndex = wordsToDraw.findIndex(
-            (w) => currentT >= w.start - 0.05 && currentT <= w.end + 0.05
-          );
-
-          ctx.shadowColor = 'rgba(0,0,0,0.9)';
-          ctx.shadowBlur = 16;
-          ctx.lineWidth = 12;
-          ctx.strokeStyle = '#000000';
-
-          const textString = wordsToDraw
-            .map((w, idx) => (idx === activeIndex ? `[${getWordDisplay(w)}]` : getWordDisplay(w)))
-            .join(' ');
-
-          ctx.strokeText(textString, 540, yPos);
-          ctx.fillStyle = HIGHLIGHT_COLORS[highlightColor].hex;
-          ctx.fillText(textString, 540, yPos);
-        }
-
-        // Render QR Code Badge if enabled
-        if (showQrCode && qrImg && qrImg.complete) {
-          const qrX = qrPlacement === 'TOP_RIGHT' ? 1080 - 220 - 40 : qrPlacement === 'TOP_LEFT' ? 40 : 1080 - 220 - 40;
-          const qrY = qrPlacement === 'BOTTOM_RIGHT' ? 1920 - 380 : 70;
-          const w = 220;
-          const h = 270;
-          const r = 24;
-
-          ctx.save();
-          // Card backdrop
-          ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
-          ctx.strokeStyle = HIGHLIGHT_COLORS[highlightColor].hex;
-          ctx.lineWidth = 4;
-          ctx.beginPath();
-          if (typeof (ctx as any).roundRect === 'function') {
-            (ctx as any).roundRect(qrX, qrY, w, h, r);
-          } else {
-            ctx.rect(qrX, qrY, w, h);
-          }
-          ctx.fill();
-          ctx.stroke();
-
-          // White QR background wrapper
-          ctx.fillStyle = '#FFFFFF';
-          ctx.beginPath();
-          if (typeof (ctx as any).roundRect === 'function') {
-            (ctx as any).roundRect(qrX + 20, qrY + 20, 180, 180, 12);
-          } else {
-            ctx.rect(qrX + 20, qrY + 20, 180, 180);
-          }
-          ctx.fill();
-
-          // QR Image
-          ctx.drawImage(qrImg, qrX + 24, qrY + 24, 172, 172);
-
-          // Text Label
-          ctx.font = '900 20px Inter, sans-serif';
-          ctx.fillStyle = HIGHLIGHT_COLORS[highlightColor].hex;
-          ctx.textAlign = 'center';
-          ctx.fillText('⚡ SCAN TO BUY', qrX + w / 2, qrY + 234);
-
-          if (selectedProduct) {
-            ctx.font = '700 16px Inter, sans-serif';
-            ctx.fillStyle = '#10B981';
-            ctx.fillText(`$${selectedProduct.price.toFixed(2)}`, qrX + w / 2, qrY + 256);
-          }
-          ctx.restore();
-        }
-
-        // Render Shoppable Product Drawer
-        if (showShoppableDrawer && selectedProduct) {
-          const drawerY = 1920 - 200;
-          const dx = 40;
-          const dw = 1000;
-          const dh = 140;
-          const dr = 24;
-
-          ctx.save();
-          ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
-          ctx.strokeStyle = 'rgba(255, 184, 0, 0.6)';
-          ctx.lineWidth = 4;
-          ctx.beginPath();
-          if (typeof (ctx as any).roundRect === 'function') {
-            (ctx as any).roundRect(dx, drawerY, dw, dh, dr);
-          } else {
-            ctx.rect(dx, drawerY, dw, dh);
-          }
-          ctx.fill();
-          ctx.stroke();
-
-          ctx.font = '800 20px Inter, sans-serif';
-          ctx.fillStyle = '#FFB800';
-          ctx.textAlign = 'left';
-          ctx.fillText('⚡ FEATURED IN CLIP', dx + 30, drawerY + 45);
-
-          ctx.font = '700 28px Inter, sans-serif';
-          ctx.fillStyle = '#FFFFFF';
-          const maxTitleLen = 42;
-          const titleText = selectedProduct.title.length > maxTitleLen ? selectedProduct.title.slice(0, maxTitleLen) + '...' : selectedProduct.title;
-          ctx.fillText(titleText, dx + 30, drawerY + 90);
-
-          ctx.font = '800 36px Inter, sans-serif';
-          ctx.fillStyle = '#10B981';
-          ctx.textAlign = 'right';
-          ctx.fillText(`$${selectedProduct.price.toFixed(2)}`, dx + dw - 40, drawerY + 80);
-          ctx.restore();
-        }
-
-        setExportProgress(Math.min(95, Math.round((video.currentTime / (video.duration || 1)) * 100)));
-        requestAnimationFrame(renderFrame);
-      };
-
-      renderFrame();
+      const downloadUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = `digitpop_short_${Date.now()}.${blob.type.includes('mp4') ? 'mp4' : 'webm'}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setIsExporting(false);
+      setExportProgress(100);
     } catch (err: any) {
       console.error('Export recording failed:', err);
       setIsExporting(false);
-      alert('Direct canvas recording not supported on this browser version.');
+      alert('Video export failed: ' + (err.message || 'Browser recording error'));
     }
   };
 
@@ -2135,9 +2290,10 @@ export default function ShortsFormatterStudio() {
                               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px' }}>
                                 <span style={{ color: '#FF7588', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
                                   <RefreshCw size={13} className="spin" />
-                                  {publishYouTubeStage === 'INITIALIZING' && '⚡ [1/3] Initializing YouTube Session...'}
-                                  {publishYouTubeStage === 'UPLOADING' && `🚀 [2/3] Streaming to YouTube: ${publishYouTubePercent}% (${publishYouTubeLoadedMb} MB / ${publishYouTubeTotalMb} MB)`}
-                                  {publishYouTubeStage === 'SETTING_THUMBNAIL' && '🎨 [3/3] Attaching Custom High-CTR Thumbnail...'}
+                                  {publishYouTubeStage === 'RENDERING' && `🎨 [1/4] Baking 1080x1920 Short with Kinetic Subtitles...`}
+                                  {publishYouTubeStage === 'INITIALIZING' && '⚡ [2/4] Initializing YouTube Session...'}
+                                  {publishYouTubeStage === 'UPLOADING' && `🚀 [3/4] Streaming to YouTube: ${publishYouTubePercent}% (${publishYouTubeLoadedMb} MB / ${publishYouTubeTotalMb} MB)`}
+                                  {publishYouTubeStage === 'SETTING_THUMBNAIL' && '🎨 [4/4] Attaching Custom High-CTR Thumbnail...'}
                                   {publishYouTubeStage === 'DONE' && '🎉 Finalizing Live Short...'}
                                 </span>
                                 <span style={{ color: '#fff', fontWeight: 700, fontSize: '13px' }}>
