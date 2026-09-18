@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { api } from '../services/api';
+import { saveDraftVideoBlob, getDraftVideoBlob, clearDraftVideoBlob } from '../services/videoStorage';
 import { Product } from '../types';
 
 interface WordItem {
@@ -237,11 +238,161 @@ export default function ShortsFormatterStudio() {
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [exportProgress, setExportProgress] = useState<number>(0);
 
+  // Persistence and Auto-Recovery State
+  const [isDraftRestored, setIsDraftRestored] = useState<boolean>(false);
+  const [savedProductId, setSavedProductId] = useState<string | null>(null);
+  const isMountedRef = useRef<boolean>(false);
+
+  // 1. Restore local metadata & IndexedDB video blob on mount
+  useEffect(() => {
+    let isCancelled = false;
+
+    const restoreDraft = async () => {
+      try {
+        const savedDraftJson = localStorage.getItem('digitpop_shorts_formatter_draft_v1');
+        let hasRestoredData = false;
+
+        if (savedDraftJson) {
+          const draft = JSON.parse(savedDraftJson);
+          if (draft.words && draft.words.length > 0) {
+            setWords(draft.words);
+            hasRestoredData = true;
+          }
+          if (draft.editableTranscript) {
+            setEditableTranscript(draft.editableTranscript);
+            hasRestoredData = true;
+          }
+          if (draft.highlightColor) setHighlightColor(draft.highlightColor);
+          if (draft.fontSize !== undefined) setFontSize(draft.fontSize);
+          if (draft.verticalPosition !== undefined) setVerticalPosition(draft.verticalPosition);
+          if (draft.wordPacing) setWordPacing(draft.wordPacing);
+          if (draft.autoEmojis !== undefined) setAutoEmojis(draft.autoEmojis);
+          if (draft.uppercase !== undefined) setUppercase(draft.uppercase);
+          if (draft.layoutMode) setLayoutMode(draft.layoutMode);
+          if (draft.showShoppableDrawer !== undefined) setShowShoppableDrawer(draft.showShoppableDrawer);
+          if (draft.showQrCode !== undefined) setShowQrCode(draft.showQrCode);
+          if (draft.qrPlacement) setQrPlacement(draft.qrPlacement);
+          if (draft.qrCustomUrl) setQrCustomUrl(draft.qrCustomUrl);
+          if (draft.selectedProductId) setSavedProductId(draft.selectedProductId);
+          if (draft.thumbnailTitle) setThumbnailTitle(draft.thumbnailTitle);
+          if (draft.thumbnailStyle) setThumbnailStyle(draft.thumbnailStyle);
+          if (draft.thumbnailFontSize) setThumbnailFontSize(draft.thumbnailFontSize);
+          if (draft.thumbnailPosition) setThumbnailPosition(draft.thumbnailPosition);
+          if (draft.thumbnailBadge !== undefined) setThumbnailBadge(draft.thumbnailBadge);
+          if (draft.thumbnailStrokeWidth) setThumbnailStrokeWidth(draft.thumbnailStrokeWidth);
+          if (draft.thumbnailUppercase !== undefined) setThumbnailUppercase(draft.thumbnailUppercase);
+          if (draft.thumbnailImage) setThumbnailImage(draft.thumbnailImage);
+        }
+
+        // Restore video from IndexedDB
+        const storedVideo = await getDraftVideoBlob();
+        if (storedVideo && storedVideo.blob && !isCancelled) {
+          const file = new File([storedVideo.blob], storedVideo.name || 'short_video.mp4', {
+            type: storedVideo.blob.type || 'video/mp4',
+          });
+          setVideoFile(file);
+          const objUrl = URL.createObjectURL(file);
+          setVideoUrl(objUrl);
+          hasRestoredData = true;
+        }
+
+        if (hasRestoredData && !isCancelled) {
+          setIsDraftRestored(true);
+        }
+      } catch (err) {
+        console.warn('Draft restoration error:', err);
+      } finally {
+        if (!isCancelled) {
+          isMountedRef.current = true;
+        }
+      }
+    };
+
+    restoreDraft();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
+  // 2. Auto-save draft whenever configuration or transcript changes
+  useEffect(() => {
+    if (!isMountedRef.current) return;
+
+    const timer = setTimeout(() => {
+      try {
+        const draftData = {
+          words,
+          editableTranscript,
+          highlightColor,
+          fontSize,
+          verticalPosition,
+          wordPacing,
+          autoEmojis,
+          uppercase,
+          layoutMode,
+          showShoppableDrawer,
+          showQrCode,
+          qrPlacement,
+          qrCustomUrl,
+          selectedProductId: selectedProduct?.id || savedProductId || null,
+          thumbnailTitle,
+          thumbnailStyle,
+          thumbnailFontSize,
+          thumbnailPosition,
+          thumbnailBadge,
+          thumbnailStrokeWidth,
+          thumbnailUppercase,
+          thumbnailImage,
+          updatedAt: Date.now(),
+        };
+        localStorage.setItem('digitpop_shorts_formatter_draft_v1', JSON.stringify(draftData));
+      } catch (e) {
+        console.warn('Draft auto-save warning:', e);
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [
+    words,
+    editableTranscript,
+    highlightColor,
+    fontSize,
+    verticalPosition,
+    wordPacing,
+    autoEmojis,
+    uppercase,
+    layoutMode,
+    showShoppableDrawer,
+    showQrCode,
+    qrPlacement,
+    qrCustomUrl,
+    selectedProduct,
+    savedProductId,
+    thumbnailTitle,
+    thumbnailStyle,
+    thumbnailFontSize,
+    thumbnailPosition,
+    thumbnailBadge,
+    thumbnailStrokeWidth,
+    thumbnailUppercase,
+    thumbnailImage,
+  ]);
+
   // Load catalog products and connected social accounts
   useEffect(() => {
     api.getProducts().then((data) => {
       setProducts(data);
-      if (data.length > 0) setSelectedProduct(data[0]);
+      if (data.length > 0) {
+        setSelectedProduct((prev) => {
+          if (prev) return prev;
+          if (savedProductId) {
+            const found = data.find((p) => p.id === savedProductId);
+            if (found) return found;
+          }
+          return data[0];
+        });
+      }
     });
 
     api.getSocialAccounts().then((accounts) => {
@@ -275,7 +426,7 @@ export default function ShortsFormatterStudio() {
     return () => {
       window.removeEventListener('message', handleOAuthMessage);
     };
-  }, []);
+  }, [savedProductId]);
 
   // Generate QR code data URL dynamically
   useEffect(() => {
@@ -353,8 +504,29 @@ export default function ShortsFormatterStudio() {
     setIsPlaying(false);
     setCurrentTime(0);
 
+    // Save video file to IndexedDB for persistent recovery across page reloads
+    await saveDraftVideoBlob(file, file.name);
+
     // Run transcription automatically
     await runTranscription(file);
+  };
+
+  // Reset current short draft and clear persistent cache
+  const handleResetDraft = async () => {
+    try {
+      await clearDraftVideoBlob();
+      localStorage.removeItem('digitpop_shorts_formatter_draft_v1');
+    } catch (e) {
+      console.warn('Draft clear error:', e);
+    }
+
+    setVideoFile(null);
+    setVideoUrl(null);
+    setWords([]);
+    setEditableTranscript('');
+    setTranscribeError(null);
+    setIsDraftRestored(false);
+    setThumbnailImage(null);
   };
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
@@ -1235,6 +1407,23 @@ export default function ShortsFormatterStudio() {
                 <span className="badge badge--emerald" style={{ fontSize: '11px', textTransform: 'uppercase' }}>
                   Groq Large-v3 Turbo
                 </span>
+                {isDraftRestored && (
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      fontSize: '11px',
+                      color: '#10B981',
+                      background: 'rgba(16, 185, 129, 0.1)',
+                      border: '1px solid rgba(16, 185, 129, 0.3)',
+                      padding: '2px 8px',
+                      borderRadius: '12px',
+                    }}
+                  >
+                    <Check size={12} /> Auto-Saved
+                  </span>
+                )}
               </div>
               <div style={{ color: 'var(--text-secondary)', fontSize: '13px', marginTop: '4px' }}>
                 Transform raw recordings into polished 9:16 Shorts with bouncing animated subtitles, viral hooks, and shoppable 1-click checkout.
@@ -1252,15 +1441,10 @@ export default function ShortsFormatterStudio() {
                   <span>{isTranscribing ? 'Transcribing...' : '⚡ Generate Captions'}</span>
                 </button>
                 <button
-                  onClick={() => {
-                    setVideoFile(null);
-                    setVideoUrl(null);
-                    setWords([]);
-                    setEditableTranscript('');
-                    setTranscribeError(null);
-                  }}
+                  onClick={handleResetDraft}
                   className="btn btn--outline"
                   style={{ padding: '6px 12px', fontSize: '12px' }}
+                  title="Clear current video and start fresh"
                 >
                   <RotateCcw size={14} /> New Video
                 </button>
