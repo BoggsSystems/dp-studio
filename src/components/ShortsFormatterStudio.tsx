@@ -21,6 +21,8 @@ import {
   AlertCircle,
   FileAudio,
   QrCode,
+  Camera,
+  Image as ImageIcon,
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { api } from '../services/api';
@@ -45,6 +47,7 @@ export type HighlightColor = 'amber' | 'emerald' | 'cyan' | 'pink' | 'crimson' |
 export type LayoutMode = 'FIT_BLUR' | 'COVER_CROP';
 export type WordPacing = 'ONE_WORD' | 'TWO_THREE' | 'SENTENCE';
 export type QrPlacement = 'TOP_RIGHT' | 'BOTTOM_RIGHT' | 'TOP_LEFT';
+export type ThumbnailStyle = 'VIRAL_WHITE' | 'FLAME_ORANGE' | 'CYBER_LIME' | 'ELECTRIC_CYAN' | 'HOT_PINK';
 
 const HIGHLIGHT_COLORS: Record<HighlightColor, { label: string; hex: string; glow: string }> = {
   amber: { label: 'Electric Amber', hex: '#FFB800', glow: 'rgba(255, 184, 0, 0.6)' },
@@ -53,6 +56,14 @@ const HIGHLIGHT_COLORS: Record<HighlightColor, { label: string; hex: string; glo
   pink: { label: 'Hot Pink', hex: '#FF007F', glow: 'rgba(255, 0, 127, 0.6)' },
   crimson: { label: 'Crimson Red', hex: '#EF4444', glow: 'rgba(239, 68, 68, 0.6)' },
   violet: { label: 'Neon Violet', hex: '#8B5CF6', glow: 'rgba(139, 92, 246, 0.6)' },
+};
+
+export const THUMBNAIL_STYLES: Record<ThumbnailStyle, { name: string; fontColor: string; strokeColor: string; glow: string }> = {
+  VIRAL_WHITE: { name: 'Viral White (High CTR)', fontColor: '#FFFFFF', strokeColor: '#000000', glow: 'rgba(0,0,0,0.95)' },
+  FLAME_ORANGE: { name: 'Flame Orange (Urgency)', fontColor: '#FF6B00', strokeColor: '#000000', glow: 'rgba(255,107,0,0.7)' },
+  CYBER_LIME: { name: 'Cyber Lime (Visual Pop)', fontColor: '#00FF66', strokeColor: '#000000', glow: 'rgba(0,255,102,0.7)' },
+  ELECTRIC_CYAN: { name: 'Electric Cyan', fontColor: '#00F2FE', strokeColor: '#000000', glow: 'rgba(0,242,254,0.7)' },
+  HOT_PINK: { name: 'Hot Pink', fontColor: '#FF007F', strokeColor: '#000000', glow: 'rgba(255,0,127,0.7)' },
 };
 
 const EMOJI_MAP: Record<string, string> = {
@@ -178,6 +189,17 @@ export default function ShortsFormatterStudio() {
   const [qrPlacement, setQrPlacement] = useState<QrPlacement>('TOP_RIGHT');
   const [qrCustomUrl, setQrCustomUrl] = useState<string>('https://opportunity-system.com');
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
+
+  // High-CTR Thumbnail Studio State
+  const [thumbnailImage, setThumbnailImage] = useState<string | null>(null);
+  const [thumbnailTitle, setThumbnailTitle] = useState<string>("DON'T LEARN SYNTAX IN 2026");
+  const [thumbnailStyle, setThumbnailStyle] = useState<ThumbnailStyle>('VIRAL_WHITE');
+  const [thumbnailFontSize, setThumbnailFontSize] = useState<number>(54);
+  const [thumbnailPosition, setThumbnailPosition] = useState<number>(45); // % from top
+  const [thumbnailBadge, setThumbnailBadge] = useState<string>('⚡ MUST WATCH');
+  const [thumbnailStrokeWidth, setThumbnailStrokeWidth] = useState<number>(14);
+  const [thumbnailUppercase, setThumbnailUppercase] = useState<boolean>(true);
+  const [isGeneratingThumbnail, setIsGeneratingThumbnail] = useState<boolean>(false);
 
   // Social copy state
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -369,7 +391,173 @@ export default function ShortsFormatterStudio() {
   const handleLoadedMetadata = () => {
     if (videoRef.current) {
       setDuration(videoRef.current.duration);
+      setTimeout(() => {
+        captureFrameAtCurrentTime();
+      }, 300);
     }
+  };
+
+  // Frame Grabber from current video playback
+  const captureFrameAtCurrentTime = () => {
+    if (!videoRef.current) return;
+    const video = videoRef.current;
+    const canvas = document.createElement('canvas');
+    canvas.width = 1080;
+    canvas.height = 1920;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, 1080, 1920);
+
+    if (layoutMode === 'FIT_BLUR') {
+      ctx.save();
+      ctx.filter = 'blur(30px) brightness(0.4)';
+      ctx.drawImage(video, -200, -200, 1480, 2320);
+      ctx.restore();
+
+      const videoAspect = (video.videoWidth || 16) / (video.videoHeight || 9);
+      const drawWidth = 1080;
+      const drawHeight = 1080 / videoAspect;
+      const drawY = (1920 - drawHeight) / 2;
+      ctx.drawImage(video, 0, drawY, drawWidth, drawHeight);
+    } else {
+      ctx.drawImage(video, 0, 0, 1080, 1920);
+    }
+
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+    setThumbnailImage(dataUrl);
+  };
+
+  // Dynamic AI Viral Hooks generated from transcript & product
+  const viralHookSuggestions = useMemo(() => {
+    const textLower = editableTranscript.toLowerCase();
+    const list: string[] = [];
+
+    if (textLower.includes('syntax') || textLower.includes('code') || textLower.includes('developer')) {
+      list.push("DON'T LEARN SYNTAX IN 2026");
+      list.push("WHY 90% OF DEVS ARE STUCK");
+      list.push("THE NEW PHYSICS OF CODE");
+      list.push("DID YOU DO YOUR 20 MINUTES?");
+    } else if (textLower.includes('job') || textLower.includes('career') || textLower.includes('apply')) {
+      list.push("50 AND BROKE? LEARN THIS");
+      list.push("HOW TO 10X JOB INTERVIEWS");
+      list.push("STOP APPLYING THE OLD WAY");
+    } else {
+      list.push("THE #1 MISTAKE TO AVOID");
+      list.push("WHY EVERYTHING CHANGED");
+      list.push("DID YOU DO YOUR 20 MINUTES?");
+    }
+
+    if (selectedProduct) {
+      list.push(`${selectedProduct.title.toUpperCase().slice(0, 28)}`);
+    }
+
+    return list;
+  }, [editableTranscript, selectedProduct]);
+
+  // Download High-CTR Thumbnail (9:16 or 16:9)
+  const downloadThumbnail = (aspect: '9:16' | '16:9') => {
+    if (!thumbnailImage) {
+      captureFrameAtCurrentTime();
+    }
+    const currentImgUrl = thumbnailImage;
+    if (!currentImgUrl) return;
+
+    const img = new Image();
+    img.src = currentImgUrl;
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const width = aspect === '9:16' ? 1080 : 1920;
+      const height = aspect === '9:16' ? 1920 : 1080;
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      if (aspect === '9:16') {
+        ctx.drawImage(img, 0, 0, 1080, 1920);
+      } else {
+        // Landscape center crop
+        ctx.save();
+        ctx.drawImage(img, 0, -420, 1920, 1920);
+        ctx.restore();
+      }
+
+      // Top Badge
+      if (thumbnailBadge) {
+        ctx.save();
+        const badgeY = aspect === '9:16' ? 100 : 60;
+        ctx.font = '900 28px Inter, sans-serif';
+        const badgeTextWidth = ctx.measureText(thumbnailBadge).width;
+        const badgeWidth = badgeTextWidth + 48;
+        const badgeX = (width - badgeWidth) / 2;
+
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+        ctx.strokeStyle = THUMBNAIL_STYLES[thumbnailStyle].fontColor;
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        if (typeof (ctx as any).roundRect === 'function') {
+          (ctx as any).roundRect(badgeX, badgeY, badgeWidth, 54, 14);
+        } else {
+          ctx.rect(badgeX, badgeY, badgeWidth, 54);
+        }
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#FFFFFF';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(thumbnailBadge, width / 2, badgeY + 27);
+        ctx.restore();
+      }
+
+      // Main Bold Viral Hook Text (Wrapped)
+      const textToDraw = thumbnailUppercase ? thumbnailTitle.toUpperCase() : thumbnailTitle;
+      const yCenter = height * (thumbnailPosition / 100);
+      const conf = THUMBNAIL_STYLES[thumbnailStyle];
+
+      ctx.save();
+      const baseFontSize = thumbnailFontSize * (aspect === '9:16' ? 1.6 : 1.4);
+      ctx.font = `900 ${baseFontSize}px Inter, Impact, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.lineWidth = thumbnailStrokeWidth * 1.5;
+      ctx.strokeStyle = conf.strokeColor;
+      ctx.shadowColor = conf.glow;
+      ctx.shadowBlur = 24;
+
+      const wordsArr = textToDraw.split(' ');
+      const lines: string[] = [];
+      let currentLine = wordsArr[0] || '';
+
+      for (let i = 1; i < wordsArr.length; i++) {
+        const testLine = currentLine + ' ' + wordsArr[i];
+        if (ctx.measureText(testLine).width < width * 0.86) {
+          currentLine = testLine;
+        } else {
+          lines.push(currentLine);
+          currentLine = wordsArr[i];
+        }
+      }
+      if (currentLine) lines.push(currentLine);
+
+      const lineHeight = baseFontSize * 1.18;
+      const startY = yCenter - ((lines.length - 1) * lineHeight) / 2;
+
+      lines.forEach((line, idx) => {
+        const lineY = startY + idx * lineHeight;
+        ctx.strokeText(line, width / 2, lineY);
+        ctx.fillStyle = conf.fontColor;
+        ctx.fillText(line, width / 2, lineY);
+      });
+      ctx.restore();
+
+      const link = document.createElement('a');
+      link.download = `thumbnail_${aspect.replace(':', 'x')}_${Date.now()}.jpg`;
+      link.href = canvas.toDataURL('image/jpeg', 0.95);
+      link.click();
+    };
   };
 
   const seekTo = (seconds: number) => {
@@ -1241,6 +1429,269 @@ export default function ShortsFormatterStudio() {
             </div>
           </div>
         )}
+
+        {/* 🖼️ High-CTR Thumbnail Studio & Frame Grabber */}
+        {videoUrl && (
+          <div className="surface-panel" style={{ padding: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div style={{ fontSize: '15px', fontWeight: '700', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <ImageIcon size={18} color="var(--accent-amber)" />
+                <span>High-CTR Thumbnail Studio (YouTube & TikTok Covers)</span>
+              </div>
+              <button
+                onClick={captureFrameAtCurrentTime}
+                className="btn btn--primary"
+                style={{ padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <Camera size={14} /> 📸 Grab Current Frame ({Math.floor(currentTime)}s)
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 180px', gap: '20px', alignItems: 'start' }}>
+              {/* Left Column: Title, Styles, AI Hooks */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                {/* AI Viral Hook Suggestions */}
+                <div>
+                  <div style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <Sparkles size={12} color="var(--accent-amber)" />
+                    <span>AI Viral Hook Suggestions (1-Click Apply):</span>
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                    {viralHookSuggestions.map((hook, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setThumbnailTitle(hook)}
+                        className="btn btn--outline"
+                        style={{
+                          padding: '4px 10px',
+                          fontSize: '11px',
+                          background: thumbnailTitle === hook ? 'rgba(255,184,0,0.15)' : 'transparent',
+                          borderColor: thumbnailTitle === hook ? 'var(--accent-amber)' : 'var(--border-color)',
+                          color: thumbnailTitle === hook ? '#fff' : 'var(--text-secondary)',
+                          fontWeight: thumbnailTitle === hook ? 700 : 500,
+                        }}
+                      >
+                        {hook}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Custom Thumbnail Headline Text Input */}
+                <div>
+                  <div style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                    Thumbnail Hook Headline:
+                  </div>
+                  <input
+                    type="text"
+                    value={thumbnailTitle}
+                    onChange={(e) => setThumbnailTitle(e.target.value)}
+                    placeholder="Enter bold hook headline (e.g. DID YOU DO YOUR 20 MINUTES?)"
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: 'var(--radius-sm)',
+                      background: 'rgba(0,0,0,0.5)',
+                      border: '1px solid var(--accent-amber)',
+                      color: '#fff',
+                      fontSize: '14px',
+                      fontWeight: 700,
+                      outline: 'none',
+                    }}
+                  />
+                </div>
+
+                {/* Style Presets */}
+                <div>
+                  <div style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                    Typography & Color Style:
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '6px' }}>
+                    {(Object.keys(THUMBNAIL_STYLES) as ThumbnailStyle[]).map((stKey) => {
+                      const st = THUMBNAIL_STYLES[stKey];
+                      const isSelected = thumbnailStyle === stKey;
+                      return (
+                        <button
+                          key={stKey}
+                          onClick={() => setThumbnailStyle(stKey)}
+                          style={{
+                            padding: '8px 4px',
+                            borderRadius: 'var(--radius-sm)',
+                            border: isSelected ? `2px solid ${st.fontColor}` : '1px solid var(--border-color)',
+                            background: isSelected ? 'rgba(255,255,255,0.08)' : 'var(--bg-surface)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '4px',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <span
+                            style={{
+                              width: '14px',
+                              height: '14px',
+                              borderRadius: '50%',
+                              background: st.fontColor,
+                              boxShadow: isSelected ? `0 0 8px ${st.glow}` : 'none',
+                            }}
+                          />
+                          <span style={{ fontSize: '10px', color: isSelected ? '#fff' : 'var(--text-muted)', fontWeight: isSelected ? 700 : 500 }}>
+                            {st.name.split(' ')[0]}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Top Badge & Sliders */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                      <span>Vertical Placement</span>
+                      <span style={{ color: '#fff', fontWeight: 700 }}>{thumbnailPosition}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="20"
+                      max="75"
+                      value={thumbnailPosition}
+                      onChange={(e) => setThumbnailPosition(Number(e.target.value))}
+                      style={{ width: '100%', cursor: 'pointer' }}
+                    />
+                  </div>
+
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                      <span>Font Size</span>
+                      <span style={{ color: '#fff', fontWeight: 700 }}>{thumbnailFontSize}px</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="36"
+                      max="72"
+                      value={thumbnailFontSize}
+                      onChange={(e) => setThumbnailFontSize(Number(e.target.value))}
+                      style={{ width: '100%', cursor: 'pointer' }}
+                    />
+                  </div>
+                </div>
+
+                {/* Optional Top Badge Tag */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                    Top Alert Badge:
+                  </div>
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    {['', '⚡ MUST WATCH', '🔥 2026 BLUEPRINT', '🚨 AI SHIFT', '🎯 1-CLICK'].map((badge) => (
+                      <button
+                        key={badge}
+                        onClick={() => setThumbnailBadge(badge)}
+                        className={`btn ${thumbnailBadge === badge ? 'btn--primary' : 'btn--outline'}`}
+                        style={{ padding: '3px 8px', fontSize: '10px' }}
+                      >
+                        {badge || 'None'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: Live Thumbnail Preview & Download Buttons */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                <div
+                  style={{
+                    position: 'relative',
+                    width: '180px',
+                    height: '320px',
+                    borderRadius: '16px',
+                    overflow: 'hidden',
+                    border: '2px solid var(--accent-amber)',
+                    background: '#000',
+                    boxShadow: '0 10px 25px rgba(0,0,0,0.7)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}
+                >
+                  {thumbnailImage ? (
+                    <img
+                      src={thumbnailImage}
+                      alt="Thumbnail Background Frame"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    <div style={{ color: 'var(--text-muted)', fontSize: '11px', textAlign: 'center', padding: '10px' }}>
+                      Click "Grab Current Frame"
+                    </div>
+                  )}
+
+                  {/* Overlay Top Badge */}
+                  {thumbnailBadge && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: '12px',
+                        background: 'rgba(0,0,0,0.85)',
+                        border: `1px solid ${THUMBNAIL_STYLES[thumbnailStyle].fontColor}`,
+                        color: '#fff',
+                        fontSize: '8px',
+                        fontWeight: 900,
+                        padding: '2px 8px',
+                        borderRadius: '6px',
+                        zIndex: 10,
+                        letterSpacing: '0.5px',
+                      }}
+                    >
+                      {thumbnailBadge}
+                    </div>
+                  )}
+
+                  {/* Overlay Bold Hook Text */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: `${thumbnailPosition}%`,
+                      left: '8px',
+                      right: '8px',
+                      transform: 'translateY(-50%)',
+                      textAlign: 'center',
+                      fontFamily: 'Inter, Impact, sans-serif',
+                      fontSize: `${Math.round(thumbnailFontSize * 0.28)}px`,
+                      fontWeight: 900,
+                      lineHeight: 1.15,
+                      color: THUMBNAIL_STYLES[thumbnailStyle].fontColor,
+                      textShadow: `0 0 10px ${THUMBNAIL_STYLES[thumbnailStyle].glow}, 0 2px 8px rgba(0,0,0,0.9), 1.5px 1.5px 0 #000, -1.5px -1.5px 0 #000, -1.5px 1.5px 0 #000, 1.5px -1.5px 0 #000`,
+                      zIndex: 10,
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    {thumbnailUppercase ? thumbnailTitle.toUpperCase() : thumbnailTitle}
+                  </div>
+                </div>
+
+                {/* Download Actions */}
+                <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <button
+                    onClick={() => downloadThumbnail('9:16')}
+                    className="btn btn--primary"
+                    style={{ width: '100%', padding: '8px 10px', fontSize: '11px', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                  >
+                    <Download size={14} /> ⬇️ 9:16 (1080x1920)
+                  </button>
+                  <button
+                    onClick={() => downloadThumbnail('16:9')}
+                    className="btn btn--outline"
+                    style={{ width: '100%', padding: '6px 10px', fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                  >
+                    <Download size={12} /> ⬇️ 16:9 Card
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Right Column: Realistic 9:16 Smartphone Simulator Preview */}
@@ -1562,11 +2013,23 @@ export default function ShortsFormatterStudio() {
               onClick={handleExportShort}
               disabled={isExporting}
               className="btn btn--primary"
-              style={{ width: '100%', padding: '12px', fontSize: '14px', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+              style={{ width: '100%', padding: '12px', fontSize: '14px', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '8px' }}
             >
               <Download size={18} />
               <span>{isExporting ? `Rendering 1080x1920 MP4 (${exportProgress}%)...` : 'Render & Download 9:16 Short'}</span>
             </button>
+
+            {/* Quick Actions Row */}
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                onClick={captureFrameAtCurrentTime}
+                className="btn btn--outline"
+                style={{ flex: 1, padding: '8px', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                title="Freeze current video frame into the Thumbnail Studio"
+              >
+                <Camera size={13} color="var(--accent-amber)" /> 📸 Grab Frame for Thumbnail
+              </button>
+            </div>
           </div>
         )}
       </div>
