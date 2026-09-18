@@ -252,6 +252,22 @@ export default function ShortsFormatterStudio() {
       setPublishYouTubeError(`YouTube Connection Error: ${params.get('youtube_error')}`);
       window.history.replaceState({}, document.title, window.location.pathname);
     }
+
+    // Listen for popup window OAuth messages
+    const handleOAuthMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'YOUTUBE_CONNECTED') {
+        const channel = event.data.channel || 'YouTube Channel';
+        setYoutubeConnectSuccessMsg(`🎉 Successfully connected YouTube Channel: @${channel}`);
+        setPublishYouTubeError(null);
+        api.getSocialAccounts().then((accounts) => setSocialAccounts(accounts));
+      } else if (event.data?.type === 'YOUTUBE_ERROR') {
+        setPublishYouTubeError(`YouTube Connection Error: ${event.data.error}`);
+      }
+    };
+    window.addEventListener('message', handleOAuthMessage);
+    return () => {
+      window.removeEventListener('message', handleOAuthMessage);
+    };
   }, []);
 
   // Generate QR code data URL dynamically
@@ -514,7 +530,41 @@ export default function ShortsFormatterStudio() {
 
   const handleConnectYouTube = () => {
     const authUrl = api.getYouTubeAuthUrl();
-    window.location.href = authUrl;
+    const width = 600;
+    const height = 720;
+    const left = window.screenX + (window.outerWidth - width) / 2;
+    const top = window.screenY + (window.outerHeight - height) / 2;
+    const popup = window.open(
+      authUrl,
+      'youtube_oauth_popup',
+      `width=${width},height=${height},left=${left},top=${top},status=no,resizable=yes,scrollbars=yes`
+    );
+
+    // If popup blocker intervened, fallback to full page redirect
+    if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+      window.location.href = authUrl;
+      return;
+    }
+
+    // Polling fallback to check if user connected via popup
+    const pollInterval = setInterval(async () => {
+      try {
+        const accounts = await api.getSocialAccounts();
+        const yt = accounts.find((a) => a.platform === 'YOUTUBE_SHORTS');
+        if (yt) {
+          setSocialAccounts(accounts);
+          const name = yt.accountName || (yt as any).account_name || 'Channel';
+          setYoutubeConnectSuccessMsg(`🎉 Successfully connected YouTube Channel: @${name}`);
+          setPublishYouTubeError(null);
+          clearInterval(pollInterval);
+        }
+        if (popup.closed) {
+          clearInterval(pollInterval);
+        }
+      } catch (e) {}
+    }, 2000);
+
+    setTimeout(() => clearInterval(pollInterval), 60000);
   };
 
   const handleDisconnectYouTube = async () => {
@@ -2005,7 +2055,7 @@ export default function ShortsFormatterStudio() {
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: youtubeAccount ? '#10B981' : '#EF4444' }} />
                             <span style={{ fontSize: '12px', fontWeight: 600, color: youtubeAccount ? '#10B981' : '#FF6B6B' }}>
-                              {youtubeAccount ? `Connected: @${youtubeAccount.account_name}` : 'YouTube Channel Not Connected'}
+                              {youtubeAccount ? `Connected: @${youtubeAccount.accountName || (youtubeAccount as any).account_name || 'Channel'}` : 'YouTube Channel Not Connected'}
                             </span>
                           </div>
                           {youtubeAccount ? (
