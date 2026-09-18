@@ -221,6 +221,10 @@ export default function ShortsFormatterStudio() {
   // YouTube OAuth & Publishing State
   const [socialAccounts, setSocialAccounts] = useState<any[]>([]);
   const [isPublishingYouTube, setIsPublishingYouTube] = useState<boolean>(false);
+  const [publishYouTubeStage, setPublishYouTubeStage] = useState<'IDLE' | 'INITIALIZING' | 'UPLOADING' | 'SETTING_THUMBNAIL' | 'DONE'>('IDLE');
+  const [publishYouTubePercent, setPublishYouTubePercent] = useState<number>(0);
+  const [publishYouTubeLoadedMb, setPublishYouTubeLoadedMb] = useState<string>('0');
+  const [publishYouTubeTotalMb, setPublishYouTubeTotalMb] = useState<string>('0');
   const [publishedYouTubeUrl, setPublishedYouTubeUrl] = useState<string | null>(null);
   const [publishYouTubeError, setPublishYouTubeError] = useState<string | null>(null);
   const [youtubeConnectSuccessMsg, setYoutubeConnectSuccessMsg] = useState<string | null>(null);
@@ -575,6 +579,10 @@ export default function ShortsFormatterStudio() {
   const handlePublishDirectToYouTube = async () => {
     if (!videoFile && !videoUrl) return;
     setIsPublishingYouTube(true);
+    setPublishYouTubeStage('INITIALIZING');
+    setPublishYouTubePercent(5);
+    setPublishYouTubeLoadedMb('0');
+    setPublishYouTubeTotalMb('0');
     setPublishYouTubeError(null);
     setPublishedYouTubeUrl(null);
 
@@ -599,15 +607,26 @@ export default function ShortsFormatterStudio() {
 
       const fullDesc = `${editableTranscript.slice(0, 300)}...\n\n👉 Grab the Blueprint & Opportunity OS: https://opportunity-system.com/about\n⚡ Featured Product: ${selectedProduct?.title || 'Opportunity OS'}\n\n#Shorts #Programming #SoftwareEngineering #AI #TechCareers #OpportunityOS`;
 
-      const result = await api.publishYouTubeShort({
-        videoBlob: videoBlobToUpload,
-        thumbnailBlob,
-        title: thumbnailTitle,
-        description: fullDesc,
-        tags: ['Shorts', 'Coding', 'SoftwareEngineering', 'AI', 'OpportunityOS'],
-        privacy: 'public',
-      });
+      const result = await api.publishYouTubeShort(
+        {
+          videoBlob: videoBlobToUpload,
+          thumbnailBlob,
+          title: thumbnailTitle,
+          description: fullDesc,
+          tags: ['Shorts', 'Coding', 'SoftwareEngineering', 'AI', 'OpportunityOS'],
+          privacy: 'public',
+        },
+        (progress) => {
+          setPublishYouTubeStage(progress.stage);
+          setPublishYouTubePercent(progress.percent);
+          if (progress.loadedBytes && progress.totalBytes) {
+            setPublishYouTubeLoadedMb((progress.loadedBytes / (1024 * 1024)).toFixed(1));
+            setPublishYouTubeTotalMb((progress.totalBytes / (1024 * 1024)).toFixed(1));
+          }
+        }
+      );
 
+      setPublishYouTubeStage('DONE');
       setPublishedYouTubeUrl(result.url);
     } catch (err: any) {
       console.error('Direct YouTube publish failed:', err);
@@ -2111,39 +2130,62 @@ export default function ShortsFormatterStudio() {
                         )}
 
                         {youtubeAccount && (
-                          <button
-                            onClick={handlePublishDirectToYouTube}
-                            disabled={isPublishingYouTube || (!videoFile && !videoUrl)}
-                            className="btn btn--primary"
-                            style={{
-                              width: '100%',
-                              padding: '10px',
-                              fontSize: '13px',
-                              fontWeight: 600,
-                              background: isPublishingYouTube ? 'var(--bg-tertiary)' : 'linear-gradient(135deg, rgba(255, 51, 75, 0.18) 0%, rgba(180, 20, 40, 0.28) 100%)',
-                              border: isPublishingYouTube ? '1px solid var(--border-color)' : '1px solid rgba(255, 51, 75, 0.45)',
-                              color: '#fff',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '8px',
-                              boxShadow: isPublishingYouTube ? 'none' : '0 4px 16px rgba(255, 51, 75, 0.12)',
-                              cursor: isPublishingYouTube ? 'wait' : 'pointer',
-                              borderRadius: 'var(--radius-sm)',
-                            }}
-                          >
-                            {isPublishingYouTube ? (
-                              <>
-                                <RefreshCw size={14} className="spin" />
-                                Uploading Video & High-CTR Thumbnail to YouTube...
-                              </>
-                            ) : (
-                              <>
-                                <Send size={14} color="#FF7588" />
-                                🚀 Publish Directly to YouTube Shorts (1-Click)
-                              </>
-                            )}
-                          </button>
+                          isPublishingYouTube ? (
+                            <div style={{ padding: '12px', borderRadius: 'var(--radius-sm)', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255, 51, 75, 0.4)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px' }}>
+                                <span style={{ color: '#FF7588', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <RefreshCw size={13} className="spin" />
+                                  {publishYouTubeStage === 'INITIALIZING' && '⚡ [1/3] Initializing YouTube Session...'}
+                                  {publishYouTubeStage === 'UPLOADING' && `🚀 [2/3] Streaming to YouTube: ${publishYouTubePercent}% (${publishYouTubeLoadedMb} MB / ${publishYouTubeTotalMb} MB)`}
+                                  {publishYouTubeStage === 'SETTING_THUMBNAIL' && '🎨 [3/3] Attaching Custom High-CTR Thumbnail...'}
+                                  {publishYouTubeStage === 'DONE' && '🎉 Finalizing Live Short...'}
+                                </span>
+                                <span style={{ color: '#fff', fontWeight: 700, fontSize: '13px' }}>
+                                  {publishYouTubePercent}%
+                                </span>
+                              </div>
+                              <div style={{ width: '100%', height: '8px', borderRadius: '4px', background: 'rgba(255,255,255,0.1)', overflow: 'hidden' }}>
+                                <div
+                                  style={{
+                                    height: '100%',
+                                    width: `${publishYouTubePercent}%`,
+                                    background: 'linear-gradient(90deg, #FF334B 0%, #FF8A00 100%)',
+                                    borderRadius: '4px',
+                                    transition: 'width 0.2s ease',
+                                    boxShadow: '0 0 10px rgba(255, 51, 75, 0.5)',
+                                  }}
+                                />
+                              </div>
+                              <div style={{ fontSize: '11px', color: 'var(--text-muted)', textAlign: 'center' }}>
+                                Direct Google Cloud Stream • High Velocity • Resumable Protocol
+                              </div>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={handlePublishDirectToYouTube}
+                              disabled={!videoFile && !videoUrl}
+                              className="btn btn--primary"
+                              style={{
+                                width: '100%',
+                                padding: '10px',
+                                fontSize: '13px',
+                                fontWeight: 600,
+                                background: 'linear-gradient(135deg, rgba(255, 51, 75, 0.18) 0%, rgba(180, 20, 40, 0.28) 100%)',
+                                border: '1px solid rgba(255, 51, 75, 0.45)',
+                                color: '#fff',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px',
+                                boxShadow: '0 4px 16px rgba(255, 51, 75, 0.12)',
+                                cursor: 'pointer',
+                                borderRadius: 'var(--radius-sm)',
+                              }}
+                            >
+                              <Send size={14} color="#FF7588" />
+                              🚀 Publish Directly to YouTube Shorts (1-Click)
+                            </button>
+                          )
                         )}
                       </div>
 

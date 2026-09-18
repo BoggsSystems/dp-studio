@@ -502,39 +502,120 @@ export const api = {
     }
   },
 
-  async publishYouTubeShort(payload: {
-    videoBlob: Blob;
-    thumbnailBlob?: Blob;
-    title: string;
-    description: string;
-    tags?: string[];
-    privacy?: 'public' | 'unlisted' | 'private';
-  }): Promise<{ success: boolean; videoId: string; url: string; title: string }> {
-    const formData = new FormData();
-    formData.append('video', payload.videoBlob, 'short_video.mp4');
-    if (payload.thumbnailBlob) {
-      formData.append('thumbnail', payload.thumbnailBlob, 'thumbnail.jpg');
-    }
-    formData.append('title', payload.title);
-    formData.append('description', payload.description);
-    if (payload.tags) {
-      formData.append('tags', JSON.stringify(payload.tags));
-    }
-    if (payload.privacy) {
-      formData.append('privacy', payload.privacy);
-    }
+  async publishYouTubeShort(
+    payload: {
+      videoBlob: Blob;
+      thumbnailBlob?: Blob;
+      title: string;
+      description: string;
+      tags?: string[];
+      privacy?: 'public' | 'unlisted' | 'private';
+    },
+    onProgress?: (info: { stage: 'INITIALIZING' | 'UPLOADING' | 'SETTING_THUMBNAIL' | 'DONE'; percent: number; loadedBytes?: number; totalBytes?: number }) => void
+  ): Promise<{ success: boolean; videoId: string; url: string; title: string }> {
+    try {
+      // Stage 1: Request Direct Google Resumable Upload Session URL from Backend
+      if (onProgress) onProgress({ stage: 'INITIALIZING', percent: 5 });
 
-    const res = await fetch(`${API_BASE_URL}/api/social/publish/youtube`, {
-      method: 'POST',
-      body: formData,
-    });
+      const sessionRes = await fetch(`${API_BASE_URL}/api/social/youtube/create-upload-session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: payload.title,
+          description: payload.description,
+          tags: payload.tags,
+          privacy: payload.privacy,
+          contentLength: payload.videoBlob.size,
+        }),
+      });
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ message: 'Publishing to YouTube failed' }));
-      throw new Error(err.message || `HTTP ${res.status}`);
+      if (!sessionRes.ok) {
+        const err = await sessionRes.json().catch(() => ({ message: 'Failed to create YouTube upload session' }));
+        throw new Error(err.message || `Session initialization failed (HTTP ${sessionRes.status})`);
+      }
+
+      const { uploadUrl, formattedTitle } = await sessionRes.json();
+      if (!uploadUrl) {
+        throw new Error('No Google upload URL returned from backend');
+      }
+
+      // Stage 2: Stream Video Directly to Google YouTube Cloud Storage
+      if (onProgress) onProgress({ stage: 'UPLOADING', percent: 10, loadedBytes: 0, totalBytes: payload.videoBlob.size });
+
+      const videoId = await new Promise<string>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('PUT', uploadUrl, true);
+        xhr.setRequestHeader('Content-Type', 'video/mp4');
+
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable && onProgress) {
+            const uploadPercent = Math.min(95, Math.round((event.loaded / event.total) * 90) + 5);
+            onProgress({
+              stage: 'UPLOADING',
+              percent: uploadPercent,
+              loadedBytes: event.loaded,
+              totalBytes: event.total,
+            });
+          }
+        };
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              const resData = JSON.parse(xhr.responseText);
+              if (resData.id) {
+                resolve(resData.id);
+              } else {
+                reject(new Error('YouTube upload completed but video ID was missing in response.'));
+              }
+            } catch (e) {
+              reject(new Error('Failed to parse YouTube upload response JSON.'));
+            }
+          } else {
+            reject(new Error(`YouTube upload failed with HTTP ${xhr.status}: ${xhr.responseText}`));
+          }
+        };
+
+        xhr.onerror = () => {
+          reject(new Error('Network error occurred while uploading directly to YouTube.'));
+        };
+
+        xhr.ontimeout = () => {
+          reject(new Error('YouTube upload connection timed out.'));
+        };
+
+        xhr.send(payload.videoBlob);
+      });
+
+      // Stage 3: Attach Custom High-CTR Thumbnail if provided
+      if (payload.thumbnailBlob) {
+        if (onProgress) onProgress({ stage: 'SETTING_THUMBNAIL', percent: 96 });
+        try {
+          const thumbFormData = new FormData();
+          thumbFormData.append('thumbnail', payload.thumbnailBlob, 'thumbnail.jpg');
+          thumbFormData.append('videoId', videoId);
+
+          await fetch(`${API_BASE_URL}/api/social/youtube/set-thumbnail`, {
+            method: 'POST',
+            body: thumbFormData,
+          });
+        } catch (thumbErr) {
+          console.warn('Custom thumbnail attachment warning:', thumbErr);
+        }
+      }
+
+      if (onProgress) onProgress({ stage: 'DONE', percent: 100 });
+
+      return {
+        success: true,
+        videoId,
+        url: `https://youtube.com/shorts/${videoId}`,
+        title: formattedTitle || payload.title,
+      };
+    } catch (err: any) {
+      console.error('Direct YouTube Upload Error:', err);
+      throw err;
     }
-
-    return await res.json();
   },
 
   // --- Livestream Sessions ---
