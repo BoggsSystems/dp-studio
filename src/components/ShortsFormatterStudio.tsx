@@ -20,7 +20,9 @@ import {
   RefreshCw,
   AlertCircle,
   FileAudio,
+  QrCode,
 } from 'lucide-react';
+import QRCode from 'qrcode';
 import { api } from '../services/api';
 import { Product } from '../types';
 
@@ -42,6 +44,7 @@ interface SubtitleChunk {
 export type HighlightColor = 'amber' | 'emerald' | 'cyan' | 'pink' | 'crimson' | 'violet';
 export type LayoutMode = 'FIT_BLUR' | 'COVER_CROP';
 export type WordPacing = 'ONE_WORD' | 'TWO_THREE' | 'SENTENCE';
+export type QrPlacement = 'TOP_RIGHT' | 'BOTTOM_RIGHT' | 'TOP_LEFT';
 
 const HIGHLIGHT_COLORS: Record<HighlightColor, { label: string; hex: string; glow: string }> = {
   amber: { label: 'Electric Amber', hex: '#FFB800', glow: 'rgba(255, 184, 0, 0.6)' },
@@ -170,6 +173,12 @@ export default function ShortsFormatterStudio() {
   const [layoutMode, setLayoutMode] = useState<LayoutMode>('FIT_BLUR');
   const [showShoppableDrawer, setShowShoppableDrawer] = useState<boolean>(true);
 
+  // QR Code Overlays for Multi-Device & Desktop Conversion
+  const [showQrCode, setShowQrCode] = useState<boolean>(true);
+  const [qrPlacement, setQrPlacement] = useState<QrPlacement>('TOP_RIGHT');
+  const [qrCustomUrl, setQrCustomUrl] = useState<string>('https://opportunity-system.com');
+  const [qrDataUrl, setQrDataUrl] = useState<string>('');
+
   // Social copy state
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState<boolean>(false);
@@ -182,6 +191,25 @@ export default function ShortsFormatterStudio() {
       if (data.length > 0) setSelectedProduct(data[0]);
     });
   }, []);
+
+  // Generate QR code data URL dynamically
+  useEffect(() => {
+    const targetUrl = selectedProduct?.externalUrl || qrCustomUrl || 'https://opportunity-system.com';
+    QRCode.toDataURL(targetUrl, {
+      width: 320,
+      margin: 1,
+      color: {
+        dark: '#000000',
+        light: '#FFFFFF',
+      },
+    })
+      .then((url) => {
+        setQrDataUrl(url);
+      })
+      .catch((err) => {
+        console.error('QR code generation error:', err);
+      });
+  }, [selectedProduct, qrCustomUrl]);
 
   // Transcription trigger function
   const runTranscription = async (fileToProcess: File) => {
@@ -401,6 +429,20 @@ export default function ShortsFormatterStudio() {
     }
 
     try {
+      // Pre-load QR image for canvas drawing if enabled
+      let qrImg: HTMLImageElement | null = null;
+      if (showQrCode && qrDataUrl) {
+        qrImg = new Image();
+        qrImg.src = qrDataUrl;
+        await new Promise((resolve) => {
+          if (qrImg!.complete) resolve(true);
+          else {
+            qrImg!.onload = () => resolve(true);
+            qrImg!.onerror = () => resolve(false);
+          }
+        });
+      }
+
       const stream = canvas.captureStream(30);
       let combinedStream = stream;
 
@@ -472,6 +514,7 @@ export default function ShortsFormatterStudio() {
           ctx.drawImage(video, 0, 0, 1080, 1920);
         }
 
+        // Subtitle text rendering
         const currentT = video.currentTime;
         const currChunk = chunks.find((c) => currentT >= c.start - 0.05 && currentT <= c.end + 0.15);
         if (currChunk) {
@@ -497,6 +540,94 @@ export default function ShortsFormatterStudio() {
           ctx.strokeText(textString, 540, yPos);
           ctx.fillStyle = HIGHLIGHT_COLORS[highlightColor].hex;
           ctx.fillText(textString, 540, yPos);
+        }
+
+        // Render QR Code Badge if enabled
+        if (showQrCode && qrImg && qrImg.complete) {
+          const qrX = qrPlacement === 'TOP_RIGHT' ? 1080 - 220 - 40 : qrPlacement === 'TOP_LEFT' ? 40 : 1080 - 220 - 40;
+          const qrY = qrPlacement === 'BOTTOM_RIGHT' ? 1920 - 380 : 70;
+          const w = 220;
+          const h = 270;
+          const r = 24;
+
+          ctx.save();
+          // Card backdrop
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+          ctx.strokeStyle = HIGHLIGHT_COLORS[highlightColor].hex;
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          if (typeof (ctx as any).roundRect === 'function') {
+            (ctx as any).roundRect(qrX, qrY, w, h, r);
+          } else {
+            ctx.rect(qrX, qrY, w, h);
+          }
+          ctx.fill();
+          ctx.stroke();
+
+          // White QR background wrapper
+          ctx.fillStyle = '#FFFFFF';
+          ctx.beginPath();
+          if (typeof (ctx as any).roundRect === 'function') {
+            (ctx as any).roundRect(qrX + 20, qrY + 20, 180, 180, 12);
+          } else {
+            ctx.rect(qrX + 20, qrY + 20, 180, 180);
+          }
+          ctx.fill();
+
+          // QR Image
+          ctx.drawImage(qrImg, qrX + 24, qrY + 24, 172, 172);
+
+          // Text Label
+          ctx.font = '900 20px Inter, sans-serif';
+          ctx.fillStyle = HIGHLIGHT_COLORS[highlightColor].hex;
+          ctx.textAlign = 'center';
+          ctx.fillText('⚡ SCAN TO BUY', qrX + w / 2, qrY + 234);
+
+          if (selectedProduct) {
+            ctx.font = '700 16px Inter, sans-serif';
+            ctx.fillStyle = '#10B981';
+            ctx.fillText(`$${selectedProduct.price.toFixed(2)}`, qrX + w / 2, qrY + 256);
+          }
+          ctx.restore();
+        }
+
+        // Render Shoppable Product Drawer
+        if (showShoppableDrawer && selectedProduct) {
+          const drawerY = 1920 - 200;
+          const dx = 40;
+          const dw = 1000;
+          const dh = 140;
+          const dr = 24;
+
+          ctx.save();
+          ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+          ctx.strokeStyle = 'rgba(255, 184, 0, 0.6)';
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          if (typeof (ctx as any).roundRect === 'function') {
+            (ctx as any).roundRect(dx, drawerY, dw, dh, dr);
+          } else {
+            ctx.rect(dx, drawerY, dw, dh);
+          }
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.font = '800 20px Inter, sans-serif';
+          ctx.fillStyle = '#FFB800';
+          ctx.textAlign = 'left';
+          ctx.fillText('⚡ FEATURED IN CLIP', dx + 30, drawerY + 45);
+
+          ctx.font = '700 28px Inter, sans-serif';
+          ctx.fillStyle = '#FFFFFF';
+          const maxTitleLen = 42;
+          const titleText = selectedProduct.title.length > maxTitleLen ? selectedProduct.title.slice(0, maxTitleLen) + '...' : selectedProduct.title;
+          ctx.fillText(titleText, dx + 30, drawerY + 90);
+
+          ctx.font = '800 36px Inter, sans-serif';
+          ctx.fillStyle = '#10B981';
+          ctx.textAlign = 'right';
+          ctx.fillText(`$${selectedProduct.price.toFixed(2)}`, dx + dw - 40, drawerY + 80);
+          ctx.restore();
         }
 
         setExportProgress(Math.min(95, Math.round((video.currentTime / (video.duration || 1)) * 100)));
@@ -772,7 +903,7 @@ export default function ShortsFormatterStudio() {
               </div>
             </div>
 
-            {/* 4. Toggles: Emojis, Uppercase, Shoppable Product */}
+            {/* 4. Toggles: Emojis, Uppercase, Shoppable Product, QR Code */}
             <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', paddingTop: '8px', borderTop: '1px solid var(--border-color)' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: '#fff' }}>
                 <input
@@ -800,7 +931,61 @@ export default function ShortsFormatterStudio() {
                 />
                 <span>Attach Shoppable Product Drawer</span>
               </label>
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: '#fff' }}>
+                <input
+                  type="checkbox"
+                  checked={showQrCode}
+                  onChange={(e) => setShowQrCode(e.target.checked)}
+                />
+                <span>Include Shoppable QR Badge (Desktop/TV Shoppers)</span>
+              </label>
             </div>
+
+            {/* 4b. QR Code Customization Bar */}
+            {showQrCode && (
+              <div style={{ padding: '12px 14px', borderRadius: 'var(--radius-sm)', background: 'rgba(0,0,0,0.35)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--accent-cyan)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <QrCode size={14} />
+                    <span>Shoppable QR Badge (Multi-Device Conversion)</span>
+                  </div>
+                  {qrDataUrl && (
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                      Target: {selectedProduct ? selectedProduct.title : 'opportunity-system.com'}
+                    </span>
+                  )}
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '14px', alignItems: 'center' }}>
+                  {qrDataUrl && (
+                    <div style={{ background: '#fff', padding: '4px', borderRadius: '6px', width: 'fit-content', boxShadow: '0 2px 8px rgba(0,0,0,0.5)' }}>
+                      <img src={qrDataUrl} alt="QR Preview" style={{ width: '44px', height: '44px', display: 'block' }} />
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Overlay Position:</div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      {[
+                        { key: 'TOP_RIGHT', label: 'Top Right (Recommended)' },
+                        { key: 'BOTTOM_RIGHT', label: 'Bottom Right' },
+                        { key: 'TOP_LEFT', label: 'Top Left' },
+                      ].map((pos) => (
+                        <button
+                          key={pos.key}
+                          onClick={() => setQrPlacement(pos.key as QrPlacement)}
+                          className={`btn ${qrPlacement === pos.key ? 'btn--primary' : 'btn--outline'}`}
+                          style={{ padding: '4px 10px', fontSize: '11px' }}
+                        >
+                          {pos.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* 5. Shoppable Product Selector */}
             {showShoppableDrawer && (
@@ -1215,6 +1400,49 @@ export default function ShortsFormatterStudio() {
                       </span>
                     );
                   })}
+                </div>
+              )}
+
+              {/* QR Code Overlay Badge for Multi-Device & Desktop Conversion */}
+              {showQrCode && qrDataUrl && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    ...(qrPlacement === 'TOP_RIGHT'
+                      ? { top: '24px', right: '14px' }
+                      : qrPlacement === 'TOP_LEFT'
+                      ? { top: '24px', left: '14px' }
+                      : { bottom: showShoppableDrawer && selectedProduct ? '88px' : '20px', right: '14px' }),
+                    background: 'rgba(0, 0, 0, 0.85)',
+                    backdropFilter: 'blur(12px)',
+                    padding: '6px 8px',
+                    borderRadius: '12px',
+                    border: `1.5px solid ${HIGHLIGHT_COLORS[highlightColor].hex}`,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '3px',
+                    zIndex: 48,
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.7), 0 0 12px rgba(255,184,0,0.2)',
+                    pointerEvents: 'none',
+                    animation: 'fadeIn 0.3s ease-in-out',
+                  }}
+                >
+                  <div style={{ background: '#fff', padding: '3px', borderRadius: '6px', display: 'flex' }}>
+                    <img
+                      src={qrDataUrl}
+                      alt="Scan to Buy"
+                      style={{ width: '56px', height: '56px', display: 'block', borderRadius: '3px' }}
+                    />
+                  </div>
+                  <span style={{ fontSize: '8px', fontWeight: 900, color: HIGHLIGHT_COLORS[highlightColor].hex, letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+                    ⚡ Scan to Buy
+                  </span>
+                  {selectedProduct && (
+                    <span style={{ fontSize: '8px', fontWeight: 700, color: '#10b981' }}>
+                      ${selectedProduct.price.toFixed(2)}
+                    </span>
+                  )}
                 </div>
               )}
 
