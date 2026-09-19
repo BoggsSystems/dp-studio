@@ -97,12 +97,44 @@ export async function clearDraftVideoBlob(): Promise<void> {
 // ---------------------------------------------------------------------------
 
 const SHORTS_LIBRARY_KEY = 'digitpop_saved_shorts_library_v1';
+const DELETED_SHORTS_KEY = 'digitpop_deleted_shorts_v1';
+
+function getDeletedShortIds(): Set<string> {
+  try {
+    const raw = localStorage.getItem(DELETED_SHORTS_KEY);
+    if (!raw) return new Set();
+    return new Set(JSON.parse(raw));
+  } catch (e) {
+    return new Set();
+  }
+}
+
+function addDeletedShortId(id: string) {
+  try {
+    const set = getDeletedShortIds();
+    set.add(id);
+    localStorage.setItem(DELETED_SHORTS_KEY, JSON.stringify(Array.from(set)));
+  } catch (e) {}
+}
+
+function removeDeletedShortId(id: string) {
+  try {
+    const set = getDeletedShortIds();
+    if (set.has(id)) {
+      set.delete(id);
+      localStorage.setItem(DELETED_SHORTS_KEY, JSON.stringify(Array.from(set)));
+    }
+  } catch (e) {}
+}
 
 export async function saveShortProject(
   short: FormattedShortProject,
   videoBlob?: Blob
 ): Promise<void> {
   try {
+    // 0. Remove from deleted blacklist if user explicitly saves or updates it
+    removeDeletedShortId(short.id);
+
     // 1. If video blob provided, store video in IndexedDB under short_video_<id>
     if (videoBlob) {
       const db = await openDB();
@@ -120,7 +152,16 @@ export async function saveShortProject(
     }
 
     // 2. Save metadata to localStorage library
-    const list = getAllShortProjects();
+    let list: FormattedShortProject[] = [];
+    const raw = localStorage.getItem(SHORTS_LIBRARY_KEY);
+    if (raw) {
+      try {
+        list = JSON.parse(raw);
+      } catch (e) {
+        list = [];
+      }
+    }
+
     const existingIdx = list.findIndex((item) => item.id === short.id);
     if (existingIdx >= 0) {
       list[existingIdx] = { ...short, updatedAt: new Date().toISOString() };
@@ -135,6 +176,7 @@ export async function saveShortProject(
 
 export function getAllShortProjects(): FormattedShortProject[] {
   try {
+    const deletedSet = getDeletedShortIds();
     let list: FormattedShortProject[] = [];
     const data = localStorage.getItem(SHORTS_LIBRARY_KEY);
     if (data) {
@@ -145,6 +187,9 @@ export function getAllShortProjects(): FormattedShortProject[] {
       }
     }
 
+    // Filter out deleted projects
+    list = list.filter((item) => !deletedSet.has(item.id));
+
     // Auto-migration & synchronization: If library is missing the active working draft,
     // synthesize an entry from digitpop_shorts_formatter_draft_v1 so active drafts are never lost.
     const draftJson = localStorage.getItem('digitpop_shorts_formatter_draft_v1');
@@ -153,8 +198,9 @@ export function getAllShortProjects(): FormattedShortProject[] {
         const draft = JSON.parse(draftJson);
         const draftId = draft.id || 'short_active_draft';
         const alreadyExists = list.some((item) => item.id === draftId);
+        const isDeleted = deletedSet.has(draftId);
 
-        if (!alreadyExists && (draft.words?.length > 0 || draft.editableTranscript || draft.thumbnailTitle || draft.thumbnailImage)) {
+        if (!isDeleted && !alreadyExists && (draft.words?.length > 0 || draft.editableTranscript || draft.thumbnailTitle || draft.thumbnailImage)) {
           const synthesized: FormattedShortProject = {
             id: draftId,
             title: draft.thumbnailTitle || 'AI Shoppable Short (Draft)',
@@ -241,14 +287,37 @@ export async function getShortProject(id: string): Promise<{ project: FormattedS
 
 export async function deleteShortProject(id: string): Promise<void> {
   try {
-    // 1. Remove from localStorage library
-    const list = getAllShortProjects().filter((item) => item.id !== id);
-    localStorage.setItem(SHORTS_LIBRARY_KEY, JSON.stringify(list));
+    // 1. Add to deleted blacklist to prevent re-synthesis
+    addDeletedShortId(id);
 
-    // 2. Remove video blob from IndexedDB
-    const db = await openDB();
-    const tx = db.transaction(STORE_NAME, 'readwrite');
-    tx.objectStore(STORE_NAME).delete(`short_video_${id}`);
+    // 2. Remove from raw localStorage library
+    const raw = localStorage.getItem(SHORTS_LIBRARY_KEY);
+    if (raw) {
+      try {
+        const list: FormattedShortProject[] = JSON.parse(raw);
+        const filtered = list.filter((item) => item.id !== id);
+        localStorage.setItem(SHORTS_LIBRARY_KEY, JSON.stringify(filtered));
+      } catch (e) {}
+    }
+
+    // 3. If this deleted short matches the active working draft, clear active draft cache
+    try {
+      const draftJson = localStorage.getItem('digitpop_shorts_formatter_draft_v1');
+      if (draftJson) {
+        const draft = JSON.parse(draftJson);
+        if (draft.id === id || id === 'short_active_draft') {
+          localStorage.removeItem('digitpop_shorts_formatter_draft_v1');
+          await clearDraftVideoBlob();
+        }
+      }
+    } catch (e) {}
+
+    // 4. Remove video blob from IndexedDB
+    try {
+      const db = await openDB();
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      tx.objectStore(STORE_NAME).delete(`short_video_${id}`);
+    } catch (e) {}
   } catch (err) {
     console.warn('Failed to delete short project:', err);
   }
