@@ -204,6 +204,16 @@ export default function ShortsFormatterStudio() {
   const [qrCustomUrl, setQrCustomUrl] = useState<string>('https://opportunity-system.com');
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
 
+  // AI Title & Description Studio State
+  const [videoTitle, setVideoTitle] = useState<string>("DON'T LEARN SYNTAX IN 2026");
+  const [videoDescription, setVideoDescription] = useState<string>(
+    `All right, guys, I'm back after a few months. I've been busy developing software. You can see it at opportunity-system.com. And I'm here to talk with a lot of developers that are either juniors or you're in university right now and you're trying to figure out what to do with your software career.\n\n👉 Grab the Blueprint & Software Tools: https://opportunity-system.com/about\n⚡ Featured Product: AI-Native Software Engineering: The New Physics of Software Velocity\n\n#Shorts #Programming #SoftwareEngineering #AI #TechCareers #OpportunityOS`
+  );
+  const [pinnedCommentText, setPinnedCommentText] = useState<string>(
+    `👉 Grab the AI-Native Software Engineering: The New Physics of Software Velocity and free Chapter 1 blueprint here: https://opportunity-system.com/about (Link also in Bio ⚡)`
+  );
+  const [isAiGeneratingMeta, setIsAiGeneratingMeta] = useState<boolean>(false);
+
   // High-CTR Thumbnail Studio State
   const [thumbnailImage, setThumbnailImage] = useState<string | null>(null);
   const [thumbnailTitle, setThumbnailTitle] = useState<string>("DON'T LEARN SYNTAX IN 2026");
@@ -596,6 +606,7 @@ export default function ShortsFormatterStudio() {
         setWords(formattedWords);
         const fullText = formattedWords.map((w) => w.word).join(' ');
         setEditableTranscript(fullText);
+        generateAiMetadata(fullText);
       } else if (res && res.text) {
         const split = res.text.split(/\s+/).filter(Boolean);
         const estDuration = res.duration || duration || 30;
@@ -608,6 +619,7 @@ export default function ShortsFormatterStudio() {
         }));
         setWords(formattedWords);
         setEditableTranscript(res.text);
+        generateAiMetadata(res.text);
       } else {
         throw new Error('No words or text returned from Whisper API.');
       }
@@ -617,6 +629,48 @@ export default function ShortsFormatterStudio() {
     } finally {
       setIsTranscribing(false);
       setTranscribeProgress('');
+    }
+  };
+
+  // Generate AI Title, Rich Description, and Pinned Comment from transcript
+  const generateAiMetadata = (textInput?: string, productOverride?: Product | null) => {
+    setIsAiGeneratingMeta(true);
+    try {
+      const text = textInput || editableTranscript || words.map((w) => w.word).join(' ');
+      const product = productOverride !== undefined ? productOverride : selectedProduct;
+      const productName = product?.title || 'AI-Native Software Engineering: The New Physics of Software Velocity';
+      const productUrl = 'https://opportunity-system.com/about';
+
+      if (!text || text.trim().length === 0) {
+        setVideoTitle("DON'T LEARN SYNTAX IN 2026");
+        setThumbnailTitle("DON'T LEARN SYNTAX IN 2026");
+        setVideoDescription(
+          `🚀 Grab the free Chapter 1 blueprint & software tools: ${productUrl}\n⚡ Featured Product: ${productName}\n\n#Shorts #Programming #SoftwareEngineering #AI #TechCareers #OpportunityOS`
+        );
+        setPinnedCommentText(`👉 Grab the blueprint & software tools: ${productUrl} (Link in Bio ⚡)`);
+        return;
+      }
+
+      const cleanText = text.replace(/\s+/g, ' ').trim();
+      const sentences = cleanText.split(/[.!?]+/).filter((s) => s.trim().length > 6);
+      let hook = "DON'T LEARN SYNTAX IN 2026";
+      if (sentences.length > 0) {
+        const first = sentences[0].trim();
+        if (first.length >= 10 && first.length <= 80) {
+          hook = first.toUpperCase();
+        }
+      }
+
+      const hookSnippet = cleanText.length > 240 ? cleanText.slice(0, 240) + '...' : cleanText;
+      const desc = `${hookSnippet}\n\n👉 Grab the Blueprint & Software Tools: ${productUrl}\n⚡ Featured Product: ${productName}\n\n#Shorts #Programming #SoftwareEngineering #AI #TechCareers #OpportunityOS`;
+      const pinned = `👉 Grab the ${productName} and free Chapter 1 blueprint here: ${productUrl} (Link also in Bio ⚡)`;
+
+      setVideoTitle(hook);
+      setThumbnailTitle(hook);
+      setVideoDescription(desc);
+      setPinnedCommentText(pinned);
+    } finally {
+      setTimeout(() => setIsAiGeneratingMeta(false), 300);
     }
   };
 
@@ -1600,14 +1654,15 @@ export default function ShortsFormatterStudio() {
         console.warn('Thumbnail generation warning:', thumbErr);
       }
 
-      const fullDesc = `${editableTranscript.slice(0, 300)}...\n\n👉 Grab the Blueprint & Opportunity OS: https://opportunity-system.com/about\n⚡ Featured Product: ${selectedProduct?.title || 'Opportunity OS'}\n\n#Shorts #Programming #SoftwareEngineering #AI #TechCareers #OpportunityOS`;
+      const fullDesc = videoDescription || `${editableTranscript.slice(0, 300)}...\n\n👉 Grab the Blueprint & Opportunity OS: https://opportunity-system.com/about\n⚡ Featured Product: ${selectedProduct?.title || 'Opportunity OS'}\n\n#Shorts #Programming #SoftwareEngineering #AI #TechCareers #OpportunityOS`;
+      const fullTitle = videoTitle ? (videoTitle.toLowerCase().includes('#shorts') ? videoTitle : `${videoTitle} #Shorts`) : (thumbnailTitle ? `${thumbnailTitle} #Shorts` : 'AI-Native Short #Shorts');
 
       // 3. Stream direct to Google YouTube Resumable Cloud Session
       const result = await api.publishYouTubeShort(
         {
           videoBlob: videoBlobToUpload,
           thumbnailBlob,
-          title: thumbnailTitle,
+          title: fullTitle,
           description: fullDesc,
           tags: ['Shorts', 'Coding', 'SoftwareEngineering', 'AI', 'OpportunityOS'],
           privacy: 'public',
@@ -1713,7 +1768,9 @@ export default function ShortsFormatterStudio() {
       setPublishTikTokStage('INITIALIZING');
       setPublishTikTokPercent(50);
 
-      const viralCaption = `${thumbnailTitle} 🔥 Watch till the end! #coding #ai #softwareengineer #tech #developer #opportunityos`;
+      const viralCaption = videoTitle
+        ? `${videoTitle}\n\n${videoDescription || ''}`.slice(0, 2000).trim()
+        : `${thumbnailTitle} 🔥 Watch till the end! #coding #ai #softwareengineer #tech #developer #opportunityos`;
 
       const result = await api.publishTikTokVideo(
         {
@@ -1776,13 +1833,15 @@ export default function ShortsFormatterStudio() {
       setPublishInstagramStage('INITIALIZING');
       setPublishInstagramPercent(50);
 
-      const viralCaption = `${thumbnailTitle} 🚀 Link in bio for the interactive shoppable short! #reels #ai #coding #softwarevelocity #developer`;
+      const igCaption = videoTitle
+        ? `${videoTitle}\n\n${videoDescription || ''}`.slice(0, 2200).trim()
+        : `${thumbnailTitle} 🚀 Link in bio for the interactive shoppable short! #reels #ai #coding #softwarevelocity #developer`;
 
       const result = await api.publishInstagramReel(
         {
           videoBlob: videoBlobToUpload,
-          title: thumbnailTitle,
-          caption: viralCaption,
+          title: videoTitle || thumbnailTitle,
+          caption: igCaption,
         },
         (progress) => {
           if (progress.stage === 'INITIALIZING') {
@@ -1835,7 +1894,9 @@ export default function ShortsFormatterStudio() {
       setPublishTwitterStage('INITIALIZING');
       setPublishTwitterPercent(50);
 
-      const postText = `${thumbnailTitle}\n\n👉 Full interactive short & blueprint: https://opportunity-system.com/about ⚡\n\n#AI #Coding #Tech`;
+      const postText = videoTitle
+        ? `${videoTitle}\n\n👉 Full interactive short & blueprint: https://opportunity-system.com/about ⚡\n\n#AI #Coding #Tech`
+        : `${thumbnailTitle}\n\n👉 Full interactive short & blueprint: https://opportunity-system.com/about ⚡\n\n#AI #Coding #Tech`;
 
       const result = await api.publishTwitterPost(
         {
@@ -2493,75 +2554,238 @@ export default function ShortsFormatterStudio() {
           </div>
         )}
 
-        {/* Viral Social Copy & Hook Generator */}
-        {words.length > 0 && (
-          <div className="surface-panel" style={{ padding: '20px' }}>
-            <div style={{ fontSize: '15px', fontWeight: '700', color: '#fff', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Flame size={16} color="var(--accent-amber)" />
-              <span>Viral Social Copy (YouTube Shorts & TikTok)</span>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {/* Titles */}
-              <div>
-                <div style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '6px' }}>
-                  High-CTR Video Titles:
+        {/* ✨ AI Video Title & Description Studio */}
+        {(videoUrl || words.length > 0) && (
+          <div className="surface-panel" style={{ padding: '20px', border: '1px solid rgba(99, 102, 241, 0.25)', background: 'linear-gradient(180deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.8) 100%)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: 'linear-gradient(135deg, #6366F1 0%, #3B82F6 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Sparkles size={16} color="#fff" />
                 </div>
-                {socialTitles.map((title, idx) => (
-                  <div
-                    key={idx}
-                    style={{
-                      padding: '8px 12px',
-                      borderRadius: 'var(--radius-sm)',
-                      background: 'rgba(255,255,255,0.04)',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      marginBottom: '6px',
-                      fontSize: '13px',
-                      color: '#fff',
-                    }}
-                  >
-                    <span>{title}</span>
-                    <button
-                      onClick={() => copyToClipboard(title, `title_${idx}`)}
-                      className="btn btn--outline"
-                      style={{ padding: '4px 8px', fontSize: '11px' }}
-                    >
-                      {copiedKey === `title_${idx}` ? <Check size={12} color="#10b981" /> : <Copy size={12} />}
-                      {copiedKey === `title_${idx}` ? 'Copied' : 'Copy'}
-                    </button>
+                <div>
+                  <div style={{ fontSize: '15px', fontWeight: '700', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span>AI Video Title & Description Studio</span>
+                    <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: 'rgba(99, 102, 241, 0.2)', color: '#818CF8', border: '1px solid rgba(99, 102, 241, 0.3)', fontWeight: 600 }}>
+                      Cross-Platform Meta
+                    </span>
                   </div>
-                ))}
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                    Review, customize, and optimize your video title, description, and pinned comment before publishing.
+                  </div>
+                </div>
               </div>
 
-              {/* Pinned Comment */}
-              <div>
-                <div style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '6px' }}>
-                  High-Converting Pinned Comment:
+              <button
+                onClick={() => generateAiMetadata()}
+                disabled={isAiGeneratingMeta}
+                className="btn btn--outline"
+                style={{
+                  padding: '6px 12px',
+                  fontSize: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  background: 'rgba(99, 102, 241, 0.1)',
+                  borderColor: 'rgba(99, 102, 241, 0.4)',
+                  color: '#A5B4FC',
+                  fontWeight: 600,
+                }}
+                title="Re-generate AI Title and Description based on transcript"
+              >
+                <RefreshCw size={13} className={isAiGeneratingMeta ? 'spin' : ''} />
+                {isAiGeneratingMeta ? 'Analyzing...' : '⚡ Re-Generate with AI'}
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* 1. Video Title Input */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Flame size={13} color="var(--accent-amber)" />
+                    Video Title & Hook
+                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '11px', color: videoTitle.length > 100 ? '#EF4444' : videoTitle.length > 80 ? '#F59E0B' : '#10B981', fontWeight: 600 }}>
+                      {videoTitle.length}/100 chars
+                    </span>
+                    <button
+                      onClick={() => copyToClipboard(videoTitle, 'custom_title')}
+                      className="btn btn--outline"
+                      style={{ padding: '2px 8px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      {copiedKey === 'custom_title' ? <Check size={11} color="#10b981" /> : <Copy size={11} />}
+                      {copiedKey === 'custom_title' ? 'Copied' : 'Copy'}
+                    </button>
+                  </div>
                 </div>
-                <div
-                  style={{
-                    padding: '10px 12px',
-                    borderRadius: 'var(--radius-sm)',
-                    background: 'rgba(255,255,255,0.04)',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    fontSize: '12px',
-                    color: '#fff',
+
+                <input
+                  type="text"
+                  value={videoTitle}
+                  onChange={(e) => {
+                    setVideoTitle(e.target.value);
+                    setThumbnailTitle(e.target.value);
                   }}
-                >
-                  <span>{pinnedComment}</span>
+                  className="form-input"
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    color: '#fff',
+                    background: 'rgba(0, 0, 0, 0.4)',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    borderRadius: 'var(--radius-sm)',
+                  }}
+                  placeholder="Enter high-CTR video title / hook..."
+                />
+
+                {/* AI Hook Suggestions Chips */}
+                {socialTitles.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '4px' }}>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', alignSelf: 'center', marginRight: '4px' }}>
+                      AI Suggestions:
+                    </span>
+                    {socialTitles.map((t, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          setVideoTitle(t);
+                          setThumbnailTitle(t);
+                        }}
+                        style={{
+                          background: videoTitle === t ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.05)',
+                          border: videoTitle === t ? '1px solid #818CF8' : '1px solid rgba(255, 255, 255, 0.1)',
+                          color: videoTitle === t ? '#C7D2FE' : 'var(--text-secondary)',
+                          borderRadius: '12px',
+                          padding: '3px 10px',
+                          fontSize: '11px',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                          textAlign: 'left',
+                        }}
+                        title="Click to apply this title"
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 2. Video Description & Social Caption */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Edit3 size={13} color="#60A5FA" />
+                    Video Description & Social Caption
+                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '11px', color: videoDescription.length > 5000 ? '#EF4444' : 'var(--text-muted)' }}>
+                      {videoDescription.length}/5000 chars
+                    </span>
+                    <button
+                      onClick={() => copyToClipboard(videoDescription, 'custom_desc')}
+                      className="btn btn--outline"
+                      style={{ padding: '2px 8px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      {copiedKey === 'custom_desc' ? <Check size={11} color="#10b981" /> : <Copy size={11} />}
+                      {copiedKey === 'custom_desc' ? 'Copied' : 'Copy'}
+                    </button>
+                  </div>
+                </div>
+
+                <textarea
+                  rows={5}
+                  value={videoDescription}
+                  onChange={(e) => setVideoDescription(e.target.value)}
+                  className="form-input"
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    fontSize: '12px',
+                    lineHeight: '1.5',
+                    color: '#fff',
+                    background: 'rgba(0, 0, 0, 0.4)',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    borderRadius: 'var(--radius-sm)',
+                    fontFamily: 'inherit',
+                    resize: 'vertical',
+                  }}
+                  placeholder="Enter full video description, product links, and hashtags..."
+                />
+
+                {/* Quick Insert Snippet Pills */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Quick Insert:</span>
                   <button
-                    onClick={() => copyToClipboard(pinnedComment, 'pinned')}
+                    onClick={() => {
+                      const linkText = '\n👉 Grab the Blueprint & Opportunity OS: https://opportunity-system.com/about';
+                      setVideoDescription((prev) => prev + linkText);
+                    }}
                     className="btn btn--outline"
-                    style={{ padding: '4px 8px', fontSize: '11px' }}
+                    style={{ padding: '2px 8px', fontSize: '11px', color: '#60A5FA', borderColor: 'rgba(96, 165, 250, 0.3)' }}
                   >
-                    {copiedKey === 'pinned' ? <Check size={12} color="#10b981" /> : <Copy size={12} />}
-                    {copiedKey === 'pinned' ? 'Copied' : 'Copy'}
+                    + Bio Link
+                  </button>
+                  <button
+                    onClick={() => {
+                      const productText = `\n⚡ Featured Product: ${selectedProduct?.title || 'AI-Native Software Engineering'}`;
+                      setVideoDescription((prev) => prev + productText);
+                    }}
+                    className="btn btn--outline"
+                    style={{ padding: '2px 8px', fontSize: '11px', color: '#34D399', borderColor: 'rgba(52, 211, 153, 0.3)' }}
+                  >
+                    + Product Info
+                  </button>
+                  <button
+                    onClick={() => {
+                      const tagsText = '\n\n#Shorts #Programming #SoftwareEngineering #AI #TechCareers #OpportunityOS';
+                      setVideoDescription((prev) => prev + tagsText);
+                    }}
+                    className="btn btn--outline"
+                    style={{ padding: '2px 8px', fontSize: '11px', color: '#F472B6', borderColor: 'rgba(244, 114, 182, 0.3)' }}
+                  >
+                    + Viral #Tags
                   </button>
                 </div>
+              </div>
+
+              {/* 3. High-Converting Pinned Comment */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Zap size={13} color="#FFB800" />
+                    High-Converting Pinned Comment
+                  </label>
+                  <button
+                    onClick={() => copyToClipboard(pinnedCommentText, 'custom_pinned')}
+                    className="btn btn--outline"
+                    style={{ padding: '2px 8px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                  >
+                    {copiedKey === 'custom_pinned' ? <Check size={11} color="#10b981" /> : <Copy size={11} />}
+                    {copiedKey === 'custom_pinned' ? 'Copied' : 'Copy'}
+                  </button>
+                </div>
+
+                <input
+                  type="text"
+                  value={pinnedCommentText}
+                  onChange={(e) => setPinnedCommentText(e.target.value)}
+                  className="form-input"
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    fontSize: '12px',
+                    color: '#FFB800',
+                    fontWeight: 500,
+                    background: 'rgba(0, 0, 0, 0.4)',
+                    border: '1px solid rgba(255, 184, 0, 0.25)',
+                    borderRadius: 'var(--radius-sm)',
+                  }}
+                  placeholder="Enter pinned comment with high-converting call-to-action..."
+                />
               </div>
             </div>
           </div>
@@ -3153,7 +3377,7 @@ export default function ShortsFormatterStudio() {
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
                           <span>Optimized Video Title (with #Shorts):</span>
                           <button
-                            onClick={() => copyToClipboard(`${thumbnailTitle} #Shorts`, 'yt_title')}
+                            onClick={() => copyToClipboard(videoTitle ? (videoTitle.toLowerCase().includes('#shorts') ? videoTitle : `${videoTitle} #Shorts`) : `${thumbnailTitle} #Shorts`, 'yt_title')}
                             className="btn btn--outline"
                             style={{ padding: '2px 6px', fontSize: '10px' }}
                           >
@@ -3162,7 +3386,7 @@ export default function ShortsFormatterStudio() {
                           </button>
                         </div>
                         <div style={{ padding: '8px 10px', background: 'rgba(255,255,255,0.04)', borderRadius: '4px', color: '#fff', fontSize: '13px', fontWeight: 600 }}>
-                          {thumbnailTitle} #Shorts
+                          {videoTitle ? (videoTitle.toLowerCase().includes('#shorts') ? videoTitle : `${videoTitle} #Shorts`) : `${thumbnailTitle} #Shorts`}
                         </div>
                       </div>
 
@@ -3170,7 +3394,7 @@ export default function ShortsFormatterStudio() {
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
                           <span>Full Description & Conversion Links:</span>
                           <button
-                            onClick={() => copyToClipboard(`${editableTranscript.slice(0, 240)}...\n\n👉 Grab the Blueprint & Opportunity OS: https://opportunity-system.com/about\n⚡ Featured Product: ${selectedProduct?.title || 'Opportunity OS'}\n\n#Shorts #Programming #SoftwareEngineering #AI #TechCareers #OpportunityOS`, 'yt_desc')}
+                            onClick={() => copyToClipboard(videoDescription || `${editableTranscript.slice(0, 240)}...\n\n👉 Grab the Blueprint & Opportunity OS: https://opportunity-system.com/about\n⚡ Featured Product: ${selectedProduct?.title || 'Opportunity OS'}\n\n#Shorts #Programming #SoftwareEngineering #AI #TechCareers #OpportunityOS`, 'yt_desc')}
                             className="btn btn--outline"
                             style={{ padding: '2px 6px', fontSize: '10px' }}
                           >
@@ -3179,10 +3403,7 @@ export default function ShortsFormatterStudio() {
                           </button>
                         </div>
                         <div style={{ padding: '8px 10px', background: 'rgba(255,255,255,0.04)', borderRadius: '4px', color: 'var(--text-secondary)', fontSize: '12px', lineHeight: '1.5', whiteSpace: 'pre-line' }}>
-                          {editableTranscript.slice(0, 240)}...
-                          {'\n\n'}👉 Grab the Blueprint & Opportunity OS: <span style={{ color: '#00F2FE' }}>https://opportunity-system.com/about</span>
-                          {'\n'}⚡ Featured Product: {selectedProduct?.title || 'Opportunity OS'}
-                          {'\n\n'}#Shorts #Programming #SoftwareEngineering #AI #TechCareers #OpportunityOS
+                          {videoDescription || `${editableTranscript.slice(0, 240)}...\n\n👉 Grab the Blueprint & Opportunity OS: https://opportunity-system.com/about\n⚡ Featured Product: ${selectedProduct?.title || 'Opportunity OS'}\n\n#Shorts #Programming #SoftwareEngineering #AI #TechCareers #OpportunityOS`}
                         </div>
                       </div>
 
@@ -3190,7 +3411,7 @@ export default function ShortsFormatterStudio() {
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
                           <span>Pinned Comment (Auto-Copy):</span>
                           <button
-                            onClick={() => copyToClipboard(`👉 Access the blueprint & software tools: https://opportunity-system.com/about (Link in Bio ⚡)`, 'yt_pin')}
+                            onClick={() => copyToClipboard(pinnedCommentText || `👉 Access the blueprint & software tools: https://opportunity-system.com/about (Link in Bio ⚡)`, 'yt_pin')}
                             className="btn btn--outline"
                             style={{ padding: '2px 6px', fontSize: '10px' }}
                           >
@@ -3199,7 +3420,7 @@ export default function ShortsFormatterStudio() {
                           </button>
                         </div>
                         <div style={{ padding: '8px 10px', background: 'rgba(255,255,255,0.04)', borderRadius: '4px', color: '#FFB800', fontSize: '12px', fontWeight: 600 }}>
-                          👉 Access the blueprint & software tools: https://opportunity-system.com/about (Link in Bio ⚡)
+                          {pinnedCommentText || `👉 Access the blueprint & software tools: https://opportunity-system.com/about (Link in Bio ⚡)`}
                         </div>
                       </div>
                     </>
@@ -3328,7 +3549,12 @@ export default function ShortsFormatterStudio() {
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
                           <span>TikTok Viral Caption & Hashtags:</span>
                           <button
-                            onClick={() => copyToClipboard(`${thumbnailTitle} 🔥 Watch till the end! Link in bio for full blueprint ⚡ #coding #ai #softwareengineer #tech #developer #opportunityos`, 'tt_cap')}
+                            onClick={() => {
+                              const caption = videoTitle
+                                ? `${videoTitle}\n\n${videoDescription || ''}`.trim()
+                                : `${thumbnailTitle} 🔥 Watch till the end! Link in bio for full blueprint ⚡ #coding #ai #softwareengineer #tech #developer #opportunityos`;
+                              copyToClipboard(caption, 'tt_cap');
+                            }}
                             className="btn btn--outline"
                             style={{ padding: '2px 6px', fontSize: '10px' }}
                           >
@@ -3336,8 +3562,10 @@ export default function ShortsFormatterStudio() {
                             {copiedKey === 'tt_cap' ? 'Copied' : 'Copy'}
                           </button>
                         </div>
-                        <div style={{ padding: '10px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: '4px', color: '#fff', fontSize: '13px', lineHeight: '1.5' }}>
-                          {thumbnailTitle} 🔥 Watch till the end! Link in bio for full blueprint ⚡ <span style={{ color: '#60A5FA' }}>#coding #ai #softwareengineer #tech #developer #opportunityos</span>
+                        <div style={{ padding: '10px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: '4px', color: '#fff', fontSize: '13px', lineHeight: '1.5', whiteSpace: 'pre-line' }}>
+                          {videoTitle
+                            ? `${videoTitle}\n\n${videoDescription || ''}`
+                            : `${thumbnailTitle} 🔥 Watch till the end! Link in bio for full blueprint ⚡ #coding #ai #softwareengineer #tech #developer #opportunityos`}
                         </div>
                       </div>
 
