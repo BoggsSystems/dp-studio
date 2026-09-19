@@ -39,6 +39,8 @@ import {
   X,
   ZoomIn,
   ZoomOut,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { api } from '../services/api';
@@ -597,6 +599,7 @@ export default function ShortsFormatterStudio() {
   const [aiCoverStyle, setAiCoverStyle] = useState<AiCoverStyle>('CYBERPUNK');
   const [isGeneratingAiCovers, setIsGeneratingAiCovers] = useState<boolean>(false);
   const [aiCoverCandidates, setAiCoverCandidates] = useState<string[]>([]);
+  const [isAiCoverPanelExpanded, setIsAiCoverPanelExpanded] = useState<boolean>(false);
 
   // Real-Scale (1080x1920) Lightbox Inspector State
   const [isRealSizeModalOpen, setIsRealSizeModalOpen] = useState<boolean>(false);
@@ -3376,7 +3379,7 @@ export default function ShortsFormatterStudio() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
               <div style={{ fontSize: '15px', fontWeight: '700', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <ImageIcon size={18} color="var(--accent-amber)" />
-                <span>High-CTR Thumbnail Studio & AI Cover Generator</span>
+                <span>High-CTR Thumbnail Studio</span>
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button
@@ -3387,37 +3390,54 @@ export default function ShortsFormatterStudio() {
                   <Camera size={14} color="var(--accent-amber)" /> 📸 Grab Current Frame ({Math.floor(currentTime)}s)
                 </button>
                 <button
-                  onClick={handleGenerateAiCovers}
-                  disabled={isGeneratingAiCovers}
-                  className="btn btn--primary"
-                  style={{ padding: '6px 14px', fontSize: '12px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}
+                  onClick={() => setIsAiCoverPanelExpanded(!isAiCoverPanelExpanded)}
+                  className={`btn ${isAiCoverPanelExpanded ? 'btn--primary' : 'btn--outline'}`}
+                  style={{
+                    padding: '6px 14px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    borderColor: 'var(--accent-cyan)',
+                    color: isAiCoverPanelExpanded ? '#000' : 'var(--accent-cyan)',
+                    background: isAiCoverPanelExpanded ? 'var(--accent-cyan)' : 'rgba(0, 242, 254, 0.08)',
+                  }}
                 >
-                  <Wand2 size={14} /> {isGeneratingAiCovers ? 'Generating 4 Covers...' : '✨ Generate AI Covers'}
+                  <Wand2 size={14} />
+                  <span>{isAiCoverPanelExpanded ? 'Hide AI Cover Panel' : '✨ Generate AI Covers'}</span>
+                  {isAiCoverPanelExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                 </button>
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 190px', gap: '20px', alignItems: 'start' }}>
-              {/* Left Column: AI Cover Generator & Typography Controls */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                
-                {/* 🤖 AI Visual Cover Generation Box */}
-                <div
-                  style={{
-                    padding: '14px',
-                    borderRadius: 'var(--radius-sm)',
-                    background: 'rgba(0, 242, 254, 0.04)',
-                    border: '1px solid rgba(0, 242, 254, 0.25)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '10px',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--accent-cyan)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Wand2 size={13} />
-                      <span>AI Visual Background Generator</span>
+            {/* 🤖 Expandable AI Visual Cover Generation Panel */}
+            {isAiCoverPanelExpanded && (
+              <div
+                style={{
+                  padding: '16px',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'linear-gradient(180deg, rgba(0, 242, 254, 0.07) 0%, rgba(15, 23, 42, 0.6) 100%)',
+                  border: '1px solid rgba(0, 242, 254, 0.35)',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '14px',
+                  marginBottom: '20px',
+                }}
+              >
+                {/* Panel Header */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: '800', color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Wand2 size={14} color="var(--accent-cyan)" />
+                      <span>AI Visual Cover Generator (9:16)</span>
                     </div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                      Step 1: Set prompt & choose style ➔ Step 2: Click Generate ➔ Step 3: Pick candidate variation
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '6px' }}>
                     <button
                       onClick={() => {
                         const promptFromVideo = `Futuristic developer workspace and code architecture blueprints for: ${videoTitle || '2026 Software Career Velocity'}`;
@@ -3425,155 +3445,203 @@ export default function ShortsFormatterStudio() {
                         toast.info('Auto-synced prompt with video context!');
                       }}
                       className="btn btn--outline"
-                      style={{ padding: '2px 8px', fontSize: '10px', color: 'var(--accent-cyan)', borderColor: 'rgba(0,242,254,0.3)' }}
+                      style={{ padding: '4px 10px', fontSize: '11px', color: 'var(--accent-cyan)', borderColor: 'rgba(0,242,254,0.4)' }}
                     >
                       ⚡ Auto-Sync from Video
                     </button>
+                    <button
+                      onClick={() => setIsAiCoverPanelExpanded(false)}
+                      className="btn btn--outline"
+                      style={{ padding: '4px 8px', fontSize: '11px' }}
+                      title="Collapse Panel"
+                    >
+                      <X size={13} />
+                    </button>
                   </div>
+                </div>
 
-                  <div>
-                    <textarea
-                      value={aiCoverPrompt}
-                      onChange={(e) => setAiCoverPrompt(e.target.value)}
-                      rows={2}
-                      placeholder="Describe visual cover scene (e.g. Futuristic holographic terminal with glowing AI neural nodes...)"
-                      style={{
-                        width: '100%',
-                        padding: '8px 10px',
-                        fontSize: '12px',
-                        borderRadius: 'var(--radius-sm)',
-                        background: 'rgba(0, 0, 0, 0.5)',
-                        border: '1px solid rgba(255, 255, 255, 0.15)',
-                        color: '#fff',
-                        outline: 'none',
-                        resize: 'none',
-                      }}
-                    />
+                {/* Step 1: Prompt Input */}
+                <div>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                    1. Visual Concept & Lighting Prompt:
                   </div>
+                  <textarea
+                    value={aiCoverPrompt}
+                    onChange={(e) => setAiCoverPrompt(e.target.value)}
+                    rows={2}
+                    placeholder="Describe visual cover scene (e.g. Futuristic holographic terminal with glowing AI neural nodes...)"
+                    style={{
+                      width: '100%',
+                      padding: '8px 10px',
+                      fontSize: '12px',
+                      borderRadius: 'var(--radius-sm)',
+                      background: 'rgba(0, 0, 0, 0.6)',
+                      border: '1px solid rgba(255, 255, 255, 0.2)',
+                      color: '#fff',
+                      outline: 'none',
+                      resize: 'none',
+                    }}
+                  />
+                </div>
 
-                  {/* AI Style Presets */}
-                  <div>
-                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px' }}>
-                      Select Visual Art Style Preset:
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '6px' }}>
-                      {(Object.keys(AI_COVER_PRESETS) as AiCoverStyle[]).map((stKey) => {
-                        const preset = AI_COVER_PRESETS[stKey];
-                        const isSelected = aiCoverStyle === stKey;
-                        return (
-                          <button
-                            key={stKey}
-                            onClick={() => setAiCoverStyle(stKey)}
+                {/* Step 2: Style Presets */}
+                <div>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                    2. Select Art Style Preset:
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '6px' }}>
+                    {(Object.keys(AI_COVER_PRESETS) as AiCoverStyle[]).map((stKey) => {
+                      const preset = AI_COVER_PRESETS[stKey];
+                      const isSelected = aiCoverStyle === stKey;
+                      return (
+                        <button
+                          key={stKey}
+                          onClick={() => setAiCoverStyle(stKey)}
+                          style={{
+                            padding: '8px 4px',
+                            borderRadius: 'var(--radius-sm)',
+                            border: isSelected ? `2px solid ${preset.accentColor}` : '1px solid rgba(255,255,255,0.12)',
+                            background: isSelected ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.35)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '4px',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                          }}
+                          title={preset.description}
+                        >
+                          <span
                             style={{
-                              padding: '6px 4px',
-                              borderRadius: 'var(--radius-sm)',
-                              border: isSelected ? `2px solid ${preset.accentColor}` : '1px solid rgba(255,255,255,0.1)',
-                              background: isSelected ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.3)',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              alignItems: 'center',
-                              gap: '4px',
-                              cursor: 'pointer',
-                              transition: 'all 0.15s ease',
+                              width: '14px',
+                              height: '14px',
+                              borderRadius: '50%',
+                              background: preset.accentColor,
+                              boxShadow: isSelected ? `0 0 10px ${preset.accentColor}` : 'none',
                             }}
-                            title={preset.description}
+                          />
+                          <span style={{ fontSize: '11px', color: isSelected ? '#fff' : 'var(--text-muted)', fontWeight: isSelected ? 800 : 500, textAlign: 'center' }}>
+                            {preset.label.split(' ')[0]}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Step 3: Prominent Generate Action Button (Sequential order: after options!) */}
+                <div>
+                  <button
+                    onClick={handleGenerateAiCovers}
+                    disabled={isGeneratingAiCovers}
+                    className="btn btn--primary"
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      fontSize: '13px',
+                      fontWeight: 800,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      background: 'linear-gradient(135deg, #00F2FE 0%, #4FACFE 100%)',
+                      color: '#000',
+                      boxShadow: '0 4px 15px rgba(0, 242, 254, 0.3)',
+                    }}
+                  >
+                    <Wand2 size={16} />
+                    <span>
+                      {isGeneratingAiCovers
+                        ? `Generating 4 Covers in ${AI_COVER_PRESETS[aiCoverStyle].label}...`
+                        : `✨ Generate 4 Cover Candidates (${AI_COVER_PRESETS[aiCoverStyle].label})`}
+                    </span>
+                  </button>
+                </div>
+
+                {/* Step 4: Candidate Variations Selector Grid */}
+                {aiCoverCandidates.length > 0 && (
+                  <div style={{ marginTop: '6px', paddingTop: '10px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span>3. Click Any Variation to Apply to Active Thumbnail:</span>
+                      <span style={{ color: 'var(--accent-cyan)', fontSize: '10px', fontWeight: 600 }}>4 Variations Ready</span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
+                      {aiCoverCandidates.map((candUrl, cIdx) => {
+                        const isCandSelected = thumbnailImage === candUrl;
+                        return (
+                          <div
+                            key={cIdx}
+                            onClick={() => {
+                              setThumbnailImage(candUrl);
+                              toast.success(`Cover variation #${cIdx + 1} applied to thumbnail!`);
+                            }}
+                            style={{
+                              position: 'relative',
+                              aspectRatio: '9/16',
+                              borderRadius: '10px',
+                              overflow: 'hidden',
+                              border: isCandSelected ? '2px solid var(--accent-cyan)' : '1px solid rgba(255,255,255,0.2)',
+                              cursor: 'pointer',
+                              background: '#000',
+                              boxShadow: isCandSelected ? '0 0 16px rgba(0, 242, 254, 0.5)' : '0 4px 10px rgba(0,0,0,0.5)',
+                              transition: 'transform 0.15s ease',
+                            }}
                           >
-                            <span
-                              style={{
-                                width: '12px',
-                                height: '12px',
-                                borderRadius: '50%',
-                                background: preset.accentColor,
-                                boxShadow: isSelected ? `0 0 8px ${preset.accentColor}` : 'none',
-                              }}
+                            <img
+                              src={candUrl}
+                              alt={`Variation ${cIdx + 1}`}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                             />
-                            <span style={{ fontSize: '10px', color: isSelected ? '#fff' : 'var(--text-muted)', fontWeight: isSelected ? 700 : 500, textAlign: 'center', lineHeight: '1.2' }}>
-                              {preset.label.split(' ')[0]}
-                            </span>
-                          </button>
+                            {isCandSelected && (
+                              <div
+                                style={{
+                                  position: 'absolute',
+                                  top: '6px',
+                                  right: '6px',
+                                  background: 'var(--accent-cyan)',
+                                  color: '#000',
+                                  borderRadius: '50%',
+                                  width: '20px',
+                                  height: '20px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontWeight: 900,
+                                  fontSize: '11px',
+                                  boxShadow: '0 2px 6px rgba(0,0,0,0.6)',
+                                }}
+                              >
+                                ✓
+                              </div>
+                            )}
+                            <div
+                              style={{
+                                position: 'absolute',
+                                bottom: 0,
+                                left: 0,
+                                right: 0,
+                                background: 'linear-gradient(to top, rgba(0,0,0,0.9), transparent)',
+                                color: '#fff',
+                                fontSize: '10px',
+                                fontWeight: 700,
+                                textAlign: 'center',
+                                padding: '6px 2px 3px',
+                              }}
+                            >
+                              Option {cIdx + 1} {isCandSelected && '• Active'}
+                            </div>
+                          </div>
                         );
                       })}
                     </div>
                   </div>
+                )}
+              </div>
+            )}
 
-                  {/* 4 Candidate Variations Selector Grid */}
-                  {aiCoverCandidates.length > 0 && (
-                    <div style={{ marginTop: '4px' }}>
-                      <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span>Generated Variations (Click to Apply Active Cover):</span>
-                        <span style={{ color: 'var(--accent-cyan)', fontSize: '10px' }}>4 Candidates Ready</span>
-                      </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
-                        {aiCoverCandidates.map((candUrl, cIdx) => {
-                          const isCandSelected = thumbnailImage === candUrl;
-                          return (
-                            <div
-                              key={cIdx}
-                              onClick={() => {
-                                setThumbnailImage(candUrl);
-                                toast.success(`Cover variation #${cIdx + 1} applied!`);
-                              }}
-                              style={{
-                                position: 'relative',
-                                aspectRatio: '9/16',
-                                borderRadius: '8px',
-                                overflow: 'hidden',
-                                border: isCandSelected ? '2px solid var(--accent-cyan)' : '1px solid rgba(255,255,255,0.2)',
-                                cursor: 'pointer',
-                                background: '#000',
-                                boxShadow: isCandSelected ? '0 0 12px rgba(0, 242, 254, 0.4)' : 'none',
-                              }}
-                            >
-                              <img
-                                src={candUrl}
-                                alt={`Variation ${cIdx + 1}`}
-                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                              />
-                              {isCandSelected && (
-                                <div
-                                  style={{
-                                    position: 'absolute',
-                                    top: '4px',
-                                    right: '4px',
-                                    background: 'var(--accent-cyan)',
-                                    color: '#000',
-                                    borderRadius: '50%',
-                                    width: '18px',
-                                    height: '18px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    fontWeight: 900,
-                                    fontSize: '10px',
-                                  }}
-                                >
-                                  ✓
-                                </div>
-                              )}
-                              <div
-                                style={{
-                                  position: 'absolute',
-                                  bottom: 0,
-                                  left: 0,
-                                  right: 0,
-                                  background: 'linear-gradient(to top, rgba(0,0,0,0.85), transparent)',
-                                  color: '#fff',
-                                  fontSize: '9px',
-                                  fontWeight: 700,
-                                  textAlign: 'center',
-                                  padding: '4px 2px 2px',
-                                }}
-                              >
-                                Option {cIdx + 1}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 190px', gap: '20px', alignItems: 'start' }}>
+              {/* Left Column: Typography & Overlay Controls */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 {/* AI Viral Hook Suggestions */}
                 <div>
                   <div style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
