@@ -234,6 +234,32 @@ export default function ShortsFormatterStudio() {
   const [publishYouTubeError, setPublishYouTubeError] = useState<string | null>(null);
   const [youtubeConnectSuccessMsg, setYoutubeConnectSuccessMsg] = useState<string | null>(null);
 
+  // TikTok OAuth & Publishing State
+  const [isPublishingTikTok, setIsPublishingTikTok] = useState<boolean>(false);
+  const [publishTikTokStage, setPublishTikTokStage] = useState<'IDLE' | 'RENDERING' | 'INITIALIZING' | 'UPLOADING' | 'DONE'>('IDLE');
+  const [publishTikTokPercent, setPublishTikTokPercent] = useState<number>(0);
+  const [publishTikTokLoadedMb, setPublishTikTokLoadedMb] = useState<string>('0');
+  const [publishTikTokTotalMb, setPublishTikTokTotalMb] = useState<string>('0');
+  const [publishedTikTokUrl, setPublishedTikTokUrl] = useState<string | null>(null);
+  const [publishTikTokError, setPublishTikTokError] = useState<string | null>(null);
+  const [tiktokConnectSuccessMsg, setTiktokConnectSuccessMsg] = useState<string | null>(null);
+
+  // Instagram OAuth & Publishing State
+  const [isPublishingInstagram, setIsPublishingInstagram] = useState<boolean>(false);
+  const [publishInstagramStage, setPublishInstagramStage] = useState<'IDLE' | 'RENDERING' | 'INITIALIZING' | 'UPLOADING' | 'DONE'>('IDLE');
+  const [publishInstagramPercent, setPublishInstagramPercent] = useState<number>(0);
+  const [publishedInstagramUrl, setPublishedInstagramUrl] = useState<string | null>(null);
+  const [publishInstagramError, setPublishInstagramError] = useState<string | null>(null);
+  const [instagramConnectSuccessMsg, setInstagramConnectSuccessMsg] = useState<string | null>(null);
+
+  // X / Twitter OAuth & Publishing State
+  const [isPublishingTwitter, setIsPublishingTwitter] = useState<boolean>(false);
+  const [publishTwitterStage, setPublishTwitterStage] = useState<'IDLE' | 'RENDERING' | 'INITIALIZING' | 'UPLOADING' | 'DONE'>('IDLE');
+  const [publishTwitterPercent, setPublishTwitterPercent] = useState<number>(0);
+  const [publishedTwitterUrl, setPublishedTwitterUrl] = useState<string | null>(null);
+  const [publishTwitterError, setPublishTwitterError] = useState<string | null>(null);
+  const [twitterConnectSuccessMsg, setTwitterConnectSuccessMsg] = useState<string | null>(null);
+
   // Social copy state
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState<boolean>(false);
@@ -431,16 +457,6 @@ export default function ShortsFormatterStudio() {
   useEffect(() => {
     api.getProducts().then((data) => {
       setProducts(data);
-      if (data.length > 0) {
-        setSelectedProduct((prev) => {
-          if (prev) return prev;
-          if (savedProductId) {
-            const found = data.find((p) => p.id === savedProductId);
-            if (found) return found;
-          }
-          return data[0];
-        });
-      }
     });
 
     api.getSocialAccounts().then((accounts) => {
@@ -457,6 +473,30 @@ export default function ShortsFormatterStudio() {
     } else if (params.get('youtube_error')) {
       setPublishYouTubeError(`YouTube Connection Error: ${params.get('youtube_error')}`);
       window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (params.get('tiktok_connected') === 'true') {
+      const channel = params.get('channel') || 'TikTok Creator';
+      setTiktokConnectSuccessMsg(`🎉 Successfully connected TikTok Account: @${channel}`);
+      api.getSocialAccounts().then((accounts) => setSocialAccounts(accounts));
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (params.get('tiktok_error')) {
+      setPublishTikTokError(`TikTok Connection Error: ${params.get('tiktok_error')}`);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (params.get('instagram_connected') === 'true') {
+      const channel = params.get('channel') || 'Instagram Account';
+      setInstagramConnectSuccessMsg(`🎉 Successfully connected Instagram: @${channel}`);
+      api.getSocialAccounts().then((accounts) => setSocialAccounts(accounts));
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (params.get('instagram_error')) {
+      setPublishInstagramError(`Instagram Connection Error: ${params.get('instagram_error')}`);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (params.get('twitter_connected') === 'true') {
+      const channel = params.get('channel') || 'X Account';
+      setTwitterConnectSuccessMsg(`🎉 Successfully connected X (Twitter): @${channel}`);
+      api.getSocialAccounts().then((accounts) => setSocialAccounts(accounts));
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (params.get('twitter_error')) {
+      setPublishTwitterError(`X Connection Error: ${params.get('twitter_error')}`);
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
 
     // Listen for popup window OAuth messages
@@ -468,13 +508,50 @@ export default function ShortsFormatterStudio() {
         api.getSocialAccounts().then((accounts) => setSocialAccounts(accounts));
       } else if (event.data?.type === 'YOUTUBE_ERROR') {
         setPublishYouTubeError(`YouTube Connection Error: ${event.data.error}`);
+      } else if (event.data?.type === 'TIKTOK_CONNECTED') {
+        const channel = event.data.channel || 'TikTok Creator';
+        setTiktokConnectSuccessMsg(`🎉 Successfully connected TikTok Account: @${channel}`);
+        setPublishTikTokError(null);
+        api.getSocialAccounts().then((accounts) => setSocialAccounts(accounts));
+      } else if (event.data?.type === 'TIKTOK_ERROR') {
+        setPublishTikTokError(`TikTok Connection Error: ${event.data.error}`);
+      } else if (event.data?.type === 'INSTAGRAM_CONNECTED') {
+        const channel = event.data.channel || 'Instagram Account';
+        setInstagramConnectSuccessMsg(`🎉 Successfully connected Instagram: @${channel}`);
+        setPublishInstagramError(null);
+        api.getSocialAccounts().then((accounts) => setSocialAccounts(accounts));
+      } else if (event.data?.type === 'INSTAGRAM_ERROR') {
+        setPublishInstagramError(`Instagram Connection Error: ${event.data.error}`);
+      } else if (event.data?.type === 'TWITTER_CONNECTED') {
+        const channel = event.data.channel || 'X Account';
+        setTwitterConnectSuccessMsg(`🎉 Successfully connected X (Twitter): @${channel}`);
+        setPublishTwitterError(null);
+        api.getSocialAccounts().then((accounts) => setSocialAccounts(accounts));
+      } else if (event.data?.type === 'TWITTER_ERROR') {
+        setPublishTwitterError(`X Connection Error: ${event.data.error}`);
       }
     };
     window.addEventListener('message', handleOAuthMessage);
     return () => {
       window.removeEventListener('message', handleOAuthMessage);
     };
-  }, [savedProductId]);
+  }, []);
+
+  // Synchronize selectedProduct whenever products list or savedProductId updates
+  useEffect(() => {
+    if (!products || products.length === 0) return;
+    if (savedProductId) {
+      const found = products.find((p) => p.id === savedProductId);
+      if (found) {
+        setSelectedProduct(found);
+        return;
+      }
+    }
+    setSelectedProduct((prev) => {
+      if (prev && products.some((p) => p.id === prev.id)) return prev;
+      return products[0];
+    });
+  }, [products, savedProductId]);
 
   // Generate QR code data URL dynamically
   useEffect(() => {
@@ -577,6 +654,8 @@ export default function ShortsFormatterStudio() {
     setIsDraftRestored(false);
     setThumbnailImage(null);
     setPublishedYouTubeUrl(null);
+    setSavedProductId(null);
+    setSelectedProduct(products.length > 0 ? products[0] : null);
   };
 
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
@@ -844,6 +923,147 @@ export default function ShortsFormatterStudio() {
   const handleDisconnectYouTube = async () => {
     await api.disconnectSocialAccount('YOUTUBE_SHORTS');
     setSocialAccounts((prev) => prev.filter((a) => a.platform !== 'YOUTUBE_SHORTS'));
+  };
+
+  // TikTok OAuth & Publishing Handlers
+  const tiktokAccount = useMemo(() => {
+    return socialAccounts.find((a) => a.platform === 'TIKTOK') || null;
+  }, [socialAccounts]);
+
+  const handleConnectTikTok = () => {
+    const authUrl = api.getTikTokAuthUrl();
+    const width = 600;
+    const height = 720;
+    const left = window.screenX + (window.outerWidth - width) / 2;
+    const top = window.screenY + (window.outerHeight - height) / 2;
+    const popup = window.open(
+      authUrl,
+      'tiktok_oauth_popup',
+      `width=${width},height=${height},left=${left},top=${top},status=no,resizable=yes,scrollbars=yes`
+    );
+
+    if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+      window.location.href = authUrl;
+      return;
+    }
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const accounts = await api.getSocialAccounts();
+        const tt = accounts.find((a) => a.platform === 'TIKTOK');
+        if (tt) {
+          setSocialAccounts(accounts);
+          const name = tt.accountName || (tt as any).account_name || 'Creator';
+          setTiktokConnectSuccessMsg(`🎉 Successfully connected TikTok Account: @${name}`);
+          setPublishTikTokError(null);
+          clearInterval(pollInterval);
+        }
+        if (popup.closed) {
+          clearInterval(pollInterval);
+        }
+      } catch (e) {}
+    }, 2000);
+
+    setTimeout(() => clearInterval(pollInterval), 60000);
+  };
+
+  const handleDisconnectTikTok = async () => {
+    await api.disconnectSocialAccount('TIKTOK');
+    setSocialAccounts((prev) => prev.filter((a) => a.platform !== 'TIKTOK'));
+  };
+
+  // Instagram OAuth & Handlers
+  const instagramAccount = useMemo(() => {
+    return socialAccounts.find((a) => a.platform === 'INSTAGRAM_REELS') || null;
+  }, [socialAccounts]);
+
+  const handleConnectInstagram = () => {
+    const authUrl = api.getInstagramAuthUrl();
+    const width = 600;
+    const height = 720;
+    const left = window.screenX + (window.outerWidth - width) / 2;
+    const top = window.screenY + (window.outerHeight - height) / 2;
+    const popup = window.open(
+      authUrl,
+      'instagram_oauth_popup',
+      `width=${width},height=${height},left=${left},top=${top},status=no,resizable=yes,scrollbars=yes`
+    );
+
+    if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+      window.location.href = authUrl;
+      return;
+    }
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const accounts = await api.getSocialAccounts();
+        const ig = accounts.find((a) => a.platform === 'INSTAGRAM_REELS');
+        if (ig) {
+          setSocialAccounts(accounts);
+          const name = ig.accountName || (ig as any).account_name || 'Instagram';
+          setInstagramConnectSuccessMsg(`🎉 Successfully connected Instagram: @${name}`);
+          setPublishInstagramError(null);
+          clearInterval(pollInterval);
+        }
+        if (popup.closed) {
+          clearInterval(pollInterval);
+        }
+      } catch (e) {}
+    }, 2000);
+
+    setTimeout(() => clearInterval(pollInterval), 60000);
+  };
+
+  const handleDisconnectInstagram = async () => {
+    await api.disconnectSocialAccount('INSTAGRAM_REELS');
+    setSocialAccounts((prev) => prev.filter((a) => a.platform !== 'INSTAGRAM_REELS'));
+  };
+
+  // X / Twitter OAuth & Handlers
+  const twitterAccount = useMemo(() => {
+    return socialAccounts.find((a) => a.platform === 'X_TWITTER') || null;
+  }, [socialAccounts]);
+
+  const handleConnectTwitter = () => {
+    const authUrl = api.getTwitterAuthUrl();
+    const width = 600;
+    const height = 720;
+    const left = window.screenX + (window.outerWidth - width) / 2;
+    const top = window.screenY + (window.outerHeight - height) / 2;
+    const popup = window.open(
+      authUrl,
+      'twitter_oauth_popup',
+      `width=${width},height=${height},left=${left},top=${top},status=no,resizable=yes,scrollbars=yes`
+    );
+
+    if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+      window.location.href = authUrl;
+      return;
+    }
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const accounts = await api.getSocialAccounts();
+        const tw = accounts.find((a) => a.platform === 'X_TWITTER');
+        if (tw) {
+          setSocialAccounts(accounts);
+          const name = tw.accountName || (tw as any).account_name || 'X Account';
+          setTwitterConnectSuccessMsg(`🎉 Successfully connected X: @${name}`);
+          setPublishTwitterError(null);
+          clearInterval(pollInterval);
+        }
+        if (popup.closed) {
+          clearInterval(pollInterval);
+        }
+      } catch (e) {}
+    }, 2000);
+
+    setTimeout(() => clearInterval(pollInterval), 60000);
+  };
+
+  const handleDisconnectTwitter = async () => {
+    await api.disconnectSocialAccount('X_TWITTER');
+    setSocialAccounts((prev) => prev.filter((a) => a.platform !== 'X_TWITTER'));
   };
 
   // Render High-CTR Thumbnail Blob (9:16 or 16:9)
@@ -1463,6 +1683,188 @@ export default function ShortsFormatterStudio() {
     }
   };
 
+  // TikTok Direct Post Publishing Handler
+  const handlePublishToTikTok = async () => {
+    if (!videoUrl && !videoFile) {
+      setPublishTikTokError('No video loaded to publish.');
+      return;
+    }
+
+    try {
+      setIsPublishingTikTok(true);
+      setPublishTikTokError(null);
+      setPublishTikTokPercent(0);
+
+      // 1. Bake video canvas with kinetic subtitles, layout framing, and overlays
+      let videoBlobToUpload: Blob;
+      if (videoRef.current && videoUrl) {
+        setPublishTikTokStage('RENDERING');
+        videoBlobToUpload = await renderFormattedVideoBlob((renderPercent) => {
+          setPublishTikTokPercent(Math.round(renderPercent * 0.45));
+        });
+      } else if (videoFile) {
+        videoBlobToUpload = videoFile;
+      } else {
+        const response = await fetch(videoUrl!);
+        videoBlobToUpload = await response.blob();
+      }
+
+      // 2. Publish direct to TikTok Creator Account
+      setPublishTikTokStage('INITIALIZING');
+      setPublishTikTokPercent(50);
+
+      const viralCaption = `${thumbnailTitle} 🔥 Watch till the end! #coding #ai #softwareengineer #tech #developer #opportunityos`;
+
+      const result = await api.publishTikTokVideo(
+        {
+          videoBlob: videoBlobToUpload,
+          title: viralCaption,
+          privacy: 'PUBLIC_TO_EVERYONE',
+        },
+        (progress) => {
+          if (progress.stage === 'INITIALIZING') {
+            setPublishTikTokStage('INITIALIZING');
+            setPublishTikTokPercent(55);
+          } else if (progress.stage === 'UPLOADING') {
+            setPublishTikTokStage('UPLOADING');
+            const uploadScaled = 55 + Math.round((progress.percent / 100) * 40);
+            setPublishTikTokPercent(uploadScaled);
+            if (progress.loadedBytes && progress.totalBytes) {
+              setPublishTikTokLoadedMb((progress.loadedBytes / (1024 * 1024)).toFixed(1));
+              setPublishTikTokTotalMb((progress.totalBytes / (1024 * 1024)).toFixed(1));
+            }
+          }
+        }
+      );
+
+      setPublishTikTokStage('DONE');
+      setPublishTikTokPercent(100);
+      setPublishedTikTokUrl(result.url || 'https://www.tiktok.com');
+    } catch (err: any) {
+      console.error('Direct TikTok publish failed:', err);
+      setPublishTikTokError(err.message || 'Failed to publish to TikTok.');
+    } finally {
+      setIsPublishingTikTok(false);
+    }
+  };
+
+  // Instagram Reels Publishing Handler
+  const handlePublishToInstagram = async () => {
+    if (!videoUrl && !videoFile) {
+      setPublishInstagramError('No video loaded to publish.');
+      return;
+    }
+
+    try {
+      setIsPublishingInstagram(true);
+      setPublishInstagramError(null);
+      setPublishInstagramPercent(0);
+
+      let videoBlobToUpload: Blob;
+      if (videoRef.current && videoUrl) {
+        setPublishInstagramStage('RENDERING');
+        videoBlobToUpload = await renderFormattedVideoBlob((renderPercent) => {
+          setPublishInstagramPercent(Math.round(renderPercent * 0.45));
+        });
+      } else if (videoFile) {
+        videoBlobToUpload = videoFile;
+      } else {
+        const response = await fetch(videoUrl!);
+        videoBlobToUpload = await response.blob();
+      }
+
+      setPublishInstagramStage('INITIALIZING');
+      setPublishInstagramPercent(50);
+
+      const viralCaption = `${thumbnailTitle} 🚀 Link in bio for the interactive shoppable short! #reels #ai #coding #softwarevelocity #developer`;
+
+      const result = await api.publishInstagramReel(
+        {
+          videoBlob: videoBlobToUpload,
+          title: thumbnailTitle,
+          caption: viralCaption,
+        },
+        (progress) => {
+          if (progress.stage === 'INITIALIZING') {
+            setPublishInstagramStage('INITIALIZING');
+            setPublishInstagramPercent(55);
+          } else if (progress.stage === 'UPLOADING') {
+            setPublishInstagramStage('UPLOADING');
+            const uploadScaled = 55 + Math.round((progress.percent / 100) * 40);
+            setPublishInstagramPercent(uploadScaled);
+          }
+        }
+      );
+
+      setPublishInstagramStage('DONE');
+      setPublishInstagramPercent(100);
+      setPublishedInstagramUrl(result.url || 'https://instagram.com/reels');
+    } catch (err: any) {
+      console.error('Direct Instagram publish failed:', err);
+      setPublishInstagramError(err.message || 'Failed to publish to Instagram.');
+    } finally {
+      setIsPublishingInstagram(false);
+    }
+  };
+
+  // X / Twitter Publishing Handler
+  const handlePublishToTwitter = async () => {
+    if (!videoUrl && !videoFile) {
+      setPublishTwitterError('No video loaded to publish.');
+      return;
+    }
+
+    try {
+      setIsPublishingTwitter(true);
+      setPublishTwitterError(null);
+      setPublishTwitterPercent(0);
+
+      let videoBlobToUpload: Blob;
+      if (videoRef.current && videoUrl) {
+        setPublishTwitterStage('RENDERING');
+        videoBlobToUpload = await renderFormattedVideoBlob((renderPercent) => {
+          setPublishTwitterPercent(Math.round(renderPercent * 0.45));
+        });
+      } else if (videoFile) {
+        videoBlobToUpload = videoFile;
+      } else {
+        const response = await fetch(videoUrl!);
+        videoBlobToUpload = await response.blob();
+      }
+
+      setPublishTwitterStage('INITIALIZING');
+      setPublishTwitterPercent(50);
+
+      const postText = `${thumbnailTitle}\n\n👉 Full interactive short & blueprint: https://opportunity-system.com/about ⚡\n\n#AI #Coding #Tech`;
+
+      const result = await api.publishTwitterPost(
+        {
+          videoBlob: videoBlobToUpload,
+          text: postText,
+        },
+        (progress) => {
+          if (progress.stage === 'INITIALIZING') {
+            setPublishTwitterStage('INITIALIZING');
+            setPublishTwitterPercent(55);
+          } else if (progress.stage === 'UPLOADING') {
+            setPublishTwitterStage('UPLOADING');
+            const uploadScaled = 55 + Math.round((progress.percent / 100) * 40);
+            setPublishTwitterPercent(uploadScaled);
+          }
+        }
+      );
+
+      setPublishTwitterStage('DONE');
+      setPublishTwitterPercent(100);
+      setPublishedTwitterUrl(result.url || 'https://x.com');
+    } catch (err: any) {
+      console.error('Direct X publish failed:', err);
+      setPublishTwitterError(err.message || 'Failed to publish to X.');
+    } finally {
+      setIsPublishingTwitter(false);
+    }
+  };
+
   const seekTo = (seconds: number) => {
     if (videoRef.current) {
       videoRef.current.currentTime = Math.max(0, Math.min(seconds, duration));
@@ -1920,7 +2322,10 @@ export default function ShortsFormatterStudio() {
                     return (
                       <div
                         key={p.id}
-                        onClick={() => setSelectedProduct(p)}
+                        onClick={() => {
+                          setSelectedProduct(p);
+                          setSavedProductId(p.id);
+                        }}
                         style={{
                           minWidth: '220px',
                           padding: '8px 12px',
@@ -2800,64 +3205,432 @@ export default function ShortsFormatterStudio() {
 
                   {/* TikTok View */}
                   {selectedSocialPlatform === 'TIKTOK' && (
-                    <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
-                        <span>TikTok Viral Caption & Hashtags:</span>
-                        <button
-                          onClick={() => copyToClipboard(`${thumbnailTitle} 🔥 Watch till the end! Link in bio for full blueprint ⚡ #coding #ai #softwareengineer #tech #developer #opportunityos`, 'tt_cap')}
-                          className="btn btn--outline"
-                          style={{ padding: '2px 6px', fontSize: '10px' }}
-                        >
-                          {copiedKey === 'tt_cap' ? <Check size={10} color="#10b981" /> : <Copy size={10} />}
-                          {copiedKey === 'tt_cap' ? 'Copied' : 'Copy'}
-                        </button>
+                    <>
+                      {/* OAuth Connection Status & Direct Dispatch */}
+                      <div style={{ padding: '12px 14px', borderRadius: 'var(--radius-sm)', background: tiktokAccount ? 'rgba(0, 242, 254, 0.05)' : 'rgba(255, 255, 255, 0.02)', border: tiktokAccount ? '1px solid rgba(0, 242, 254, 0.25)' : '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: tiktokAccount ? '#00F2FE' : '#64748B' }} />
+                            <span style={{ fontSize: '12px', fontWeight: 600, color: tiktokAccount ? '#00F2FE' : 'var(--text-secondary)' }}>
+                              {tiktokAccount ? `Connected: @${tiktokAccount.accountName || (tiktokAccount as any).account_name || 'Creator'}` : 'TikTok Account Not Connected'}
+                            </span>
+                          </div>
+                          {tiktokAccount ? (
+                            <button
+                              onClick={handleDisconnectTikTok}
+                              className="btn btn--outline"
+                              style={{ padding: '4px 8px', fontSize: '11px', color: 'var(--text-muted)' }}
+                              title="Disconnect TikTok Account"
+                            >
+                              <LogOut size={12} style={{ marginRight: '4px' }} />
+                              Disconnect
+                            </button>
+                          ) : (
+                            <button
+                              onClick={handleConnectTikTok}
+                              className="btn btn--outline"
+                              style={{ padding: '5px 12px', fontSize: '12px', background: 'rgba(0, 242, 254, 0.1)', border: '1px solid rgba(0, 242, 254, 0.35)', color: '#00F2FE', fontWeight: 600 }}
+                            >
+                              🎵 Connect TikTok
+                            </button>
+                          )}
+                        </div>
+
+                        {tiktokConnectSuccessMsg && (
+                          <div style={{ fontSize: '11px', color: '#00F2FE', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <CheckCircle2 size={12} />
+                            {tiktokConnectSuccessMsg}
+                          </div>
+                        )}
+
+                        {publishTikTokError && (
+                          <div style={{ fontSize: '11px', color: '#EF4444', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <AlertCircle size={12} />
+                            {publishTikTokError}
+                          </div>
+                        )}
+
+                        {publishedTikTokUrl && (
+                          <div style={{ padding: '8px 10px', borderRadius: '4px', background: 'rgba(0, 242, 254, 0.15)', border: '1px solid #00F2FE', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#00F2FE', fontWeight: 600 }}>
+                              <CheckCircle2 size={14} />
+                              <span>Live on TikTok Creator Hub!</span>
+                            </div>
+                            <a
+                              href={publishedTikTokUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#00F2FE', textDecoration: 'underline', fontWeight: 700 }}
+                            >
+                              View TikTok <ExternalLink size={11} />
+                            </a>
+                          </div>
+                        )}
+
+                        {tiktokAccount && (
+                          isPublishingTikTok ? (
+                            <div style={{ padding: '12px', borderRadius: 'var(--radius-sm)', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(0, 242, 254, 0.4)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px' }}>
+                                <span style={{ color: '#00F2FE', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <RefreshCw size={13} className="spin" />
+                                  {publishTikTokStage === 'RENDERING' && `🎨 [1/3] Baking 1080x1920 Short with Kinetic Subtitles...`}
+                                  {publishTikTokStage === 'INITIALIZING' && '⚡ [2/3] Initializing TikTok Upload Session...'}
+                                  {publishTikTokStage === 'UPLOADING' && `🚀 [3/3] Streaming to TikTok: ${publishTikTokPercent}% (${publishTikTokLoadedMb} MB / ${publishTikTokTotalMb} MB)`}
+                                  {publishTikTokStage === 'DONE' && '🎉 Live on TikTok!'}
+                                </span>
+                                <span style={{ color: '#fff', fontWeight: 700, fontSize: '13px' }}>
+                                  {publishTikTokPercent}%
+                                </span>
+                              </div>
+                              <div style={{ width: '100%', height: '8px', borderRadius: '4px', background: 'rgba(255,255,255,0.1)', overflow: 'hidden' }}>
+                                <div
+                                  style={{
+                                    height: '100%',
+                                    width: `${publishTikTokPercent}%`,
+                                    background: 'linear-gradient(90deg, #00F2FE, #4FACFE)',
+                                    transition: 'width 0.3s ease',
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={handlePublishToTikTok}
+                              disabled={isPublishingTikTok || isExporting}
+                              className="btn"
+                              style={{
+                                width: '100%',
+                                padding: '10px 16px',
+                                background: 'linear-gradient(135deg, #00F2FE, #0077FE)',
+                                color: '#000',
+                                fontWeight: 700,
+                                fontSize: '13px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px',
+                                boxShadow: '0 4px 16px rgba(0, 242, 254, 0.25)',
+                                cursor: 'pointer',
+                                borderRadius: 'var(--radius-sm)',
+                              }}
+                            >
+                              <Send size={14} color="#000" />
+                              🚀 Publish Directly to TikTok (1-Click)
+                            </button>
+                          )
+                        )}
                       </div>
-                      <div style={{ padding: '10px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: '4px', color: '#fff', fontSize: '13px', lineHeight: '1.5' }}>
-                        {thumbnailTitle} 🔥 Watch till the end! Link in bio for full blueprint ⚡ <span style={{ color: '#00F2FE' }}>#coding #ai #softwareengineer #tech #developer #opportunityos</span>
+
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                          <span>TikTok Viral Caption & Hashtags:</span>
+                          <button
+                            onClick={() => copyToClipboard(`${thumbnailTitle} 🔥 Watch till the end! Link in bio for full blueprint ⚡ #coding #ai #softwareengineer #tech #developer #opportunityos`, 'tt_cap')}
+                            className="btn btn--outline"
+                            style={{ padding: '2px 6px', fontSize: '10px' }}
+                          >
+                            {copiedKey === 'tt_cap' ? <Check size={10} color="#10b981" /> : <Copy size={10} />}
+                            {copiedKey === 'tt_cap' ? 'Copied' : 'Copy'}
+                          </button>
+                        </div>
+                        <div style={{ padding: '10px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: '4px', color: '#fff', fontSize: '13px', lineHeight: '1.5' }}>
+                          {thumbnailTitle} 🔥 Watch till the end! Link in bio for full blueprint ⚡ <span style={{ color: '#00F2FE' }}>#coding #ai #softwareengineer #tech #developer #opportunityos</span>
+                        </div>
                       </div>
-                    </div>
+
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                          <span>Bio Link Call-to-Action:</span>
+                          <button
+                            onClick={() => copyToClipboard(`👉 https://opportunity-system.com/about`, 'tt_bio')}
+                            className="btn btn--outline"
+                            style={{ padding: '2px 6px', fontSize: '10px' }}
+                          >
+                            {copiedKey === 'tt_bio' ? <Check size={10} color="#10b981" /> : <Copy size={10} />}
+                            {copiedKey === 'tt_bio' ? 'Copied' : 'Copy'}
+                          </button>
+                        </div>
+                        <div style={{ padding: '8px 10px', background: 'rgba(255,255,255,0.04)', borderRadius: '4px', color: '#00F2FE', fontSize: '12px', fontWeight: 600 }}>
+                          👉 https://opportunity-system.com/about
+                        </div>
+                      </div>
+                    </>
                   )}
 
                   {/* Instagram View */}
                   {selectedSocialPlatform === 'INSTAGRAM' && (
-                    <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
-                        <span>Instagram Reels Caption:</span>
-                        <button
-                          onClick={() => copyToClipboard(`${thumbnailTitle} 🚀 Grab the free Chapter 1 blueprint via link in bio! #reels #ai #coding #softwarevelocity #developer`, 'ig_cap')}
-                          className="btn btn--outline"
-                          style={{ padding: '2px 6px', fontSize: '10px' }}
-                        >
-                          {copiedKey === 'ig_cap' ? <Check size={10} color="#10b981" /> : <Copy size={10} />}
-                          {copiedKey === 'ig_cap' ? 'Copied' : 'Copy'}
-                        </button>
+                    <>
+                      {/* OAuth Connection Status & Direct Dispatch */}
+                      <div style={{ padding: '12px 14px', borderRadius: 'var(--radius-sm)', background: instagramAccount ? 'rgba(225, 48, 108, 0.05)' : 'rgba(255, 255, 255, 0.02)', border: instagramAccount ? '1px solid rgba(225, 48, 108, 0.25)' : '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: instagramAccount ? '#E1306C' : '#64748B' }} />
+                            <span style={{ fontSize: '12px', fontWeight: 600, color: instagramAccount ? '#E1306C' : 'var(--text-secondary)' }}>
+                              {instagramAccount ? `Connected: @${instagramAccount.accountName || (instagramAccount as any).account_name || 'Account'}` : 'Instagram Account Not Connected'}
+                            </span>
+                          </div>
+                          {instagramAccount ? (
+                            <button
+                              onClick={handleDisconnectInstagram}
+                              className="btn btn--outline"
+                              style={{ padding: '4px 8px', fontSize: '11px', color: 'var(--text-muted)' }}
+                              title="Disconnect Instagram Account"
+                            >
+                              <LogOut size={12} style={{ marginRight: '4px' }} />
+                              Disconnect
+                            </button>
+                          ) : (
+                            <button
+                              onClick={handleConnectInstagram}
+                              className="btn btn--outline"
+                              style={{ padding: '5px 12px', fontSize: '12px', background: 'rgba(225, 48, 108, 0.1)', border: '1px solid rgba(225, 48, 108, 0.35)', color: '#E1306C', fontWeight: 600 }}
+                            >
+                              📸 Connect Instagram
+                            </button>
+                          )}
+                        </div>
+
+                        {instagramConnectSuccessMsg && (
+                          <div style={{ fontSize: '11px', color: '#E1306C', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <CheckCircle2 size={12} />
+                            {instagramConnectSuccessMsg}
+                          </div>
+                        )}
+
+                        {publishInstagramError && (
+                          <div style={{ fontSize: '11px', color: '#EF4444', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <AlertCircle size={12} />
+                            {publishInstagramError}
+                          </div>
+                        )}
+
+                        {publishedInstagramUrl && (
+                          <div style={{ padding: '8px 10px', borderRadius: '4px', background: 'rgba(225, 48, 108, 0.15)', border: '1px solid #E1306C', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#E1306C', fontWeight: 600 }}>
+                              <CheckCircle2 size={14} />
+                              <span>Live on Instagram Reels!</span>
+                            </div>
+                            <a
+                              href={publishedInstagramUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#00F2FE', textDecoration: 'underline', fontWeight: 700 }}
+                            >
+                              View Reels <ExternalLink size={11} />
+                            </a>
+                          </div>
+                        )}
+
+                        {instagramAccount && (
+                          isPublishingInstagram ? (
+                            <div style={{ padding: '12px', borderRadius: 'var(--radius-sm)', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(225, 48, 108, 0.4)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px' }}>
+                                <span style={{ color: '#E1306C', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <RefreshCw size={13} className="spin" />
+                                  {publishInstagramStage === 'RENDERING' && `🎨 [1/3] Baking 1080x1920 Reel with Subtitles...`}
+                                  {publishInstagramStage === 'INITIALIZING' && '⚡ [2/3] Initializing Instagram Container...'}
+                                  {publishInstagramStage === 'UPLOADING' && `🚀 [3/3] Publishing to Instagram: ${publishInstagramPercent}%`}
+                                  {publishInstagramStage === 'DONE' && '🎉 Live on Instagram!'}
+                                </span>
+                                <span style={{ color: '#fff', fontWeight: 700, fontSize: '13px' }}>
+                                  {publishInstagramPercent}%
+                                </span>
+                              </div>
+                              <div style={{ width: '100%', height: '8px', borderRadius: '4px', background: 'rgba(255,255,255,0.1)', overflow: 'hidden' }}>
+                                <div
+                                  style={{
+                                    height: '100%',
+                                    width: `${publishInstagramPercent}%`,
+                                    background: 'linear-gradient(90deg, #E1306C, #F77737)',
+                                    transition: 'width 0.3s ease',
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={handlePublishToInstagram}
+                              disabled={isPublishingInstagram || isExporting}
+                              className="btn"
+                              style={{
+                                width: '100%',
+                                padding: '10px 16px',
+                                background: 'linear-gradient(135deg, #E1306C, #833AB4)',
+                                color: '#fff',
+                                fontWeight: 700,
+                                fontSize: '13px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px',
+                                boxShadow: '0 4px 16px rgba(225, 48, 108, 0.25)',
+                                cursor: 'pointer',
+                                borderRadius: 'var(--radius-sm)',
+                              }}
+                            >
+                              <Send size={14} color="#fff" />
+                              🚀 Publish Directly to Instagram Reels (1-Click)
+                            </button>
+                          )
+                        )}
                       </div>
-                      <div style={{ padding: '10px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: '4px', color: '#fff', fontSize: '13px', lineHeight: '1.5' }}>
-                        {thumbnailTitle} 🚀 Grab the free Chapter 1 blueprint via link in bio! <span style={{ color: '#E1306C' }}>#reels #ai #coding #softwarevelocity #developer</span>
+
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                          <span>Instagram Reels Caption:</span>
+                          <button
+                            onClick={() => copyToClipboard(`${thumbnailTitle} 🚀 Grab the free Chapter 1 blueprint via link in bio! #reels #ai #coding #softwarevelocity #developer`, 'ig_cap')}
+                            className="btn btn--outline"
+                            style={{ padding: '2px 6px', fontSize: '10px' }}
+                          >
+                            {copiedKey === 'ig_cap' ? <Check size={10} color="#10b981" /> : <Copy size={10} />}
+                            {copiedKey === 'ig_cap' ? 'Copied' : 'Copy'}
+                          </button>
+                        </div>
+                        <div style={{ padding: '10px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: '4px', color: '#fff', fontSize: '13px', lineHeight: '1.5' }}>
+                          {thumbnailTitle} 🚀 Grab the free Chapter 1 blueprint via link in bio! <span style={{ color: '#E1306C' }}>#reels #ai #coding #softwarevelocity #developer</span>
+                        </div>
                       </div>
-                    </div>
+                    </>
                   )}
 
                   {/* Twitter / X View */}
                   {selectedSocialPlatform === 'TWITTER' && (
-                    <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
-                        <span>X / Twitter Post Payload:</span>
-                        <button
-                          onClick={() => copyToClipboard(`${thumbnailTitle}\n\nThe old way of memorizing syntax is dead. AI-native engineering is about architecture, velocity, and leverage.\n\n👉 Full blueprint: https://opportunity-system.com/about ⚡`, 'x_post')}
-                          className="btn btn--outline"
-                          style={{ padding: '2px 6px', fontSize: '10px' }}
-                        >
-                          {copiedKey === 'x_post' ? <Check size={10} color="#10b981" /> : <Copy size={10} />}
-                          {copiedKey === 'x_post' ? 'Copied' : 'Copy'}
-                        </button>
+                    <>
+                      {/* OAuth Connection Status & Direct Dispatch */}
+                      <div style={{ padding: '12px 14px', borderRadius: 'var(--radius-sm)', background: twitterAccount ? 'rgba(255, 255, 255, 0.06)' : 'rgba(255, 255, 255, 0.02)', border: twitterAccount ? '1px solid rgba(255, 255, 255, 0.25)' : '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: twitterAccount ? '#FFFFFF' : '#64748B' }} />
+                            <span style={{ fontSize: '12px', fontWeight: 600, color: twitterAccount ? '#FFFFFF' : 'var(--text-secondary)' }}>
+                              {twitterAccount ? `Connected: @${twitterAccount.accountName || (twitterAccount as any).account_name || 'Account'}` : 'X / Twitter Account Not Connected'}
+                            </span>
+                          </div>
+                          {twitterAccount ? (
+                            <button
+                              onClick={handleDisconnectTwitter}
+                              className="btn btn--outline"
+                              style={{ padding: '4px 8px', fontSize: '11px', color: 'var(--text-muted)' }}
+                              title="Disconnect X Account"
+                            >
+                              <LogOut size={12} style={{ marginRight: '4px' }} />
+                              Disconnect
+                            </button>
+                          ) : (
+                            <button
+                              onClick={handleConnectTwitter}
+                              className="btn btn--outline"
+                              style={{ padding: '5px 12px', fontSize: '12px', background: 'rgba(255, 255, 255, 0.1)', border: '1px solid rgba(255, 255, 255, 0.35)', color: '#FFFFFF', fontWeight: 600 }}
+                            >
+                              ✖️ Connect X (Twitter)
+                            </button>
+                          )}
+                        </div>
+
+                        {twitterConnectSuccessMsg && (
+                          <div style={{ fontSize: '11px', color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <CheckCircle2 size={12} />
+                            {twitterConnectSuccessMsg}
+                          </div>
+                        )}
+
+                        {publishTwitterError && (
+                          <div style={{ fontSize: '11px', color: '#EF4444', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <AlertCircle size={12} />
+                            {publishTwitterError}
+                          </div>
+                        )}
+
+                        {publishedTwitterUrl && (
+                          <div style={{ padding: '8px 10px', borderRadius: '4px', background: 'rgba(255, 255, 255, 0.15)', border: '1px solid #FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#FFFFFF', fontWeight: 600 }}>
+                              <CheckCircle2 size={14} />
+                              <span>Live on X / Twitter!</span>
+                            </div>
+                            <a
+                              href={publishedTwitterUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#00F2FE', textDecoration: 'underline', fontWeight: 700 }}
+                            >
+                              View Post <ExternalLink size={11} />
+                            </a>
+                          </div>
+                        )}
+
+                        {twitterAccount && (
+                          isPublishingTwitter ? (
+                            <div style={{ padding: '12px', borderRadius: 'var(--radius-sm)', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255, 255, 255, 0.4)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px' }}>
+                                <span style={{ color: '#FFFFFF', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <RefreshCw size={13} className="spin" />
+                                  {publishTwitterStage === 'RENDERING' && `🎨 [1/3] Baking Video with Kinetic Subtitles...`}
+                                  {publishTwitterStage === 'INITIALIZING' && '⚡ [2/3] Initializing X Media Upload...'}
+                                  {publishTwitterStage === 'UPLOADING' && `🚀 [3/3] Publishing to X: ${publishTwitterPercent}%`}
+                                  {publishTwitterStage === 'DONE' && '🎉 Live on X!'}
+                                </span>
+                                <span style={{ color: '#fff', fontWeight: 700, fontSize: '13px' }}>
+                                  {publishTwitterPercent}%
+                                </span>
+                              </div>
+                              <div style={{ width: '100%', height: '8px', borderRadius: '4px', background: 'rgba(255,255,255,0.1)', overflow: 'hidden' }}>
+                                <div
+                                  style={{
+                                    height: '100%',
+                                    width: `${publishTwitterPercent}%`,
+                                    background: '#FFFFFF',
+                                    transition: 'width 0.3s ease',
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={handlePublishToTwitter}
+                              disabled={isPublishingTwitter || isExporting}
+                              className="btn"
+                              style={{
+                                width: '100%',
+                                padding: '10px 16px',
+                                background: '#FFFFFF',
+                                color: '#000000',
+                                fontWeight: 700,
+                                fontSize: '13px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px',
+                                boxShadow: '0 4px 16px rgba(255, 255, 255, 0.25)',
+                                cursor: 'pointer',
+                                borderRadius: 'var(--radius-sm)',
+                              }}
+                            >
+                              <Send size={14} color="#000" />
+                              🚀 Publish Directly to X (1-Click)
+                            </button>
+                          )
+                        )}
                       </div>
-                      <div style={{ padding: '10px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: '4px', color: '#fff', fontSize: '13px', lineHeight: '1.5', whiteSpace: 'pre-line' }}>
-                        {thumbnailTitle}
-                        {'\n\n'}The old way of memorizing syntax is dead. AI-native engineering is about architecture, velocity, and leverage.
-                        {'\n\n'}👉 Full blueprint: <span style={{ color: '#00F2FE' }}>https://opportunity-system.com/about</span> ⚡
+
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                          <span>X / Twitter Post Payload:</span>
+                          <button
+                            onClick={() => copyToClipboard(`${thumbnailTitle}\n\nThe old way of memorizing syntax is dead. AI-native engineering is about architecture, velocity, and leverage.\n\n👉 Full blueprint: https://opportunity-system.com/about ⚡`, 'x_post')}
+                            className="btn btn--outline"
+                            style={{ padding: '2px 6px', fontSize: '10px' }}
+                          >
+                            {copiedKey === 'x_post' ? <Check size={10} color="#10b981" /> : <Copy size={10} />}
+                            {copiedKey === 'x_post' ? 'Copied' : 'Copy'}
+                          </button>
+                        </div>
+                        <div style={{ padding: '10px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: '4px', color: '#fff', fontSize: '13px', lineHeight: '1.5', whiteSpace: 'pre-line' }}>
+                          {thumbnailTitle}
+                          {'\n\n'}The old way of memorizing syntax is dead. AI-native engineering is about architecture, velocity, and leverage.
+                          {'\n\n'}👉 Full blueprint: <span style={{ color: '#00F2FE' }}>https://opportunity-system.com/about</span> ⚡
+                        </div>
                       </div>
-                    </div>
+                    </>
                   )}
                 </div>
               </div>

@@ -20,9 +20,42 @@ import ToastContainer from './components/ToastContainer';
 import { toast } from './services/toast';
 import { Project, ProductGroup, AiTagDetection, Campaign, StreamSession, Product } from './types';
 import { api } from './services/api';
+import TermsOfService from './components/legal/TermsOfService';
+import PrivacyPolicy from './components/legal/PrivacyPolicy';
 
 function StudioApp() {
   const { user, isLoading } = useAuth();
+  const [legalPage, setLegalPage] = useState<'terms' | 'privacy' | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const path = window.location.pathname.toLowerCase();
+    const params = new URLSearchParams(window.location.search);
+    const hash = window.location.hash.toLowerCase();
+    if (path === '/terms' || path === '/terms.html' || params.get('page') === 'terms' || hash === '#terms') {
+      return 'terms';
+    }
+    if (path === '/privacy' || path === '/privacy.html' || params.get('page') === 'privacy' || hash === '#privacy') {
+      return 'privacy';
+    }
+    return null;
+  });
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const path = window.location.pathname.toLowerCase();
+      const params = new URLSearchParams(window.location.search);
+      const hash = window.location.hash.toLowerCase();
+      if (path === '/terms' || path === '/terms.html' || params.get('page') === 'terms' || hash === '#terms') {
+        setLegalPage('terms');
+      } else if (path === '/privacy' || path === '/privacy.html' || params.get('page') === 'privacy' || hash === '#privacy') {
+        setLegalPage('privacy');
+      } else {
+        setLegalPage(null);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   const [activeTab, setActiveTab] = useState<StudioTab>('projects');
   const [projects, setProjects] = useState<Project[]>([]);
   const [project, setProject] = useState<Project | null>(null);
@@ -286,6 +319,28 @@ function StudioApp() {
     setCurrentTime(0);
     setActiveTab('vod');
   };
+
+  if (legalPage === 'terms') {
+    return (
+      <TermsOfService
+        onBack={() => {
+          window.history.pushState({}, '', '/');
+          setLegalPage(null);
+        }}
+      />
+    );
+  }
+
+  if (legalPage === 'privacy') {
+    return (
+      <PrivacyPolicy
+        onBack={() => {
+          window.history.pushState({}, '', '/');
+          setLegalPage(null);
+        }}
+      />
+    );
+  }
 
   if (isLoading) {
     return (

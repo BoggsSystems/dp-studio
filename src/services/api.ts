@@ -620,6 +620,249 @@ export const api = {
     }
   },
 
+  getTikTokAuthUrl(origin?: string): string {
+    const clientOrigin = origin || (typeof window !== 'undefined' ? window.location.origin : 'https://studio.opportunity-system.com');
+    const rootUrl = 'https://www.tiktok.com/v2/auth/authorize/';
+    const clientKey = 'awbpwml7l5ydtrv9';
+    const redirectUri = 'https://digitpop.opportunity-system.com/api/social/auth/tiktok/callback';
+    const state = typeof btoa !== 'undefined' ? btoa(JSON.stringify({ origin: clientOrigin })) : '';
+    const params = new URLSearchParams({
+      client_key: clientKey,
+      scope: 'user.info.basic,video.publish,video.upload',
+      response_type: 'code',
+      redirect_uri: redirectUri,
+      state,
+    });
+    return `${rootUrl}?${params.toString()}`;
+  },
+
+  async publishTikTokVideo(
+    payload: {
+      videoBlob: Blob;
+      title: string;
+      privacy?: 'PUBLIC_TO_EVERYONE' | 'MUTUAL_FOLLOW_FRIENDS' | 'SELF_ONLY';
+    },
+    onProgress?: (info: { stage: 'INITIALIZING' | 'UPLOADING' | 'DONE'; percent: number; loadedBytes?: number; totalBytes?: number }) => void
+  ): Promise<{ success: boolean; publishId: string; url: string; title: string }> {
+    try {
+      if (onProgress) onProgress({ stage: 'INITIALIZING', percent: 10 });
+
+      const formData = new FormData();
+      formData.append('video', payload.videoBlob, 'tiktok_short.mp4');
+      formData.append('title', payload.title);
+      if (payload.privacy) formData.append('privacy', payload.privacy);
+
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', `${API_BASE_URL}/api/social/publish/tiktok`);
+
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable && onProgress) {
+            const percent = Math.min(95, Math.round((event.loaded / event.total) * 85) + 10);
+            onProgress({
+              stage: 'UPLOADING',
+              percent,
+              loadedBytes: event.loaded,
+              totalBytes: event.total,
+            });
+          }
+        };
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              const res = JSON.parse(xhr.responseText);
+              if (onProgress) onProgress({ stage: 'DONE', percent: 100 });
+              resolve({
+                success: true,
+                publishId: res.publishId || 'tiktok_pub_ok',
+                url: res.url || 'https://www.tiktok.com',
+                title: payload.title,
+              });
+            } catch (e) {
+              resolve({
+                success: true,
+                publishId: 'tiktok_pub_ok',
+                url: 'https://www.tiktok.com',
+                title: payload.title,
+              });
+            }
+          } else {
+            let errorMsg = `TikTok upload failed (HTTP ${xhr.status})`;
+            try {
+              const res = JSON.parse(xhr.responseText);
+              errorMsg = res.message || res.error || errorMsg;
+            } catch (e) {}
+            reject(new Error(errorMsg));
+          }
+        };
+
+        xhr.onerror = () => {
+          reject(new Error('Network error uploading video to TikTok.'));
+        };
+
+        xhr.send(formData);
+      });
+    } catch (err: any) {
+      console.error('Direct TikTok Upload Error:', err);
+      throw err;
+    }
+  },
+
+  // --- Instagram Reels (Meta Graph API) ---
+  getInstagramAuthUrl(origin?: string): string {
+    const clientOrigin = origin || (typeof window !== 'undefined' ? window.location.origin : 'https://studio.opportunity-system.com');
+    const rootUrl = 'https://www.facebook.com/v19.0/dialog/oauth';
+    const appId = '1142058290382910';
+    const redirectUri = 'https://digitpop.opportunity-system.com/api/social/auth/instagram/callback';
+    const state = typeof btoa !== 'undefined' ? btoa(JSON.stringify({ origin: clientOrigin })) : '';
+    const params = new URLSearchParams({
+      client_id: appId,
+      redirect_uri: redirectUri,
+      scope: 'instagram_basic,instagram_content_publish,pages_show_list,pages_read_engagement',
+      response_type: 'code',
+      state,
+    });
+    return `${rootUrl}?${params.toString()}`;
+  },
+
+  async publishInstagramReel(
+    payload: {
+      videoBlob: Blob;
+      title: string;
+      caption?: string;
+    },
+    onProgress?: (info: { stage: 'INITIALIZING' | 'UPLOADING' | 'DONE'; percent: number }) => void
+  ): Promise<{ success: boolean; mediaId: string; url: string; title: string }> {
+    try {
+      if (onProgress) onProgress({ stage: 'INITIALIZING', percent: 15 });
+
+      const formData = new FormData();
+      formData.append('video', payload.videoBlob, 'instagram_reel.mp4');
+      formData.append('title', payload.title);
+      if (payload.caption) formData.append('caption', payload.caption);
+
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', `${API_BASE_URL}/api/social/publish/instagram`);
+
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable && onProgress) {
+            const percent = Math.min(95, Math.round((event.loaded / event.total) * 80) + 15);
+            onProgress({ stage: 'UPLOADING', percent });
+          }
+        };
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              const res = JSON.parse(xhr.responseText);
+              if (onProgress) onProgress({ stage: 'DONE', percent: 100 });
+              resolve(res);
+            } catch (e) {
+              resolve({
+                success: true,
+                mediaId: 'ig_reel_ok',
+                url: 'https://instagram.com/reels',
+                title: payload.title,
+              });
+            }
+          } else {
+            let errorMsg = `Instagram upload failed (${xhr.status})`;
+            try {
+              const res = JSON.parse(xhr.responseText);
+              errorMsg = res.message || res.error || errorMsg;
+            } catch (e) {}
+            reject(new Error(errorMsg));
+          }
+        };
+
+        xhr.onerror = () => reject(new Error('Network error uploading to Instagram'));
+        xhr.send(formData);
+      });
+    } catch (err: any) {
+      console.error('Direct Instagram Upload Error:', err);
+      throw err;
+    }
+  },
+
+  // --- X / Twitter (API v2) ---
+  getTwitterAuthUrl(origin?: string): string {
+    const clientOrigin = origin || (typeof window !== 'undefined' ? window.location.origin : 'https://studio.opportunity-system.com');
+    const rootUrl = 'https://twitter.com/i/oauth2/authorize';
+    const clientId = 'twitter_client_id_placeholder';
+    const redirectUri = 'https://digitpop.opportunity-system.com/api/social/auth/twitter/callback';
+    const state = typeof btoa !== 'undefined' ? btoa(JSON.stringify({ origin: clientOrigin })) : '';
+    const params = new URLSearchParams({
+      response_type: 'code',
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      scope: 'tweet.read tweet.write users.read offline.access',
+      state,
+      code_challenge: 'challenge',
+      code_challenge_method: 'plain',
+    });
+    return `${rootUrl}?${params.toString()}`;
+  },
+
+  async publishTwitterPost(
+    payload: {
+      videoBlob: Blob;
+      text: string;
+    },
+    onProgress?: (info: { stage: 'INITIALIZING' | 'UPLOADING' | 'DONE'; percent: number }) => void
+  ): Promise<{ success: boolean; tweetId: string; url: string; title: string }> {
+    try {
+      if (onProgress) onProgress({ stage: 'INITIALIZING', percent: 15 });
+
+      const formData = new FormData();
+      formData.append('video', payload.videoBlob, 'twitter_video.mp4');
+      formData.append('text', payload.text);
+
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', `${API_BASE_URL}/api/social/publish/twitter`);
+
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable && onProgress) {
+            const percent = Math.min(95, Math.round((event.loaded / event.total) * 80) + 15);
+            onProgress({ stage: 'UPLOADING', percent });
+          }
+        };
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              const res = JSON.parse(xhr.responseText);
+              if (onProgress) onProgress({ stage: 'DONE', percent: 100 });
+              resolve(res);
+            } catch (e) {
+              resolve({
+                success: true,
+                tweetId: 'x_post_ok',
+                url: 'https://x.com',
+                title: payload.text,
+              });
+            }
+          } else {
+            let errorMsg = `X post failed (${xhr.status})`;
+            try {
+              const res = JSON.parse(xhr.responseText);
+              errorMsg = res.message || res.error || errorMsg;
+            } catch (e) {}
+            reject(new Error(errorMsg));
+          }
+        };
+
+        xhr.onerror = () => reject(new Error('Network error posting to X'));
+        xhr.send(formData);
+      });
+    } catch (err: any) {
+      console.error('Direct Twitter Upload Error:', err);
+      throw err;
+    }
+  },
+
   // --- Livestream Sessions ---
   async getStreamSessions(): Promise<StreamSession[]> {
     try {
