@@ -66,29 +66,65 @@ export default function ClipStudio({ projectId, initialView = 'FORMATTER' }: Cli
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* Top Sub-Nav Switcher */}
-      <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: 'rgba(0,0,0,0.25)', padding: '6px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', width: 'fit-content' }}>
         <button
           onClick={() => setActiveView('FORMATTER')}
-          className={`btn ${activeView === 'FORMATTER' ? 'btn--primary' : 'btn--outline'}`}
-          style={{ padding: '8px 16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}
+          style={{
+            padding: '8px 16px',
+            fontSize: '13px',
+            fontWeight: activeView === 'FORMATTER' ? 700 : 500,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            borderRadius: 'var(--radius-sm)',
+            border: activeView === 'FORMATTER' ? '1px solid #3B82F6' : '1px solid transparent',
+            background: activeView === 'FORMATTER' ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.25) 0%, rgba(99, 102, 241, 0.2) 100%)' : 'transparent',
+            color: activeView === 'FORMATTER' ? '#fff' : 'var(--text-secondary)',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
+          }}
         >
-          <Wand2 size={16} />
+          <Wand2 size={15} color={activeView === 'FORMATTER' ? 'var(--accent-teal)' : 'currentColor'} />
           <span>🎨 Shorts Formatter & Studio</span>
         </button>
         <button
           onClick={() => setActiveView('LIBRARY')}
-          className={`btn ${activeView === 'LIBRARY' ? 'btn--primary' : 'btn--outline'}`}
-          style={{ padding: '8px 16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}
+          style={{
+            padding: '8px 16px',
+            fontSize: '13px',
+            fontWeight: activeView === 'LIBRARY' ? 700 : 500,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            borderRadius: 'var(--radius-sm)',
+            border: activeView === 'LIBRARY' ? '1px solid #3B82F6' : '1px solid transparent',
+            background: activeView === 'LIBRARY' ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.25) 0%, rgba(99, 102, 241, 0.2) 100%)' : 'transparent',
+            color: activeView === 'LIBRARY' ? '#fff' : 'var(--text-secondary)',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
+          }}
         >
-          <FolderKanban size={16} />
+          <FolderKanban size={15} color={activeView === 'LIBRARY' ? 'var(--accent-teal)' : 'currentColor'} />
           <span>📁 My Shorts & Published Library ({savedShortsCount})</span>
         </button>
         <button
           onClick={() => setActiveView('EXTRACTED')}
-          className={`btn ${activeView === 'EXTRACTED' ? 'btn--primary' : 'btn--outline'}`}
-          style={{ padding: '8px 16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}
+          style={{
+            padding: '8px 16px',
+            fontSize: '13px',
+            fontWeight: activeView === 'EXTRACTED' ? 700 : 500,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            borderRadius: 'var(--radius-sm)',
+            border: activeView === 'EXTRACTED' ? '1px solid #3B82F6' : '1px solid transparent',
+            background: activeView === 'EXTRACTED' ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.25) 0%, rgba(99, 102, 241, 0.2) 100%)' : 'transparent',
+            color: activeView === 'EXTRACTED' ? '#fff' : 'var(--text-secondary)',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
+          }}
         >
-          <ListVideo size={16} />
+          <ListVideo size={15} color={activeView === 'EXTRACTED' ? 'var(--accent-teal)' : 'currentColor'} />
           <span>📋 Auto-Extracted Stream Clips ({clips.length})</span>
         </button>
       </div>

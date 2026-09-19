@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Video, Play, Edit3, ExternalLink, Trash2, Layers, ShoppingBag, CheckCircle, Sparkles, Smartphone, CheckCircle2 } from 'lucide-react';
 import { Project, FormattedShortProject } from '../types';
 import ProjectWizardModal from './ProjectWizardModal';
-import { getAllShortProjects, getShortProject, loadShortProjectIntoActiveDraft } from '../services/videoStorage';
+import { getAllShortProjects, getShortProject, loadShortProjectIntoActiveDraft, deleteShortProject } from '../services/videoStorage';
 
 interface ProjectListProps {
   projects: Project[];
@@ -48,6 +48,14 @@ export default function ProjectList({
     } catch (e) {}
     if (onOpenShort) {
       onOpenShort(short);
+    }
+  };
+
+  const handleDeleteShort = async (e: React.MouseEvent, shortId: string) => {
+    e.stopPropagation();
+    if (window.confirm('Delete this short project? This cannot be undone.')) {
+      await deleteShortProject(shortId);
+      setSavedShorts(getAllShortProjects());
     }
   };
 
@@ -373,6 +381,16 @@ export default function ProjectList({
                       >
                         <Edit3 size={12} />
                         <span>Open in Shorts Studio</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        style={{ padding: '6px 10px', fontSize: '12px', color: 'var(--text-muted)' }}
+                        onClick={(e) => handleDeleteShort(e, short.id)}
+                        title="Delete Short Project"
+                      >
+                        <Trash2 size={13} />
                       </button>
                     </div>
                   </div>

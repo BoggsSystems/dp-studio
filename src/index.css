@@ -236,42 +236,77 @@ body {
   font-weight: 600;
   padding: 8px 16px;
   border-radius: var(--radius-sm);
-  border: 1px solid transparent;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  color: var(--text-primary);
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
-.btn-primary {
-  background-color: var(--accent-blue);
-  color: #ffffff;
-}
-.btn-primary:hover {
-  background-color: var(--accent-blue-hover);
+.btn:hover {
+  background: var(--bg-surface-elevated);
+  border-color: var(--border-medium);
 }
 
-.btn-secondary {
+.btn-primary,
+.btn--primary {
+  background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%);
+  border-color: rgba(59, 130, 246, 0.5);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.25);
+}
+.btn-primary:hover,
+.btn--primary:hover {
+  background: linear-gradient(135deg, #2563EB 0%, #1E40AF 100%);
+  border-color: #3B82F6;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35);
+}
+
+.btn-secondary,
+.btn--secondary {
   background-color: var(--bg-surface);
   border-color: var(--border-medium);
   color: var(--text-primary);
 }
-.btn-secondary:hover {
+.btn-secondary:hover,
+.btn--secondary:hover {
   background-color: var(--bg-surface-elevated);
+  border-color: var(--border-light);
 }
 
-.btn-ghost {
-  background: transparent;
+.btn-outline,
+.btn--outline {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-subtle);
   color: var(--text-secondary);
 }
-.btn-ghost:hover {
+.btn-outline:hover,
+.btn--outline:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--border-medium);
+  color: var(--text-primary);
+}
+
+.btn-ghost,
+.btn--ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-secondary);
+}
+.btn-ghost:hover,
+.btn--ghost:hover {
   color: var(--text-primary);
   background: var(--bg-surface);
 }
 
-.btn-success {
+.btn-success,
+.btn--success {
   background-color: var(--accent-teal);
+  border-color: var(--accent-teal-light);
   color: #ffffff;
 }
-.btn-success:hover {
+.btn-success:hover,
+.btn--success:hover {
   background-color: var(--accent-teal-light);
 }
 
