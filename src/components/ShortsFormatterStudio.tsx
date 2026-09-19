@@ -1715,11 +1715,22 @@ export default function ShortsFormatterStudio() {
 
       // Automatically sync published short to library
       try {
+        let bakedThumbUrl: string | undefined = thumbnailImage || undefined;
+        if (thumbnailBlob) {
+          try {
+            const reader = new FileReader();
+            bakedThumbUrl = await new Promise<string>((resolve) => {
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.readAsDataURL(thumbnailBlob!);
+            });
+          } catch (e) {}
+        }
+
         const shortRecord: FormattedShortProject = {
           id: shortProjectId,
           title: thumbnailTitle || (videoFile?.name ? videoFile.name.replace(/\.[^/.]+$/, '') : 'AI Shoppable Short'),
           videoFileName: videoFile?.name || 'short_video.mp4',
-          thumbnailUrl: thumbnailImage || undefined,
+          thumbnailUrl: bakedThumbUrl || thumbnailImage || undefined,
           durationSeconds: duration || 30,
           words,
           editableTranscript,
@@ -1978,10 +1989,18 @@ export default function ShortsFormatterStudio() {
       setPublishAboutPageStage('INITIALIZING');
       setPublishAboutPagePercent(50);
       let thumbnailBlob: Blob | undefined;
+      let bakedThumbUrl: string | undefined = thumbnailImage || undefined;
       try {
         const generatedThumb = await renderThumbnailBlob('9:16');
         if (generatedThumb) {
           thumbnailBlob = generatedThumb;
+          try {
+            const reader = new FileReader();
+            bakedThumbUrl = await new Promise<string>((resolve) => {
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.readAsDataURL(generatedThumb);
+            });
+          } catch (e) {}
         } else if (thumbnailImage) {
           const thumbRes = await fetch(thumbnailImage);
           thumbnailBlob = await thumbRes.blob();
@@ -1998,7 +2017,7 @@ export default function ShortsFormatterStudio() {
         id: shortProjectId,
         title: videoTitle || thumbnailTitle || 'Opportunity OS Short',
         videoFileName: videoFile?.name || 'short_video.mp4',
-        thumbnailUrl: thumbnailImage || undefined,
+        thumbnailUrl: bakedThumbUrl || thumbnailImage || undefined,
         durationSeconds: duration || 30,
         words,
         editableTranscript,
