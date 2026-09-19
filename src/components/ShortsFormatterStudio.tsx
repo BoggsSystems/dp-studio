@@ -32,6 +32,13 @@ import {
   Layers,
   ExternalLink,
   LogOut,
+  Wand2,
+  Eye,
+  Maximize2,
+  Palette,
+  X,
+  ZoomIn,
+  ZoomOut,
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { api } from '../services/api';
@@ -76,6 +83,364 @@ export const THUMBNAIL_STYLES: Record<ThumbnailStyle, { name: string; fontColor:
   ELECTRIC_CYAN: { name: 'Electric Cyan', fontColor: '#00F2FE', strokeColor: '#000000', glow: 'rgba(0,242,254,0.7)' },
   HOT_PINK: { name: 'Hot Pink', fontColor: '#FF007F', strokeColor: '#000000', glow: 'rgba(255,0,127,0.7)' },
 };
+
+export type AiCoverStyle = 'CYBERPUNK' | 'CINEMATIC' | 'TECH_3D' | 'MANGA' | 'MINIMAL_DARK';
+
+export interface AiCoverPreset {
+  id: AiCoverStyle;
+  label: string;
+  description: string;
+  gradientBg: [string, string, string];
+  accentColor: string;
+  badge: string;
+}
+
+export const AI_COVER_PRESETS: Record<AiCoverStyle, AiCoverPreset> = {
+  CYBERPUNK: {
+    id: 'CYBERPUNK',
+    label: 'Cyberpunk Neon',
+    description: 'Matrix code rain, glowing cyan wireframe & holographic HUD aperture',
+    gradientBg: ['#030712', '#051923', '#003554'],
+    accentColor: '#00F2FE',
+    badge: '⚡ CYBER MATRIX',
+  },
+  CINEMATIC: {
+    id: 'CINEMATIC',
+    label: 'Cinematic Studio',
+    description: 'Moody 35mm bokeh, warm gold rim lighting & volumetric particles',
+    gradientBg: ['#0a080d', '#1f130b', '#2e1908'],
+    accentColor: '#FFB800',
+    badge: '🎬 35MM BOKEH',
+  },
+  TECH_3D: {
+    id: 'TECH_3D',
+    label: '3D Isometric Tech',
+    description: 'Futuristic floating glass cubes, neon nodes & deep violet geometry',
+    gradientBg: ['#090514', '#170c2e', '#321055'],
+    accentColor: '#A855F7',
+    badge: '🔮 BLENDER 3D',
+  },
+  MANGA: {
+    id: 'MANGA',
+    label: 'Manga Speed Action',
+    description: 'High-velocity action speedlines, dark monochrome & crimson burst',
+    gradientBg: ['#050505', '#1a0508', '#2b070d'],
+    accentColor: '#EF4444',
+    badge: '💥 ACTION BURST',
+  },
+  MINIMAL_DARK: {
+    id: 'MINIMAL_DARK',
+    label: 'Minimal Dark Luxe',
+    description: 'Deep obsidian luxury gradient, frosted card frame & high contrast',
+    gradientBg: ['#030712', '#0f172a', '#1e293b'],
+    accentColor: '#38BDF8',
+    badge: '✨ PRO STUDIO',
+  },
+};
+
+// Generates an ultra-high resolution 1080x1920 procedural / AI cover background
+export function generateProceduralAiCoverCanvas(
+  prompt: string,
+  style: AiCoverStyle,
+  variationIndex: number
+): string {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1080;
+  canvas.height = 1920;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return '';
+
+  const preset = AI_COVER_PRESETS[style] || AI_COVER_PRESETS.CYBERPUNK;
+  const seed = (variationIndex + 1) * 9973 + (style.charCodeAt(0) || 0) * 31;
+  const pseudoRand = (n: number) => {
+    const x = Math.sin(seed + n) * 10000;
+    return x - Math.floor(x);
+  };
+
+  // 1. Base Rich Gradient Background
+  const grad = ctx.createLinearGradient(0, 0, 0, 1920);
+  grad.addColorStop(0, preset.gradientBg[0]);
+  grad.addColorStop(0.5, preset.gradientBg[1]);
+  grad.addColorStop(1, preset.gradientBg[2]);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 1080, 1920);
+
+  // 2. Style-Specific Generative Art Layers
+  if (style === 'CYBERPUNK') {
+    // 3D Perspective Floor Grid
+    ctx.save();
+    ctx.strokeStyle = 'rgba(0, 242, 254, 0.28)';
+    ctx.lineWidth = 2;
+    const horizonY = 1150;
+    for (let x = -400; x <= 1480; x += 110) {
+      ctx.beginPath();
+      ctx.moveTo(540, horizonY);
+      ctx.lineTo(x, 1920);
+      ctx.stroke();
+    }
+    for (let y = horizonY + 20; y <= 1920; y += 35 + (y - horizonY) * 0.16) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(1080, y);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // Streaming Matrix Code Columns
+    ctx.save();
+    ctx.font = '700 22px monospace';
+    const matrixTokens = ['01', '10', 'AI_CORE', '0xFF', 'SYS', '>>', '{velocity}', '<async>', '01101', 'NODE', '77%', 'QUANTUM'];
+    for (let i = 0; i < 22; i++) {
+      const colX = 35 + i * 46;
+      const startY = 80 + pseudoRand(i * 3) * 600;
+      const count = 4 + Math.floor(pseudoRand(i * 5) * 8);
+      for (let j = 0; j < count; j++) {
+        const token = matrixTokens[(i + j + variationIndex) % matrixTokens.length];
+        const alpha = Math.max(0.12, 0.85 - j * 0.1);
+        ctx.fillStyle = j === 0 ? '#FFFFFF' : i % 2 === 0 ? `rgba(0, 242, 254, ${alpha})` : `rgba(16, 185, 129, ${alpha})`;
+        ctx.fillText(token, colX, startY + j * 30);
+      }
+    }
+    ctx.restore();
+
+    // Central Glowing Hologram Ring & HUD Reticle
+    ctx.save();
+    const ringY = 680 + (variationIndex % 2) * 100;
+    ctx.strokeStyle = 'rgba(0, 242, 254, 0.65)';
+    ctx.lineWidth = 4;
+    ctx.shadowColor = '#00F2FE';
+    ctx.shadowBlur = 35;
+    ctx.beginPath();
+    ctx.arc(540, ringY, 270, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(255, 0, 127, 0.45)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(540, ringY, 340, 0.2 * Math.PI, 0.8 * Math.PI);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(540, ringY, 340, 1.2 * Math.PI, 1.8 * Math.PI);
+    ctx.stroke();
+
+    // Crosshairs
+    ctx.strokeStyle = 'rgba(0, 242, 254, 0.85)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(540 - 45, ringY); ctx.lineTo(540 + 45, ringY);
+    ctx.moveTo(540, ringY - 45); ctx.lineTo(540, ringY + 45);
+    ctx.stroke();
+    ctx.restore();
+
+  } else if (style === 'CINEMATIC') {
+    // Dual Color Studio Rim Lighting
+    ctx.save();
+    const goldGlow = ctx.createRadialGradient(220, 380, 60, 220, 380, 850);
+    goldGlow.addColorStop(0, 'rgba(255, 184, 0, 0.45)');
+    goldGlow.addColorStop(0.5, 'rgba(255, 107, 0, 0.15)');
+    goldGlow.addColorStop(1, 'transparent');
+    ctx.fillStyle = goldGlow;
+    ctx.fillRect(0, 0, 1080, 1920);
+
+    const tealGlow = ctx.createRadialGradient(860, 1420, 60, 860, 1420, 750);
+    tealGlow.addColorStop(0, 'rgba(0, 242, 254, 0.35)');
+    tealGlow.addColorStop(0.6, 'rgba(0, 53, 84, 0.1)');
+    tealGlow.addColorStop(1, 'transparent');
+    ctx.fillStyle = tealGlow;
+    ctx.fillRect(0, 0, 1080, 1920);
+
+    // 35mm Optical Anamorphic Streak
+    const streakY = 820 + variationIndex * 60;
+    const streakGrad = ctx.createLinearGradient(0, streakY, 1080, streakY);
+    streakGrad.addColorStop(0, 'transparent');
+    streakGrad.addColorStop(0.2, 'rgba(0, 242, 254, 0.2)');
+    streakGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.85)');
+    streakGrad.addColorStop(0.8, 'rgba(255, 184, 0, 0.25)');
+    streakGrad.addColorStop(1, 'transparent');
+    ctx.fillStyle = streakGrad;
+    ctx.fillRect(0, streakY - 10, 1080, 20);
+
+    // Bokeh Orbs
+    for (let b = 0; b < 50; b++) {
+      const bx = pseudoRand(b * 7) * 1080;
+      const by = pseudoRand(b * 11) * 1920;
+      const radius = 12 + pseudoRand(b * 13) * 70;
+      const alpha = 0.08 + pseudoRand(b * 17) * 0.26;
+      const bGlow = ctx.createRadialGradient(bx, by, radius * 0.2, bx, by, radius);
+      bGlow.addColorStop(0, b % 2 === 0 ? `rgba(255, 184, 0, ${alpha})` : `rgba(0, 242, 254, ${alpha})`);
+      bGlow.addColorStop(1, 'transparent');
+      ctx.fillStyle = bGlow;
+      ctx.beginPath();
+      ctx.arc(bx, by, radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+
+  } else if (style === 'TECH_3D') {
+    // 3D Isometric Floating Tech Solids
+    ctx.save();
+    const centerX = 540;
+    const centerY = 780 + (variationIndex % 2) * 80;
+
+    // Glowing Radial Orb Core
+    const coreGlow = ctx.createRadialGradient(centerX, centerY, 50, centerX, centerY, 550);
+    coreGlow.addColorStop(0, 'rgba(168, 85, 247, 0.65)');
+    coreGlow.addColorStop(0.5, 'rgba(99, 102, 241, 0.25)');
+    coreGlow.addColorStop(1, 'transparent');
+    ctx.fillStyle = coreGlow;
+    ctx.fillRect(0, 0, 1080, 1920);
+
+    const drawIsometricCube = (cx: number, cy: number, size: number, rot: number) => {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(rot);
+      ctx.strokeStyle = '#C084FC';
+      ctx.lineWidth = 3.5;
+      ctx.shadowColor = '#A855F7';
+      ctx.shadowBlur = 24;
+
+      const vertices: [number, number][] = [];
+      for (let a = 0; a < 6; a++) {
+        const angle = (Math.PI / 3) * a + Math.PI / 6;
+        vertices.push([size * Math.cos(angle), size * Math.sin(angle)]);
+      }
+      ctx.beginPath();
+      ctx.moveTo(vertices[0][0], vertices[0][1]);
+      for (let v = 1; v < 6; v++) ctx.lineTo(vertices[v][0], vertices[v][1]);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(50, 16, 85, 0.45)';
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(0, 0); ctx.lineTo(vertices[0][0], vertices[0][1]);
+      ctx.moveTo(0, 0); ctx.lineTo(vertices[2][0], vertices[2][1]);
+      ctx.moveTo(0, 0); ctx.lineTo(vertices[4][0], vertices[4][1]);
+      ctx.stroke();
+      ctx.restore();
+    };
+
+    drawIsometricCube(centerX, centerY, 190 + variationIndex * 20, 0.12);
+    drawIsometricCube(centerX - 280, centerY - 270, 95, -0.22);
+    drawIsometricCube(centerX + 290, centerY + 250, 115, 0.35);
+    drawIsometricCube(centerX - 240, centerY + 370, 80, 0.16);
+    drawIsometricCube(centerX + 260, centerY - 330, 90, -0.42);
+
+    // Laser connection trails
+    ctx.strokeStyle = 'rgba(236, 72, 153, 0.45)';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(centerX - 280, centerY - 270); ctx.lineTo(centerX, centerY);
+    ctx.moveTo(centerX + 290, centerY + 250); ctx.lineTo(centerX, centerY);
+    ctx.moveTo(centerX - 240, centerY + 370); ctx.lineTo(centerX, centerY);
+    ctx.moveTo(centerX + 260, centerY - 330); ctx.lineTo(centerX, centerY);
+    ctx.stroke();
+    ctx.restore();
+
+  } else if (style === 'MANGA') {
+    // Dynamic Manga Radial Action Speedlines
+    ctx.save();
+    const focalX = 540;
+    const focalY = 840 + (variationIndex % 2) * 90;
+    const lineCount = 75;
+
+    for (let l = 0; l < lineCount; l++) {
+      const angle = (Math.PI * 2 * l) / lineCount + (pseudoRand(l) - 0.5) * 0.05;
+      const innerDist = 260 + pseudoRand(l * 3) * 140;
+      const outerDist = 1450;
+
+      const x1 = focalX + Math.cos(angle) * innerDist;
+      const y1 = focalY + Math.sin(angle) * innerDist;
+      const x2 = focalX + Math.cos(angle) * outerDist;
+      const y2 = focalY + Math.sin(angle) * outerDist;
+
+      const width = 2 + pseudoRand(l * 5) * 8;
+      ctx.strokeStyle = l % 3 === 0 ? 'rgba(239, 68, 68, 0.75)' : 'rgba(255, 255, 255, 0.4)';
+      ctx.lineWidth = width;
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+    }
+
+    // Crimson Energy Burst
+    const redGlow = ctx.createRadialGradient(focalX, focalY, 30, focalX, focalY, 420);
+    redGlow.addColorStop(0, 'rgba(239, 68, 68, 0.55)');
+    redGlow.addColorStop(0.6, 'rgba(185, 28, 28, 0.18)');
+    redGlow.addColorStop(1, 'transparent');
+    ctx.fillStyle = redGlow;
+    ctx.beginPath();
+    ctx.arc(focalX, focalY, 420, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+  } else if (style === 'MINIMAL_DARK') {
+    // Frosted Card Border Frame with High Contrast
+    ctx.save();
+    const frameInset = 80;
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(frameInset, frameInset, 1080 - frameInset * 2, 1920 - frameInset * 2);
+
+    const bracketLen = 65;
+    ctx.strokeStyle = '#38BDF8';
+    ctx.lineWidth = 6;
+
+    // Top-Left
+    ctx.beginPath();
+    ctx.moveTo(frameInset - 10, frameInset + bracketLen);
+    ctx.lineTo(frameInset - 10, frameInset - 10);
+    ctx.lineTo(frameInset + bracketLen, frameInset - 10);
+    ctx.stroke();
+
+    // Top-Right
+    ctx.beginPath();
+    ctx.moveTo(1080 - frameInset + 10 - bracketLen, frameInset - 10);
+    ctx.lineTo(1080 - frameInset + 10, frameInset - 10);
+    ctx.lineTo(1080 - frameInset + 10, frameInset + bracketLen);
+    ctx.stroke();
+
+    // Bottom-Left
+    ctx.beginPath();
+    ctx.moveTo(frameInset - 10, 1920 - frameInset - bracketLen);
+    ctx.lineTo(frameInset - 10, 1920 - frameInset + 10);
+    ctx.lineTo(frameInset + bracketLen, 1920 - frameInset + 10);
+    ctx.stroke();
+
+    // Bottom-Right
+    ctx.beginPath();
+    ctx.moveTo(1080 - frameInset + 10 - bracketLen, 1920 - frameInset + 10);
+    ctx.lineTo(1080 - frameInset + 10, 1920 - frameInset + 10);
+    ctx.lineTo(1080 - frameInset + 10, 1920 - frameInset - bracketLen);
+    ctx.stroke();
+
+    const spot = ctx.createRadialGradient(540, 780, 20, 540, 780, 650);
+    spot.addColorStop(0, 'rgba(56, 189, 248, 0.2)');
+    spot.addColorStop(1, 'transparent');
+    ctx.fillStyle = spot;
+    ctx.fillRect(0, 0, 1080, 1920);
+    ctx.restore();
+  }
+
+  // 3. Technical Metadata Footers & Watermark
+  ctx.save();
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+  ctx.font = '700 16px Inter, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('DIGITPOP AI STUDIO • 1080x1920 ULTRA-HD • HIGH CTR THUMBNAIL', 540, 1860);
+
+  const promptKeywords = prompt
+    ? prompt.split(' ').filter(w => w.length > 4).slice(0, 3).map(w => w.toUpperCase()).join(' • ')
+    : 'AI ARCHITECTURE • 2026 VELOCITY • MUST WATCH';
+
+  ctx.fillStyle = preset.accentColor;
+  ctx.font = '800 20px Inter, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(promptKeywords, 540, 1820);
+  ctx.restore();
+
+  return canvas.toDataURL('image/jpeg', 0.95);
+}
 
 const EMOJI_MAP: Record<string, string> = {
   analytics: '📈',
@@ -224,6 +589,20 @@ export default function ShortsFormatterStudio() {
   const [thumbnailStrokeWidth, setThumbnailStrokeWidth] = useState<number>(14);
   const [thumbnailUppercase, setThumbnailUppercase] = useState<boolean>(true);
   const [isGeneratingThumbnail, setIsGeneratingThumbnail] = useState<boolean>(false);
+
+  // AI Context-Aware Cover / Thumbnail Generator State
+  const [aiCoverPrompt, setAiCoverPrompt] = useState<string>(
+    'Futuristic developer terminal with glowing holographic AI neural network HUD and code architecture diagrams'
+  );
+  const [aiCoverStyle, setAiCoverStyle] = useState<AiCoverStyle>('CYBERPUNK');
+  const [isGeneratingAiCovers, setIsGeneratingAiCovers] = useState<boolean>(false);
+  const [aiCoverCandidates, setAiCoverCandidates] = useState<string[]>([]);
+
+  // Real-Scale (1080x1920) Lightbox Inspector State
+  const [isRealSizeModalOpen, setIsRealSizeModalOpen] = useState<boolean>(false);
+  const [realSizeModalUrl, setRealSizeModalUrl] = useState<string | null>(null);
+  const [realSizeZoom100, setRealSizeZoom100] = useState<boolean>(false);
+  const [isInspectingRealSize, setIsInspectingRealSize] = useState<boolean>(false);
 
   // Multi-Channel Distribution & Embed Generator State
   const [activeDistTab, setActiveDistTab] = useState<'EMBED_WEB' | 'SOCIAL_CHANNELS'>('EMBED_WEB');
@@ -1282,6 +1661,71 @@ export default function ShortsFormatterStudio() {
     link.href = downloadUrl;
     link.click();
     URL.revokeObjectURL(downloadUrl);
+  };
+
+  // Generate 4 candidate high-CTR AI covers based on prompt and style preset
+  const handleGenerateAiCovers = async () => {
+    setIsGeneratingAiCovers(true);
+    try {
+      await new Promise((r) => setTimeout(r, 650));
+      const effectivePrompt = aiCoverPrompt.trim() || videoTitle || 'AI Software Velocity and Developer Blueprint';
+      const candidates: string[] = [];
+      for (let i = 0; i < 4; i++) {
+        const dataUrl = generateProceduralAiCoverCanvas(effectivePrompt, aiCoverStyle, i);
+        candidates.push(dataUrl);
+      }
+      setAiCoverCandidates(candidates);
+      if (candidates.length > 0) {
+        setThumbnailImage(candidates[0]);
+      }
+      toast.success(`✨ Generated 4 high-CTR AI covers in ${AI_COVER_PRESETS[aiCoverStyle].label} style!`);
+    } catch (err) {
+      toast.error('Failed to generate AI covers. Please try again.');
+    } finally {
+      setIsGeneratingAiCovers(false);
+    }
+  };
+
+  // Open Full-Resolution (1080x1920) Lightbox Inspector
+  const handleOpenRealSizeInspector = async () => {
+    setIsInspectingRealSize(true);
+    try {
+      const blob = await renderThumbnailBlob('9:16');
+      if (!blob) {
+        toast.error('Unable to render thumbnail preview.');
+        return;
+      }
+      if (realSizeModalUrl) {
+        URL.revokeObjectURL(realSizeModalUrl);
+      }
+      const url = URL.createObjectURL(blob);
+      setRealSizeModalUrl(url);
+      setIsRealSizeModalOpen(true);
+    } catch (err) {
+      toast.error('Failed to open thumbnail inspector.');
+    } finally {
+      setIsInspectingRealSize(false);
+    }
+  };
+
+  // Copy Real Size Thumbnail image to clipboard
+  const handleCopyRealSizeImage = async () => {
+    try {
+      const blob = await renderThumbnailBlob('9:16');
+      if (!blob) {
+        toast.error('Failed to render image for clipboard.');
+        return;
+      }
+      if (navigator.clipboard && (window as any).ClipboardItem) {
+        const item = new (window as any).ClipboardItem({ [blob.type]: blob });
+        await navigator.clipboard.write([item]);
+        toast.success('📋 Copied full-res 1080x1920 thumbnail to clipboard!');
+      } else {
+        toast.info('Clipboard write not supported on this browser. Use download button instead.');
+      }
+    } catch (err) {
+      toast.error('Could not copy image directly. Use download button.');
+    }
   };
 
   // Bakes 1080x1920 short with kinetic bouncing subtitles, layout framing (FIT_BLUR), and overlays
@@ -2926,26 +3370,210 @@ export default function ShortsFormatterStudio() {
           </div>
         )}
 
-        {/* 🖼️ High-CTR Thumbnail Studio & Frame Grabber */}
+        {/* 🖼️ High-CTR Thumbnail Studio & AI Cover Generator */}
         {videoUrl && (
           <div className="surface-panel" style={{ padding: '20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
               <div style={{ fontSize: '15px', fontWeight: '700', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <ImageIcon size={18} color="var(--accent-amber)" />
-                <span>High-CTR Thumbnail Studio (YouTube & TikTok Covers)</span>
+                <span>High-CTR Thumbnail Studio & AI Cover Generator</span>
               </div>
-              <button
-                onClick={captureFrameAtCurrentTime}
-                className="btn btn--primary"
-                style={{ padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
-              >
-                <Camera size={14} /> 📸 Grab Current Frame ({Math.floor(currentTime)}s)
-              </button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={captureFrameAtCurrentTime}
+                  className="btn btn--outline"
+                  style={{ padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <Camera size={14} color="var(--accent-amber)" /> 📸 Grab Current Frame ({Math.floor(currentTime)}s)
+                </button>
+                <button
+                  onClick={handleGenerateAiCovers}
+                  disabled={isGeneratingAiCovers}
+                  className="btn btn--primary"
+                  style={{ padding: '6px 14px', fontSize: '12px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <Wand2 size={14} /> {isGeneratingAiCovers ? 'Generating 4 Covers...' : '✨ Generate AI Covers'}
+                </button>
+              </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 180px', gap: '20px', alignItems: 'start' }}>
-              {/* Left Column: Title, Styles, AI Hooks */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 190px', gap: '20px', alignItems: 'start' }}>
+              {/* Left Column: AI Cover Generator & Typography Controls */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                
+                {/* 🤖 AI Visual Cover Generation Box */}
+                <div
+                  style={{
+                    padding: '14px',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'rgba(0, 242, 254, 0.04)',
+                    border: '1px solid rgba(0, 242, 254, 0.25)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--accent-cyan)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Wand2 size={13} />
+                      <span>AI Visual Background Generator</span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const promptFromVideo = `Futuristic developer workspace and code architecture blueprints for: ${videoTitle || '2026 Software Career Velocity'}`;
+                        setAiCoverPrompt(promptFromVideo);
+                        toast.info('Auto-synced prompt with video context!');
+                      }}
+                      className="btn btn--outline"
+                      style={{ padding: '2px 8px', fontSize: '10px', color: 'var(--accent-cyan)', borderColor: 'rgba(0,242,254,0.3)' }}
+                    >
+                      ⚡ Auto-Sync from Video
+                    </button>
+                  </div>
+
+                  <div>
+                    <textarea
+                      value={aiCoverPrompt}
+                      onChange={(e) => setAiCoverPrompt(e.target.value)}
+                      rows={2}
+                      placeholder="Describe visual cover scene (e.g. Futuristic holographic terminal with glowing AI neural nodes...)"
+                      style={{
+                        width: '100%',
+                        padding: '8px 10px',
+                        fontSize: '12px',
+                        borderRadius: 'var(--radius-sm)',
+                        background: 'rgba(0, 0, 0, 0.5)',
+                        border: '1px solid rgba(255, 255, 255, 0.15)',
+                        color: '#fff',
+                        outline: 'none',
+                        resize: 'none',
+                      }}
+                    />
+                  </div>
+
+                  {/* AI Style Presets */}
+                  <div>
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px' }}>
+                      Select Visual Art Style Preset:
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '6px' }}>
+                      {(Object.keys(AI_COVER_PRESETS) as AiCoverStyle[]).map((stKey) => {
+                        const preset = AI_COVER_PRESETS[stKey];
+                        const isSelected = aiCoverStyle === stKey;
+                        return (
+                          <button
+                            key={stKey}
+                            onClick={() => setAiCoverStyle(stKey)}
+                            style={{
+                              padding: '6px 4px',
+                              borderRadius: 'var(--radius-sm)',
+                              border: isSelected ? `2px solid ${preset.accentColor}` : '1px solid rgba(255,255,255,0.1)',
+                              background: isSelected ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.3)',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              gap: '4px',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease',
+                            }}
+                            title={preset.description}
+                          >
+                            <span
+                              style={{
+                                width: '12px',
+                                height: '12px',
+                                borderRadius: '50%',
+                                background: preset.accentColor,
+                                boxShadow: isSelected ? `0 0 8px ${preset.accentColor}` : 'none',
+                              }}
+                            />
+                            <span style={{ fontSize: '10px', color: isSelected ? '#fff' : 'var(--text-muted)', fontWeight: isSelected ? 700 : 500, textAlign: 'center', lineHeight: '1.2' }}>
+                              {preset.label.split(' ')[0]}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* 4 Candidate Variations Selector Grid */}
+                  {aiCoverCandidates.length > 0 && (
+                    <div style={{ marginTop: '4px' }}>
+                      <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span>Generated Variations (Click to Apply Active Cover):</span>
+                        <span style={{ color: 'var(--accent-cyan)', fontSize: '10px' }}>4 Candidates Ready</span>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+                        {aiCoverCandidates.map((candUrl, cIdx) => {
+                          const isCandSelected = thumbnailImage === candUrl;
+                          return (
+                            <div
+                              key={cIdx}
+                              onClick={() => {
+                                setThumbnailImage(candUrl);
+                                toast.success(`Cover variation #${cIdx + 1} applied!`);
+                              }}
+                              style={{
+                                position: 'relative',
+                                aspectRatio: '9/16',
+                                borderRadius: '8px',
+                                overflow: 'hidden',
+                                border: isCandSelected ? '2px solid var(--accent-cyan)' : '1px solid rgba(255,255,255,0.2)',
+                                cursor: 'pointer',
+                                background: '#000',
+                                boxShadow: isCandSelected ? '0 0 12px rgba(0, 242, 254, 0.4)' : 'none',
+                              }}
+                            >
+                              <img
+                                src={candUrl}
+                                alt={`Variation ${cIdx + 1}`}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              />
+                              {isCandSelected && (
+                                <div
+                                  style={{
+                                    position: 'absolute',
+                                    top: '4px',
+                                    right: '4px',
+                                    background: 'var(--accent-cyan)',
+                                    color: '#000',
+                                    borderRadius: '50%',
+                                    width: '18px',
+                                    height: '18px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontWeight: 900,
+                                    fontSize: '10px',
+                                  }}
+                                >
+                                  ✓
+                                </div>
+                              )}
+                              <div
+                                style={{
+                                  position: 'absolute',
+                                  bottom: 0,
+                                  left: 0,
+                                  right: 0,
+                                  background: 'linear-gradient(to top, rgba(0,0,0,0.85), transparent)',
+                                  color: '#fff',
+                                  fontSize: '9px',
+                                  fontWeight: 700,
+                                  textAlign: 'center',
+                                  padding: '4px 2px 2px',
+                                }}
+                              >
+                                Option {cIdx + 1}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {/* AI Viral Hook Suggestions */}
                 <div>
                   <div style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -2997,10 +3625,10 @@ export default function ShortsFormatterStudio() {
                   />
                 </div>
 
-                {/* Style Presets */}
+                {/* Typography Style Presets */}
                 <div>
                   <div style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                    Typography & Color Style:
+                    Typography & Glow Color Style:
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '6px' }}>
                     {(Object.keys(THUMBNAIL_STYLES) as ThumbnailStyle[]).map((stKey) => {
@@ -3094,8 +3722,10 @@ export default function ShortsFormatterStudio() {
               </div>
 
               {/* Right Column: Live Thumbnail Preview & Download Buttons */}
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
                 <div
+                  onClick={handleOpenRealSizeInspector}
+                  title="Click to inspect real 1080x1920 scale"
                   style={{
                     position: 'relative',
                     width: '180px',
@@ -3109,6 +3739,7 @@ export default function ShortsFormatterStudio() {
                     flexDirection: 'column',
                     justifyContent: 'center',
                     alignItems: 'center',
+                    cursor: 'pointer',
                   }}
                 >
                   {thumbnailImage ? (
@@ -3119,7 +3750,7 @@ export default function ShortsFormatterStudio() {
                     />
                   ) : (
                     <div style={{ color: 'var(--text-muted)', fontSize: '11px', textAlign: 'center', padding: '10px' }}>
-                      Click "Grab Current Frame"
+                      Click "Grab Current Frame" or "Generate AI Covers"
                     </div>
                   )}
 
@@ -3165,7 +3796,49 @@ export default function ShortsFormatterStudio() {
                   >
                     {thumbnailUppercase ? thumbnailTitle.toUpperCase() : thumbnailTitle}
                   </div>
+
+                  {/* Hover / Corner Magnifier Overlay Tag */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      bottom: '8px',
+                      right: '8px',
+                      background: 'rgba(0,0,0,0.75)',
+                      backdropFilter: 'blur(4px)',
+                      color: '#fff',
+                      padding: '4px 6px',
+                      borderRadius: '6px',
+                      fontSize: '9px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      border: '1px solid rgba(255,255,255,0.2)',
+                    }}
+                  >
+                    <Maximize2 size={10} color="var(--accent-amber)" /> 1080p
+                  </div>
                 </div>
+
+                {/* Inspect Real Size Button */}
+                <button
+                  onClick={handleOpenRealSizeInspector}
+                  disabled={isInspectingRealSize}
+                  className="btn btn--outline"
+                  style={{
+                    width: '100%',
+                    padding: '7px 8px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    borderColor: 'var(--accent-amber)',
+                    color: 'var(--accent-amber)',
+                  }}
+                >
+                  <Eye size={13} /> 🔍 Inspect Real Size
+                </button>
 
                 {/* Download Actions */}
                 <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -4476,6 +5149,131 @@ export default function ShortsFormatterStudio() {
           </div>
         )}
       </div>
+
+      {/* 🔍 Full-Resolution (1080x1920) Lightbox Inspector Modal */}
+      {isRealSizeModalOpen && realSizeModalUrl && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 999999,
+            background: 'rgba(0, 0, 0, 0.92)',
+            backdropFilter: 'blur(16px)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'flex-start',
+            padding: '24px',
+            overflow: 'auto',
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsRealSizeModalOpen(false);
+          }}
+        >
+          {/* Top Bar Controls */}
+          <div
+            style={{
+              width: '100%',
+              maxWidth: '960px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '16px',
+              padding: '12px 20px',
+              background: 'rgba(20, 20, 28, 0.95)',
+              border: '1px solid var(--border-color)',
+              borderRadius: 'var(--radius-md)',
+              boxShadow: '0 8px 30px rgba(0,0,0,0.8)',
+              flexWrap: 'wrap',
+              gap: '10px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <Eye size={20} color="var(--accent-amber)" />
+              <div>
+                <div style={{ fontSize: '15px', fontWeight: 800, color: '#fff' }}>
+                  Full-Resolution Thumbnail Inspector (1080 × 1920)
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                  Crisp native pixel preview of the active composite cover
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <button
+                onClick={() => setRealSizeZoom100(!realSizeZoom100)}
+                className={`btn ${realSizeZoom100 ? 'btn--primary' : 'btn--outline'}`}
+                style={{ padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                title="Toggle between Fit-to-Window and 100% Native Pixel Scale"
+              >
+                {realSizeZoom100 ? <ZoomOut size={14} /> : <ZoomIn size={14} />}
+                {realSizeZoom100 ? 'Fit Window' : '100% Actual Scale'}
+              </button>
+
+              <button
+                onClick={handleCopyRealSizeImage}
+                className="btn btn--outline"
+                style={{ padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <Copy size={14} /> Copy Image
+              </button>
+
+              <button
+                onClick={() => downloadThumbnail('9:16')}
+                className="btn btn--primary"
+                style={{ padding: '6px 14px', fontSize: '12px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <Download size={14} /> ⬇️ Download JPEG
+              </button>
+
+              <button
+                onClick={() => setIsRealSizeModalOpen(false)}
+                className="btn btn--outline"
+                style={{ padding: '6px 10px', borderRadius: '50%' }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+
+          {/* Modal Image Viewport */}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              width: '100%',
+              maxWidth: realSizeZoom100 ? 'none' : '960px',
+              paddingBottom: '40px',
+            }}
+          >
+            <img
+              src={realSizeModalUrl}
+              alt="Full Resolution 1080x1920 Thumbnail"
+              style={
+                realSizeZoom100
+                  ? {
+                      width: '1080px',
+                      height: '1920px',
+                      borderRadius: '12px',
+                      boxShadow: '0 20px 60px rgba(0,0,0,0.95)',
+                      border: '2px solid var(--accent-amber)',
+                    }
+                  : {
+                      maxHeight: 'calc(88vh - 100px)',
+                      maxWidth: '100%',
+                      aspectRatio: '9/16',
+                      objectFit: 'contain',
+                      borderRadius: '16px',
+                      boxShadow: '0 20px 60px rgba(0,0,0,0.95)',
+                      border: '2px solid var(--accent-amber)',
+                    }
+              }
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
