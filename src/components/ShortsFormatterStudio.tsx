@@ -231,7 +231,14 @@ export default function ShortsFormatterStudio() {
   const [embedAutoplay, setEmbedAutoplay] = useState<boolean>(true);
   const [embedTheme, setEmbedTheme] = useState<'dark' | 'glass'>('dark');
   const [embedPosition, setEmbedPosition] = useState<'BOTTOM_RIGHT' | 'BOTTOM_LEFT'>('BOTTOM_RIGHT');
-  const [selectedSocialPlatform, setSelectedSocialPlatform] = useState<'YOUTUBE' | 'TIKTOK' | 'INSTAGRAM' | 'TWITTER'>('YOUTUBE');
+  const [selectedSocialPlatform, setSelectedSocialPlatform] = useState<'YOUTUBE' | 'TIKTOK' | 'INSTAGRAM' | 'TWITTER' | 'ABOUT_PAGE'>('YOUTUBE');
+
+  // Opportunity OS About Page Showcase State
+  const [isPublishingAboutPage, setIsPublishingAboutPage] = useState<boolean>(false);
+  const [publishAboutPageStage, setPublishAboutPageStage] = useState<'IDLE' | 'RENDERING' | 'INITIALIZING' | 'SAVING' | 'DONE'>('IDLE');
+  const [publishAboutPagePercent, setPublishAboutPagePercent] = useState<number>(0);
+  const [publishedAboutPageUrl, setPublishedAboutPageUrl] = useState<string | null>(null);
+  const [publishAboutPageError, setPublishAboutPageError] = useState<string | null>(null);
 
   // YouTube OAuth & Publishing State
   const [socialAccounts, setSocialAccounts] = useState<any[]>([]);
@@ -1926,6 +1933,100 @@ export default function ShortsFormatterStudio() {
     }
   };
 
+  // Opportunity OS About Page Direct Showcase Handler
+  const handlePublishToAboutPage = async () => {
+    if (!videoUrl && !videoFile) {
+      setPublishAboutPageError('No video loaded to publish.');
+      return;
+    }
+
+    try {
+      setIsPublishingAboutPage(true);
+      setPublishAboutPageError(null);
+      setPublishAboutPagePercent(0);
+
+      // 1. Bake video canvas with kinetic subtitles, layout framing, and overlays
+      let videoBlobToUpload: Blob;
+      if (videoRef.current && videoUrl) {
+        setPublishAboutPageStage('RENDERING');
+        videoBlobToUpload = await renderFormattedVideoBlob((renderPercent) => {
+          setPublishAboutPagePercent(Math.round(renderPercent * 0.45));
+        });
+      } else if (videoFile) {
+        videoBlobToUpload = videoFile;
+      } else {
+        const response = await fetch(videoUrl!);
+        videoBlobToUpload = await response.blob();
+      }
+
+      // 2. Prepare high-CTR thumbnail blob (9:16)
+      setPublishAboutPageStage('INITIALIZING');
+      setPublishAboutPagePercent(50);
+      let thumbnailBlob: Blob | undefined;
+      try {
+        const generatedThumb = await renderThumbnailBlob('9:16');
+        if (generatedThumb) {
+          thumbnailBlob = generatedThumb;
+        } else if (thumbnailImage) {
+          const thumbRes = await fetch(thumbnailImage);
+          thumbnailBlob = await thumbRes.blob();
+        }
+      } catch (thumbErr) {
+        console.warn('Thumbnail generation warning:', thumbErr);
+      }
+
+      setPublishAboutPageStage('SAVING');
+      setPublishAboutPagePercent(75);
+
+      // 3. Save as featured Short project in DigitPop Project storage
+      const projectPayload: FormattedShortProject = {
+        id: shortProjectId,
+        title: videoTitle || thumbnailTitle || 'Opportunity OS Short',
+        videoFileName: videoFile?.name || 'short_video.mp4',
+        thumbnailUrl: thumbnailImage || undefined,
+        durationSeconds: duration || 30,
+        words,
+        editableTranscript,
+        highlightColor,
+        fontSize,
+        verticalPosition,
+        wordPacing,
+        autoEmojis,
+        uppercase,
+        layoutMode,
+        showShoppableDrawer,
+        showQrCode,
+        qrPlacement,
+        qrCustomUrl,
+        productId: selectedProduct?.id || savedProductId || undefined,
+        productTitle: selectedProduct?.title,
+        productPrice: selectedProduct?.price,
+        thumbnailTitle: videoTitle || thumbnailTitle,
+        thumbnailStyle,
+        thumbnailFontSize,
+        thumbnailPosition,
+        thumbnailBadge,
+        thumbnailStrokeWidth,
+        thumbnailUppercase,
+        publishedYouTubeUrl: publishedYouTubeUrl || undefined,
+        status: 'PUBLISHED',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      await saveShortProject(projectPayload, videoBlobToUpload);
+
+      setPublishAboutPageStage('DONE');
+      setPublishAboutPagePercent(100);
+      setPublishedAboutPageUrl('https://opportunity-system.com/about');
+      toast.success('Successfully published to Opportunity OS About Page Shorts Showcase!');
+    } catch (err: any) {
+      console.error('About Page showcase publish failed:', err);
+      setPublishAboutPageError(err.message || 'Failed to publish to About Page showcase.');
+    } finally {
+      setIsPublishingAboutPage(false);
+    }
+  };
+
   const seekTo = (seconds: number) => {
     if (videoRef.current) {
       videoRef.current.currentTime = Math.max(0, Math.min(seconds, duration));
@@ -3211,12 +3312,13 @@ export default function ShortsFormatterStudio() {
                 </div>
 
                 {/* Platform Selector Tabs */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '8px' }}>
                   {[
                     { key: 'YOUTUBE', label: 'YouTube Shorts', icon: '▶️' },
                     { key: 'TIKTOK', label: 'TikTok', icon: '🎵' },
                     { key: 'INSTAGRAM', label: 'IG Reels', icon: '📸' },
                     { key: 'TWITTER', label: 'X (Twitter)', icon: '✖️' },
+                    { key: 'ABOUT_PAGE', label: 'About Page', icon: '🌐' },
                   ].map((p) => {
                     const isSelected = selectedSocialPlatform === p.key;
                     return (
@@ -3861,6 +3963,135 @@ export default function ShortsFormatterStudio() {
                           {thumbnailTitle}
                           {'\n\n'}The old way of memorizing syntax is dead. AI-native engineering is about architecture, velocity, and leverage.
                           {'\n\n'}👉 Full blueprint: <span style={{ color: '#00F2FE' }}>https://opportunity-system.com/about</span> ⚡
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Opportunity OS About Page View */}
+                  {selectedSocialPlatform === 'ABOUT_PAGE' && (
+                    <>
+                      {/* Connection & Network Status */}
+                      <div style={{ padding: '12px 14px', borderRadius: 'var(--radius-sm)', background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.25)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10B981' }} />
+                            <span style={{ fontSize: '12px', fontWeight: 600, color: '#10B981' }}>
+                              Opportunity OS Video Network Showcase (Active)
+                            </span>
+                          </div>
+                          <a
+                            href="https://opportunity-system.com/about"
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#60A5FA', textDecoration: 'underline', fontWeight: 600 }}
+                          >
+                            Open Live Page <ExternalLink size={11} />
+                          </a>
+                        </div>
+
+                        {publishAboutPageError && (
+                          <div style={{ fontSize: '11px', color: '#EF4444', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <AlertCircle size={12} />
+                            {publishAboutPageError}
+                          </div>
+                        )}
+
+                        {publishedAboutPageUrl && (
+                          <div style={{ padding: '8px 10px', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.15)', border: '1px solid #10B981', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#10B981', fontWeight: 600 }}>
+                              <CheckCircle2 size={14} />
+                              <span>Live on Opportunity OS About Page Shorts Showcase!</span>
+                            </div>
+                            <a
+                              href={publishedAboutPageUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#60A5FA', textDecoration: 'underline', fontWeight: 700 }}
+                            >
+                              View on About Page <ExternalLink size={11} />
+                            </a>
+                          </div>
+                        )}
+
+                        {isPublishingAboutPage ? (
+                          <div style={{ padding: '12px', borderRadius: 'var(--radius-sm)', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(59, 130, 246, 0.4)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px' }}>
+                              <span style={{ color: 'var(--accent-teal)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <RefreshCw size={13} className="spin" />
+                                {publishAboutPageStage === 'RENDERING' && `🎨 [1/3] Baking 1080x1920 Short with Kinetic Subtitles...`}
+                                {publishAboutPageStage === 'INITIALIZING' && '⚡ [2/3] Generating 9:16 High-CTR Thumbnail...'}
+                                {publishAboutPageStage === 'SAVING' && '🚀 [3/3] Publishing to Opportunity OS Media Catalog...'}
+                                {publishAboutPageStage === 'DONE' && '🎉 Live on About Page!'}
+                              </span>
+                              <span style={{ color: '#fff', fontWeight: 700, fontSize: '13px' }}>
+                                {publishAboutPagePercent}%
+                              </span>
+                            </div>
+                            <div style={{ width: '100%', height: '8px', borderRadius: '4px', background: 'rgba(255,255,255,0.1)', overflow: 'hidden' }}>
+                              <div
+                                style={{
+                                  height: '100%',
+                                  width: `${publishAboutPagePercent}%`,
+                                  background: 'linear-gradient(90deg, #6366F1 0%, #00F2FE 100%)',
+                                  transition: 'width 0.3s ease',
+                                }}
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={handlePublishToAboutPage}
+                            disabled={isPublishingAboutPage || isExporting}
+                            className="btn btn--primary"
+                            style={{
+                              width: '100%',
+                              padding: '10px 16px',
+                              background: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)',
+                              border: '1px solid rgba(59, 130, 246, 0.5)',
+                              color: '#fff',
+                              fontWeight: 600,
+                              fontSize: '13px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '8px',
+                              boxShadow: '0 4px 16px rgba(59, 130, 246, 0.25)',
+                              cursor: 'pointer',
+                              borderRadius: 'var(--radius-sm)',
+                            }}
+                          >
+                            <Send size={14} color="#fff" />
+                            🚀 Publish Directly to About Page Shorts Showcase (1-Click)
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Showcase Shelf Preview */}
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                          <span>About Page 9:16 Card Preview:</span>
+                          <button
+                            onClick={() => copyToClipboard(`https://opportunity-system.com/about`, 'about_url')}
+                            className="btn btn--outline"
+                            style={{ padding: '2px 6px', fontSize: '10px' }}
+                          >
+                            {copiedKey === 'about_url' ? <Check size={10} color="#10b981" /> : <Copy size={10} />}
+                            {copiedKey === 'about_url' ? 'Copied Link' : 'Copy Page Link'}
+                          </button>
+                        </div>
+                        <div style={{ padding: '12px 14px', background: 'rgba(255,255,255,0.04)', borderRadius: '4px', color: '#fff', fontSize: '13px', lineHeight: '1.5' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                            <span style={{ background: '#ff0000', color: '#fff', fontSize: '10px', fontWeight: 800, padding: '1px 5px', borderRadius: '3px' }}>SHORTS</span>
+                            <span style={{ fontWeight: 700 }}>{videoTitle || thumbnailTitle}</span>
+                          </div>
+                          <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                            {videoDescription || 'Interactive Shoppable Short featuring AI-Native Software Engineering'}
+                          </div>
+                          <div style={{ marginTop: '8px', fontSize: '11px', color: '#60A5FA', display: 'flex', gap: '12px' }}>
+                            <span>⚡ Featured in The Video Network</span>
+                            <span>🎯 Shoppable Product Drawer Enabled</span>
+                          </div>
                         </div>
                       </div>
                     </>
