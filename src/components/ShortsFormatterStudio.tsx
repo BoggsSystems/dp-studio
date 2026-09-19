@@ -53,7 +53,7 @@ interface SubtitleChunk {
   text: string;
 }
 
-export type HighlightColor = 'amber' | 'emerald' | 'cyan' | 'pink' | 'crimson' | 'violet';
+export type HighlightColor = 'amber' | 'emerald' | 'cyan' | 'pink' | 'orange' | 'violet';
 export type LayoutMode = 'FIT_BLUR' | 'COVER_CROP';
 export type WordPacing = 'ONE_WORD' | 'TWO_THREE' | 'SENTENCE';
 export type QrPlacement = 'TOP_RIGHT' | 'BOTTOM_RIGHT' | 'TOP_LEFT';
@@ -64,7 +64,7 @@ const HIGHLIGHT_COLORS: Record<HighlightColor, { label: string; hex: string; glo
   emerald: { label: 'Neon Emerald', hex: '#10B981', glow: 'rgba(16, 185, 129, 0.6)' },
   cyan: { label: 'Cyber Cyan', hex: '#00F2FE', glow: 'rgba(0, 242, 254, 0.6)' },
   pink: { label: 'Hot Pink', hex: '#FF007F', glow: 'rgba(255, 0, 127, 0.6)' },
-  crimson: { label: 'Crimson Red', hex: '#EF4444', glow: 'rgba(239, 68, 68, 0.6)' },
+  orange: { label: 'Sunset Orange', hex: '#F97316', glow: 'rgba(249, 115, 22, 0.6)' },
   violet: { label: 'Neon Violet', hex: '#8B5CF6', glow: 'rgba(139, 92, 246, 0.6)' },
 };
 
@@ -2641,7 +2641,7 @@ export default function ShortsFormatterStudio() {
                             <button
                               onClick={handleConnectYouTube}
                               className="btn btn--outline"
-                              style={{ padding: '5px 12px', fontSize: '12px', background: 'rgba(255, 51, 75, 0.1)', border: '1px solid rgba(255, 51, 75, 0.35)', color: '#FF7588', fontWeight: 600 }}
+                              style={{ padding: '5px 12px', fontSize: '12px', background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.35)', color: '#60A5FA', fontWeight: 600 }}
                             >
                               ▶️ Connect YouTube
                             </button>
@@ -2681,9 +2681,9 @@ export default function ShortsFormatterStudio() {
 
                         {youtubeAccount && (
                           isPublishingYouTube ? (
-                            <div style={{ padding: '12px', borderRadius: 'var(--radius-sm)', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255, 51, 75, 0.4)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <div style={{ padding: '12px', borderRadius: 'var(--radius-sm)', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(59, 130, 246, 0.4)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px' }}>
-                                <span style={{ color: '#FF7588', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ color: 'var(--accent-teal)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
                                   <RefreshCw size={13} className="spin" />
                                   {publishYouTubeStage === 'RENDERING' && `🎨 [1/4] Baking 1080x1920 Short with Kinetic Subtitles...`}
                                   {publishYouTubeStage === 'INITIALIZING' && '⚡ [2/4] Initializing YouTube Session...'}
@@ -2700,10 +2700,10 @@ export default function ShortsFormatterStudio() {
                                   style={{
                                     height: '100%',
                                     width: `${publishYouTubePercent}%`,
-                                    background: 'linear-gradient(90deg, #FF334B 0%, #FF8A00 100%)',
+                                    background: 'linear-gradient(90deg, #6366F1 0%, #00F2FE 100%)',
                                     borderRadius: '4px',
                                     transition: 'width 0.2s ease',
-                                    boxShadow: '0 0 10px rgba(255, 51, 75, 0.5)',
+                                    boxShadow: '0 0 10px rgba(99, 102, 241, 0.5)',
                                   }}
                                 />
                               </div>
@@ -2721,19 +2721,19 @@ export default function ShortsFormatterStudio() {
                                 padding: '10px',
                                 fontSize: '13px',
                                 fontWeight: 600,
-                                background: 'linear-gradient(135deg, rgba(255, 51, 75, 0.18) 0%, rgba(180, 20, 40, 0.28) 100%)',
-                                border: '1px solid rgba(255, 51, 75, 0.45)',
+                                background: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)',
+                                border: '1px solid rgba(59, 130, 246, 0.5)',
                                 color: '#fff',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 gap: '8px',
-                                boxShadow: '0 4px 16px rgba(255, 51, 75, 0.12)',
+                                boxShadow: '0 4px 16px rgba(59, 130, 246, 0.25)',
                                 cursor: 'pointer',
                                 borderRadius: 'var(--radius-sm)',
                               }}
                             >
-                              <Send size={14} color="#FF7588" />
+                              <Send size={14} color="#fff" />
                               🚀 Publish Directly to YouTube Shorts (1-Click)
                             </button>
                           )

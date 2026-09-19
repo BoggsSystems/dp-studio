@@ -276,7 +276,7 @@ export default function ProjectList({
                   key={short.id}
                   style={{
                     background: 'var(--bg-canvas)',
-                    border: '1px solid rgba(255, 51, 75, 0.3)',
+                    border: '1px solid var(--border-subtle)',
                     borderRadius: 'var(--radius-md)',
                     overflow: 'hidden',
                     display: 'flex',
@@ -304,7 +304,7 @@ export default function ProjectList({
                       />
                     ) : (
                       <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-                        <Smartphone size={36} color="#FF7588" />
+                        <Smartphone size={36} color="var(--accent-teal)" />
                         <div style={{ fontSize: '11px', marginTop: '6px' }}>9:16 Short Video</div>
                       </div>
                     )}
@@ -314,7 +314,8 @@ export default function ProjectList({
                         position: 'absolute',
                         top: '10px',
                         left: '10px',
-                        background: 'rgba(255, 51, 75, 0.85)',
+                        background: 'linear-gradient(135deg, #6366F1 0%, #3B82F6 100%)',
+                        boxShadow: '0 2px 8px rgba(99, 102, 241, 0.4)',
                         padding: '2px 8px',
                         borderRadius: '4px',
                         fontSize: '11px',
@@ -357,7 +358,7 @@ export default function ProjectList({
                         href={short.publishedYouTubeUrl}
                         target="_blank"
                         rel="noreferrer"
-                        style={{ fontSize: '11px', color: '#FF7588', display: 'flex', alignItems: 'center', gap: '4px', textDecoration: 'none', fontWeight: 600 }}
+                        style={{ fontSize: '11px', color: 'var(--accent-teal)', display: 'flex', alignItems: 'center', gap: '4px', textDecoration: 'none', fontWeight: 600 }}
                       >
                         <ExternalLink size={12} /> View on YouTube Shorts
                       </a>
@@ -367,7 +368,7 @@ export default function ProjectList({
                       <button
                         type="button"
                         className="btn btn-primary"
-                        style={{ flex: 1, padding: '6px 10px', fontSize: '12px', background: 'linear-gradient(135deg, rgba(255, 51, 75, 0.18) 0%, rgba(180, 20, 40, 0.28) 100%)', border: '1px solid rgba(255, 51, 75, 0.45)', color: '#fff' }}
+                        style={{ flex: 1, padding: '6px 10px', fontSize: '12px' }}
                         onClick={() => handleOpenShortInStudio(short)}
                       >
                         <Edit3 size={12} />

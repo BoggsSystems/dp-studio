@@ -331,11 +331,11 @@ export default function SavedShortsManager({ onOpenInStudio, onNewShort }: Saved
                       width: '44px',
                       height: '44px',
                       borderRadius: '50%',
-                      background: 'rgba(255, 51, 75, 0.85)',
+                      background: 'linear-gradient(135deg, #6366F1 0%, #3B82F6 100%)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      boxShadow: '0 4px 12px rgba(255, 51, 75, 0.4)',
+                      boxShadow: '0 4px 12px rgba(99, 102, 241, 0.4)',
                     }}
                   >
                     <Edit3 size={20} color="#fff" />
@@ -401,7 +401,7 @@ export default function SavedShortsManager({ onOpenInStudio, onNewShort }: Saved
                       onClick={(e) => e.stopPropagation()}
                       style={{
                         fontSize: '11px',
-                        color: '#FF7588',
+                        color: 'var(--accent-teal)',
                         textDecoration: 'none',
                         display: 'flex',
                         alignItems: 'center',
