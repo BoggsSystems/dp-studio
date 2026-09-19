@@ -48,7 +48,7 @@ export default function ConfirmModal({
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 9999,
+        zIndex: 99999,
         background: 'rgba(5, 8, 16, 0.75)',
         backdropFilter: 'blur(10px)',
         display: 'flex',
