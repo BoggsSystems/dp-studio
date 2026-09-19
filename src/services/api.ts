@@ -623,7 +623,7 @@ export const api = {
   getTikTokAuthUrl(origin?: string): string {
     const clientOrigin = origin || (typeof window !== 'undefined' ? window.location.origin : 'https://studio.opportunity-system.com');
     const rootUrl = 'https://www.tiktok.com/v2/auth/authorize/';
-    const clientKey = 'awbpwml7l5ydtrv9';
+    const clientKey = 'sbaw8pzk13d1hkz300';
     const redirectUri = 'https://digitpop.opportunity-system.com/api/social/auth/tiktok/callback';
     const state = typeof btoa !== 'undefined' ? btoa(JSON.stringify({ origin: clientOrigin })) : '';
     const params = new URLSearchParams({
