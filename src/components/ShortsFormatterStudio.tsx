@@ -321,6 +321,9 @@ export default function ShortsFormatterStudio() {
           if (draft.qrPlacement) setQrPlacement(draft.qrPlacement);
           if (draft.qrCustomUrl) setQrCustomUrl(draft.qrCustomUrl);
           if (draft.selectedProductId) setSavedProductId(draft.selectedProductId);
+          if (draft.videoTitle) setVideoTitle(draft.videoTitle);
+          if (draft.videoDescription) setVideoDescription(draft.videoDescription);
+          if (draft.pinnedCommentText) setPinnedCommentText(draft.pinnedCommentText);
           if (draft.thumbnailTitle) setThumbnailTitle(draft.thumbnailTitle);
           if (draft.thumbnailStyle) setThumbnailStyle(draft.thumbnailStyle);
           if (draft.thumbnailFontSize) setThumbnailFontSize(draft.thumbnailFontSize);
@@ -372,6 +375,9 @@ export default function ShortsFormatterStudio() {
           id: shortProjectId,
           words,
           editableTranscript,
+          videoTitle,
+          videoDescription,
+          pinnedCommentText,
           highlightColor,
           fontSize,
           verticalPosition,
@@ -401,15 +407,18 @@ export default function ShortsFormatterStudio() {
         localStorage.setItem('digitpop_shorts_formatter_draft_v1', JSON.stringify(draftData));
 
         // Auto-sync into multi-project shorts library
-        if (words.length > 0 || editableTranscript || thumbnailTitle || videoUrl) {
+        if (words.length > 0 || editableTranscript || thumbnailTitle || videoTitle || videoUrl) {
           const shortProjectRecord: FormattedShortProject = {
             id: shortProjectId,
-            title: thumbnailTitle || (videoFile?.name ? videoFile.name.replace(/\.[^/.]+$/, '') : 'AI Shoppable Short'),
+            title: videoTitle || thumbnailTitle || (videoFile?.name ? videoFile.name.replace(/\.[^/.]+$/, '') : 'AI Shoppable Short'),
             videoFileName: videoFile?.name || 'short_video.mp4',
             thumbnailUrl: thumbnailImage || undefined,
             durationSeconds: duration || (words.length ? Math.ceil(words[words.length - 1].end) : 30),
             words,
             editableTranscript,
+            videoTitle,
+            videoDescription,
+            pinnedCommentText,
             highlightColor,
             fontSize,
             verticalPosition,
@@ -447,6 +456,9 @@ export default function ShortsFormatterStudio() {
   }, [
     words,
     editableTranscript,
+    videoTitle,
+    videoDescription,
+    pinnedCommentText,
     highlightColor,
     fontSize,
     verticalPosition,
@@ -726,12 +738,15 @@ export default function ShortsFormatterStudio() {
     if (!videoUrl && !videoFile) return;
     const shortProject: FormattedShortProject = {
       id: shortProjectId,
-      title: thumbnailTitle || (videoFile?.name ? videoFile.name.replace(/\.[^/.]+$/, '') : 'AI Shoppable Short'),
+      title: videoTitle || thumbnailTitle || (videoFile?.name ? videoFile.name.replace(/\.[^/.]+$/, '') : 'AI Shoppable Short'),
       videoFileName: videoFile?.name || 'short_video.mp4',
       thumbnailUrl: thumbnailImage || undefined,
       durationSeconds: duration || 30,
       words,
       editableTranscript,
+      videoTitle,
+      videoDescription,
+      pinnedCommentText,
       highlightColor,
       fontSize,
       verticalPosition,

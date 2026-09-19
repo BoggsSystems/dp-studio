@@ -188,6 +188,9 @@ export interface FormattedShortProject {
   productId?: string;
   productTitle?: string;
   productPrice?: number;
+  videoTitle?: string;
+  videoDescription?: string;
+  pinnedCommentText?: string;
   thumbnailTitle?: string;
   thumbnailStyle?: string;
   thumbnailFontSize?: number;
