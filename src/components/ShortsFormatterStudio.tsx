@@ -239,6 +239,7 @@ export default function ShortsFormatterStudio() {
   const [exportProgress, setExportProgress] = useState<number>(0);
 
   // Persistence and Auto-Recovery State
+  const [shortProjectId, setShortProjectId] = useState<string>(() => 'short_active_draft');
   const [isDraftRestored, setIsDraftRestored] = useState<boolean>(false);
   const [savedProductId, setSavedProductId] = useState<string | null>(null);
   const isMountedRef = useRef<boolean>(false);
@@ -254,6 +255,8 @@ export default function ShortsFormatterStudio() {
 
         if (savedDraftJson) {
           const draft = JSON.parse(savedDraftJson);
+          if (draft.id) setShortProjectId(draft.id);
+          if (draft.publishedYouTubeUrl) setPublishedYouTubeUrl(draft.publishedYouTubeUrl);
           if (draft.words && draft.words.length > 0) {
             setWords(draft.words);
             hasRestoredData = true;
@@ -322,6 +325,7 @@ export default function ShortsFormatterStudio() {
     const timer = setTimeout(() => {
       try {
         const draftData = {
+          id: shortProjectId,
           words,
           editableTranscript,
           highlightColor,
@@ -336,6 +340,8 @@ export default function ShortsFormatterStudio() {
           qrPlacement,
           qrCustomUrl,
           selectedProductId: selectedProduct?.id || savedProductId || null,
+          productTitle: selectedProduct?.title,
+          productPrice: selectedProduct?.price,
           thumbnailTitle,
           thumbnailStyle,
           thumbnailFontSize,
@@ -344,9 +350,50 @@ export default function ShortsFormatterStudio() {
           thumbnailStrokeWidth,
           thumbnailUppercase,
           thumbnailImage,
+          publishedYouTubeUrl,
+          status: publishedYouTubeUrl ? 'PUBLISHED' : 'DRAFT',
           updatedAt: Date.now(),
         };
         localStorage.setItem('digitpop_shorts_formatter_draft_v1', JSON.stringify(draftData));
+
+        // Auto-sync into multi-project shorts library
+        if (words.length > 0 || editableTranscript || thumbnailTitle || videoUrl) {
+          const shortProjectRecord: FormattedShortProject = {
+            id: shortProjectId,
+            title: thumbnailTitle || (videoFile?.name ? videoFile.name.replace(/\.[^/.]+$/, '') : 'AI Shoppable Short'),
+            videoFileName: videoFile?.name || 'short_video.mp4',
+            thumbnailUrl: thumbnailImage || undefined,
+            durationSeconds: duration || (words.length ? Math.ceil(words[words.length - 1].end) : 30),
+            words,
+            editableTranscript,
+            highlightColor,
+            fontSize,
+            verticalPosition,
+            wordPacing,
+            autoEmojis,
+            uppercase,
+            layoutMode,
+            showShoppableDrawer,
+            showQrCode,
+            qrPlacement,
+            qrCustomUrl,
+            productId: selectedProduct?.id || savedProductId || undefined,
+            productTitle: selectedProduct?.title,
+            productPrice: selectedProduct?.price,
+            thumbnailTitle,
+            thumbnailStyle,
+            thumbnailFontSize,
+            thumbnailPosition,
+            thumbnailBadge,
+            thumbnailStrokeWidth,
+            thumbnailUppercase,
+            publishedYouTubeUrl: publishedYouTubeUrl || undefined,
+            status: publishedYouTubeUrl ? 'PUBLISHED' : 'DRAFT',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          saveShortProject(shortProjectRecord);
+        }
       } catch (e) {
         console.warn('Draft auto-save warning:', e);
       }
@@ -520,6 +567,7 @@ export default function ShortsFormatterStudio() {
       console.warn('Draft clear error:', e);
     }
 
+    setShortProjectId(`short_${Date.now()}`);
     setVideoFile(null);
     setVideoUrl(null);
     setWords([]);
@@ -527,6 +575,7 @@ export default function ShortsFormatterStudio() {
     setTranscribeError(null);
     setIsDraftRestored(false);
     setThumbnailImage(null);
+    setPublishedYouTubeUrl(null);
   };
 
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
@@ -535,8 +584,8 @@ export default function ShortsFormatterStudio() {
   const handleManualSaveShort = async () => {
     if (!videoUrl && !videoFile) return;
     const shortProject: FormattedShortProject = {
-      id: `short_${Date.now()}`,
-      title: thumbnailTitle || 'AI Shoppable Short',
+      id: shortProjectId,
+      title: thumbnailTitle || (videoFile?.name ? videoFile.name.replace(/\.[^/.]+$/, '') : 'AI Shoppable Short'),
       videoFileName: videoFile?.name || 'short_video.mp4',
       thumbnailUrl: thumbnailImage || undefined,
       durationSeconds: duration || 30,
@@ -553,7 +602,7 @@ export default function ShortsFormatterStudio() {
       showQrCode,
       qrPlacement,
       qrCustomUrl,
-      productId: selectedProduct?.id,
+      productId: selectedProduct?.id || savedProductId || undefined,
       productTitle: selectedProduct?.title,
       productPrice: selectedProduct?.price,
       thumbnailTitle,
@@ -1369,8 +1418,8 @@ export default function ShortsFormatterStudio() {
       // Automatically sync published short to library
       try {
         const shortRecord: FormattedShortProject = {
-          id: `short_${Date.now()}`,
-          title: thumbnailTitle || 'AI Shoppable Short',
+          id: shortProjectId,
+          title: thumbnailTitle || (videoFile?.name ? videoFile.name.replace(/\.[^/.]+$/, '') : 'AI Shoppable Short'),
           videoFileName: videoFile?.name || 'short_video.mp4',
           thumbnailUrl: thumbnailImage || undefined,
           durationSeconds: duration || 30,
@@ -1387,7 +1436,7 @@ export default function ShortsFormatterStudio() {
           showQrCode,
           qrPlacement,
           qrCustomUrl,
-          productId: selectedProduct?.id,
+          productId: selectedProduct?.id || savedProductId || undefined,
           productTitle: selectedProduct?.title,
           productPrice: selectedProduct?.price,
           thumbnailTitle,

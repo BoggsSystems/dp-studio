@@ -135,9 +135,70 @@ export async function saveShortProject(
 
 export function getAllShortProjects(): FormattedShortProject[] {
   try {
+    let list: FormattedShortProject[] = [];
     const data = localStorage.getItem(SHORTS_LIBRARY_KEY);
-    if (!data) return [];
-    return JSON.parse(data);
+    if (data) {
+      try {
+        list = JSON.parse(data);
+      } catch (e) {
+        list = [];
+      }
+    }
+
+    // Auto-migration & synchronization: If library is missing the active working draft,
+    // synthesize an entry from digitpop_shorts_formatter_draft_v1 so active drafts are never lost.
+    const draftJson = localStorage.getItem('digitpop_shorts_formatter_draft_v1');
+    if (draftJson) {
+      try {
+        const draft = JSON.parse(draftJson);
+        const draftId = draft.id || 'short_active_draft';
+        const alreadyExists = list.some((item) => item.id === draftId);
+
+        if (!alreadyExists && (draft.words?.length > 0 || draft.editableTranscript || draft.thumbnailTitle || draft.thumbnailImage)) {
+          const synthesized: FormattedShortProject = {
+            id: draftId,
+            title: draft.thumbnailTitle || 'AI Shoppable Short (Draft)',
+            videoFileName: draft.videoFileName || 'short_video.mp4',
+            thumbnailUrl: draft.thumbnailImage || undefined,
+            durationSeconds: draft.durationSeconds || (draft.words?.length ? Math.ceil(draft.words[draft.words.length - 1].end) : 30),
+            words: draft.words || [],
+            editableTranscript: draft.editableTranscript || '',
+            highlightColor: draft.highlightColor || '#FFE600',
+            fontSize: draft.fontSize ?? 22,
+            verticalPosition: draft.verticalPosition ?? 78,
+            wordPacing: draft.wordPacing || 'POP_TWO_WORDS',
+            autoEmojis: draft.autoEmojis ?? true,
+            uppercase: draft.uppercase ?? true,
+            layoutMode: draft.layoutMode || 'FIT_BLUR',
+            showShoppableDrawer: draft.showShoppableDrawer ?? true,
+            showQrCode: draft.showQrCode ?? true,
+            qrPlacement: draft.qrPlacement || 'TOP_RIGHT',
+            qrCustomUrl: draft.qrCustomUrl,
+            productId: draft.selectedProductId,
+            productTitle: draft.productTitle,
+            productPrice: draft.productPrice,
+            thumbnailTitle: draft.thumbnailTitle,
+            thumbnailStyle: draft.thumbnailStyle || 'VIRAL_WHITE',
+            thumbnailFontSize: draft.thumbnailFontSize || 54,
+            thumbnailPosition: draft.thumbnailPosition || 45,
+            thumbnailBadge: draft.thumbnailBadge || '⚡ MUST WATCH',
+            thumbnailStrokeWidth: draft.thumbnailStrokeWidth || 14,
+            thumbnailUppercase: draft.thumbnailUppercase ?? true,
+            publishedYouTubeUrl: draft.publishedYouTubeUrl,
+            publishedAt: draft.publishedAt,
+            status: draft.publishedYouTubeUrl ? 'PUBLISHED' : 'DRAFT',
+            createdAt: draft.createdAt || new Date().toISOString(),
+            updatedAt: new Date(draft.updatedAt || Date.now()).toISOString(),
+          };
+          list.unshift(synthesized);
+          localStorage.setItem(SHORTS_LIBRARY_KEY, JSON.stringify(list));
+        }
+      } catch (e) {
+        console.warn('Failed to parse draft for library migration:', e);
+      }
+    }
+
+    return list;
   } catch (err) {
     console.warn('Failed to get saved shorts:', err);
     return [];
@@ -196,6 +257,9 @@ export async function deleteShortProject(id: string): Promise<void> {
 export async function loadShortProjectIntoActiveDraft(short: FormattedShortProject, blob?: Blob | null): Promise<void> {
   try {
     const draftData = {
+      id: short.id,
+      title: short.title,
+      videoFileName: short.videoFileName,
       words: short.words,
       editableTranscript: short.editableTranscript,
       highlightColor: short.highlightColor,
@@ -210,6 +274,8 @@ export async function loadShortProjectIntoActiveDraft(short: FormattedShortProje
       qrPlacement: short.qrPlacement,
       qrCustomUrl: short.qrCustomUrl,
       selectedProductId: short.productId || null,
+      productTitle: short.productTitle,
+      productPrice: short.productPrice,
       thumbnailTitle: short.thumbnailTitle || short.title,
       thumbnailStyle: short.thumbnailStyle || 'VIRAL_WHITE',
       thumbnailFontSize: short.thumbnailFontSize || 54,
@@ -218,6 +284,10 @@ export async function loadShortProjectIntoActiveDraft(short: FormattedShortProje
       thumbnailStrokeWidth: short.thumbnailStrokeWidth || 14,
       thumbnailUppercase: short.thumbnailUppercase ?? true,
       thumbnailImage: short.thumbnailUrl || null,
+      publishedYouTubeUrl: short.publishedYouTubeUrl,
+      publishedAt: short.publishedAt,
+      status: short.status,
+      createdAt: short.createdAt,
       updatedAt: Date.now(),
     };
     localStorage.setItem('digitpop_shorts_formatter_draft_v1', JSON.stringify(draftData));
