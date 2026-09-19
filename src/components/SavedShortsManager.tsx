@@ -14,6 +14,8 @@ import {
   Video,
   Share2,
 } from 'lucide-react';
+import ConfirmModal from './ConfirmModal';
+import { toast } from '../services/toast';
 import { FormattedShortProject } from '../types';
 import {
   getAllShortProjects,
@@ -32,6 +34,7 @@ export default function SavedShortsManager({ onOpenInStudio, onNewShort }: Saved
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'ALL' | 'PUBLISHED' | 'DRAFT'>('ALL');
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const loadShorts = () => {
     const list = getAllShortProjects();
@@ -42,12 +45,17 @@ export default function SavedShortsManager({ onOpenInStudio, onNewShort }: Saved
     loadShorts();
   }, []);
 
-  const handleDelete = async (e: React.MouseEvent, id: string) => {
+  const handleDelete = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    if (window.confirm('Are you sure you want to delete this short? This cannot be undone.')) {
-      await deleteShortProject(id);
-      loadShorts();
-    }
+    setDeletingId(id);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingId) return;
+    await deleteShortProject(deletingId);
+    loadShorts();
+    setDeletingId(null);
+    toast.success('Short project deleted', 'Deleted');
   };
 
   const handleEdit = async (short: FormattedShortProject) => {
@@ -460,6 +468,17 @@ export default function SavedShortsManager({ onOpenInStudio, onNewShort }: Saved
           })}
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!deletingId}
+        title="Delete Short Project"
+        message="Are you sure you want to delete this short? This action cannot be undone and will remove the cached video from your device."
+        confirmText="Delete Short"
+        variant="danger"
+        onConfirm={handleConfirmDelete}
+        onClose={() => setDeletingId(null)}
+      />
     </div>
   );
 }

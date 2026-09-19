@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Sparkles, Check, CheckCheck, Loader2, ArrowRight } from 'lucide-react';
 import { AiTagDetection } from '../types';
 import { api } from '../services/api';
+import { toast } from '../services/toast';
 
 interface AiAutopilotPanelProps {
   videoUrl?: string;
@@ -20,7 +21,7 @@ export default function AiAutopilotPanel({
 
   const handleRunScan = async () => {
     if (!videoUrl) {
-      alert('Please upload or load a video source before running the AI Autopilot scan.');
+      toast.warning('Please upload or load a video source before running the AI Autopilot scan.', 'No Video Loaded');
       return;
     }
 
@@ -28,8 +29,9 @@ export default function AiAutopilotPanel({
     try {
       const results = await api.scanVideoWithAi(videoUrl);
       setDetections(results);
+      toast.success(`Found ${results.length} shoppable timestamp opportunities!`, 'AI Scan Complete');
     } catch (err: any) {
-      alert(`AI scan warning: ${err.message}`);
+      toast.error(err.message || 'AI scan failed', 'Scan Error');
     } finally {
       setIsScanning(false);
     }

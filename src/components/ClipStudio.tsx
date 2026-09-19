@@ -15,6 +15,7 @@ import { api } from '../services/api';
 import ShortsFormatterStudio from './ShortsFormatterStudio';
 import SavedShortsManager from './SavedShortsManager';
 import { getAllShortProjects } from '../services/videoStorage';
+import { toast } from '../services/toast';
 
 interface ClipStudioProps {
   projectId?: string;
@@ -56,8 +57,9 @@ export default function ClipStudio({ projectId, initialView = 'FORMATTER' }: Cli
           return c;
         })
       );
+      toast.success(`Published clip to ${platform}!`, 'Live on Channel');
     } catch (e: any) {
-      alert(`Publishing error: ${e.message}`);
+      toast.error(e.message || 'Publishing error', 'Publish Failed');
     } finally {
       setPublishingClipId(null);
     }

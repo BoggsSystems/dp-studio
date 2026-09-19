@@ -16,6 +16,8 @@ import LivestreamHub from './components/live/LivestreamHub';
 import OnAirStudio from './components/live/OnAirStudio';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import AuthPortal from './components/AuthPortal';
+import ToastContainer from './components/ToastContainer';
+import { toast } from './services/toast';
 import { Project, ProductGroup, AiTagDetection, Campaign, StreamSession, Product } from './types';
 import { api } from './services/api';
 
@@ -210,9 +212,9 @@ function StudioApp() {
       const saved = await api.saveProject(project);
       setProject(saved);
       setProjects((prev) => prev.map((p) => (p.id === saved.id ? saved : p)));
-      alert('Project saved successfully!');
+      toast.success('Project saved successfully!', 'Saved');
     } catch (e: any) {
-      alert(`Save error: ${e.message}`);
+      toast.error(e.message || 'Failed to save project', 'Save Error');
     } finally {
       setIsSaving(false);
     }
@@ -249,11 +251,10 @@ function StudioApp() {
       // Persist to backend so it shows in Projects catalog
       await api.saveProject(updated);
 
-      setThumbnailToast(`Thumbnail updated at ${currentTime.toFixed(1)}s!`);
-      setTimeout(() => setThumbnailToast(null), 3000);
+      toast.success(`Thumbnail updated at ${currentTime.toFixed(1)}s!`, 'Thumbnail Saved');
     } catch (err: any) {
       console.error('Failed to capture thumbnail:', err);
-      alert(`Thumbnail capture failed: ${err.message}`);
+      toast.error(err.message || 'Failed to capture thumbnail', 'Thumbnail Error');
     } finally {
       setIsCapturingThumbnail(false);
     }
@@ -550,6 +551,9 @@ function StudioApp() {
           <span>{thumbnailToast}</span>
         </div>
       )}
+
+      {/* Global Studio Toast Notifications */}
+      <ToastContainer />
     </div>
   );
 }

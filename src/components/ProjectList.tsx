@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Video, Play, Edit3, ExternalLink, Trash2, Layers, ShoppingBag, CheckCircle, Sparkles, Smartphone, CheckCircle2 } from 'lucide-react';
 import { Project, FormattedShortProject } from '../types';
 import ProjectWizardModal from './ProjectWizardModal';
+import ConfirmModal from './ConfirmModal';
+import { toast } from '../services/toast';
 import { getAllShortProjects, getShortProject, loadShortProjectIntoActiveDraft, deleteShortProject } from '../services/videoStorage';
 
 interface ProjectListProps {
@@ -31,6 +33,7 @@ export default function ProjectList({
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<'ALL' | 'VOD' | 'SHORTS'>('ALL');
   const [savedShorts, setSavedShorts] = useState<FormattedShortProject[]>([]);
+  const [deletingShortId, setDeletingShortId] = useState<string | null>(null);
 
   useEffect(() => {
     setSavedShorts(getAllShortProjects());
@@ -51,12 +54,17 @@ export default function ProjectList({
     }
   };
 
-  const handleDeleteShort = async (e: React.MouseEvent, shortId: string) => {
+  const handleDeleteShort = (e: React.MouseEvent, shortId: string) => {
     e.stopPropagation();
-    if (window.confirm('Delete this short project? This cannot be undone.')) {
-      await deleteShortProject(shortId);
-      setSavedShorts(getAllShortProjects());
-    }
+    setDeletingShortId(shortId);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingShortId) return;
+    await deleteShortProject(deletingShortId);
+    setSavedShorts(getAllShortProjects());
+    setDeletingShortId(null);
+    toast.success('Short project removed from library', 'Deleted');
   };
 
   const totalCount = projects.length + savedShorts.length;
@@ -408,6 +416,17 @@ export default function ProjectList({
           onProjectCreated(newProj);
           onSelectProject(newProj);
         }}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!deletingShortId}
+        title="Delete Short Project"
+        message="Are you sure you want to delete this short? This action cannot be undone and will remove the cached video from your device."
+        confirmText="Delete Short"
+        variant="danger"
+        onConfirm={handleConfirmDelete}
+        onClose={() => setDeletingShortId(null)}
       />
     </div>
   );

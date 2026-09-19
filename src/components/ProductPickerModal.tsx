@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { Product } from '../types';
 import { api } from '../services/api';
+import { toast } from '../services/toast';
 import CreateProductModal from './CreateProductModal';
 
 interface ProductPickerModalProps {
@@ -78,8 +79,9 @@ export default function ProductPickerModal({
     try {
       const data = await api.resolveProductUrl(urlInput.trim());
       setScrapedProduct(data);
+      toast.success('Product details retrieved', 'Product Resolved');
     } catch (e: any) {
-      alert(`Scrape error: ${e.message}`);
+      toast.error(e.message || 'Scrape error', 'Scrape Failed');
     } finally {
       setIsResolving(false);
     }

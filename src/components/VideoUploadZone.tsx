@@ -1,17 +1,22 @@
 import React, { useState, useRef } from 'react';
 import { UploadCloud, Video, CheckCircle, Link as LinkIcon, RefreshCw } from 'lucide-react';
 import { api } from '../services/api';
+import { toast } from '../services/toast';
 
 interface VideoUploadZoneProps {
-  videoUrl?: string;
-  thumbnailUrl?: string;
-  onVideoLoaded: (videoUrl: string, duration: number, thumbnailUrl?: string) => void;
+  videoUrl?: string | null;
+  thumbnailUrl?: string | null;
+  onVideoLoaded: (url: string, duration: number, thumbnailUrl?: string) => void;
+  onThumbnailCapture?: (dataUrl: string) => void;
+  currentTime?: number;
 }
 
 export default function VideoUploadZone({
   videoUrl,
   thumbnailUrl,
   onVideoLoaded,
+  onThumbnailCapture,
+  currentTime = 0,
 }: VideoUploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
@@ -22,7 +27,7 @@ export default function VideoUploadZone({
 
   const handleFile = async (file: File) => {
     if (!file.type.startsWith('video/')) {
-      alert('Please select a valid video file (.mp4, .mov, .webm)');
+      toast.error('Please select a valid video file (.mp4, .mov, .webm)', 'Invalid File Type');
       return;
     }
 
@@ -34,6 +39,7 @@ export default function VideoUploadZone({
 
       setUploadProgress(100);
       setTimeout(() => setUploadProgress(null), 800);
+      toast.success('Video uploaded successfully', 'Upload Complete');
 
       // Create object URL for instant local duration probing
       const probeVideo = document.createElement('video');
@@ -58,7 +64,7 @@ export default function VideoUploadZone({
         };
       };
     } catch (err: any) {
-      alert(`Upload error: ${err.message}`);
+      toast.error(err.message || 'Video upload failed', 'Upload Error');
       setUploadProgress(null);
     }
   };
@@ -66,7 +72,7 @@ export default function VideoUploadZone({
   const handleCustomUrlSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!customUrl.trim()) return;
-    onVideoLoaded(customUrl.trim(), 120, thumbnailUrl);
+    onVideoLoaded(customUrl.trim(), 120, thumbnailUrl || undefined);
     setIsDirectUrlMode(false);
   };
 

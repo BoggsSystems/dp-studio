@@ -17,6 +17,8 @@ import {
 import { Product } from '../types';
 import { api } from '../services/api';
 import CreateProductModal from './CreateProductModal';
+import ConfirmModal from './ConfirmModal';
+import { toast } from '../services/toast';
 
 interface ProductCatalogProps {
   products: Product[];
@@ -33,6 +35,7 @@ export default function ProductCatalog({
   const [isShopifyModalOpen, setIsShopifyModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [deletingProductId, setDeletingProductId] = useState<string | null>(null);
   
   // URL Resolver State
   const [urlInput, setUrlInput] = useState('');
@@ -40,12 +43,12 @@ export default function ProductCatalog({
   const [resolvedPreview, setResolvedPreview] = useState<Partial<Product> | null>(null);
 
   // Shopify Sync State
-  const [shopifyStoreInput, setShopifyStoreInput] = useState('allbirds.com');
+  const [shopifyStoreInput, setShopifyStoreInput] = useState('');
   const [isSyncingShopify, setIsSyncingShopify] = useState(false);
   const [shopifySyncSuccess, setShopifySyncSuccess] = useState<string | null>(null);
 
 
-  // Filtered products
+  // Filter products by search and source
   const filteredProducts = products.filter((p) => {
     const matchesSearch = 
       p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -65,7 +68,7 @@ export default function ProductCatalog({
       const data = await api.resolveProductUrl(urlInput.trim());
       setResolvedPreview(data);
     } catch (err: any) {
-      alert(`Could not extract product: ${err.message}`);
+      toast.error(err.message || 'Could not extract product from URL', 'Extraction Error');
     } finally {
       setIsResolvingUrl(false);
     }
@@ -78,6 +81,7 @@ export default function ProductCatalog({
     setIsUrlModalOpen(false);
     setUrlInput('');
     setResolvedPreview(null);
+    toast.success('Product imported successfully', 'Import Complete');
   };
 
   // Handle Shopify Sync
@@ -91,22 +95,29 @@ export default function ProductCatalog({
       const updatedList = await api.getProducts();
       onProductsUpdated(updatedList);
       setShopifySyncSuccess(`Successfully synced ${result.count} products from ${result.store}!`);
+      toast.success(`Successfully synced ${result.count} products from ${result.store}!`, 'Shopify Sync');
       setTimeout(() => {
         setIsShopifyModalOpen(false);
         setShopifySyncSuccess(null);
       }, 1500);
     } catch (err: any) {
-      alert(`Shopify sync failed: ${err.message}`);
+      toast.error(err.message || 'Shopify sync failed', 'Sync Error');
     } finally {
       setIsSyncingShopify(false);
     }
   };
 
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to remove this product from the central catalog?')) return;
-    await api.deleteProduct(id);
-    onProductsUpdated(products.filter((p) => p.id !== id));
+  const handleDelete = (id: string) => {
+    setDeletingProductId(id);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingProductId) return;
+    await api.deleteProduct(deletingProductId);
+    onProductsUpdated(products.filter((p) => p.id !== deletingProductId));
+    setDeletingProductId(null);
+    toast.success('Product removed from catalog', 'Deleted');
   };
 
   const getSourceBadge = (source?: string) => {
@@ -472,6 +483,17 @@ export default function ProductCatalog({
           }
           setEditingProduct(null);
         }}
+      />
+
+      {/* Delete Product Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!deletingProductId}
+        title="Remove Product"
+        message="Are you sure you want to remove this product from the central catalog? Interactive tags linked to this product will remain saved in existing project drafts."
+        confirmText="Remove Product"
+        variant="danger"
+        onConfirm={handleConfirmDelete}
+        onClose={() => setDeletingProductId(null)}
       />
     </div>
   );

@@ -36,6 +36,7 @@ import {
 import QRCode from 'qrcode';
 import { api } from '../services/api';
 import { saveDraftVideoBlob, getDraftVideoBlob, clearDraftVideoBlob, saveShortProject } from '../services/videoStorage';
+import { toast } from '../services/toast';
 import { Product, FormattedShortProject } from '../types';
 
 interface WordItem {
@@ -1520,10 +1521,11 @@ export default function ShortsFormatterStudio() {
       document.body.removeChild(a);
       setIsExporting(false);
       setExportProgress(100);
+      toast.success('9:16 Short rendered and downloaded successfully!', 'Export Complete');
     } catch (err: any) {
       console.error('Export recording failed:', err);
       setIsExporting(false);
-      alert('Video export failed: ' + (err.message || 'Browser recording error'));
+      toast.error(err.message || 'Browser recording error', 'Video Export Failed');
     }
   };
 

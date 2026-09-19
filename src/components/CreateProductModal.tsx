@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { Product, CheckoutType } from '../types';
 import { api } from '../services/api';
+import { toast } from '../services/toast';
 
 interface CreateProductModalProps {
   isOpen: boolean;
@@ -191,7 +192,7 @@ export default function CreateProductModal({
   const handleFilesSelect = async (files: FileList | File[]) => {
     const validFiles = Array.from(files).filter((f) => f.type.startsWith('image/'));
     if (validFiles.length === 0) {
-      alert('Please select image files (JPG, PNG, WEBP).');
+      toast.error('Please select valid image files (JPG, PNG, WEBP).', 'Invalid Image Type');
       return;
     }
 
@@ -300,7 +301,7 @@ export default function CreateProductModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
-      alert('Please provide a product title');
+      toast.warning('Please provide a product title', 'Title Required');
       return;
     }
 
