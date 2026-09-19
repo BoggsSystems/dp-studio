@@ -2989,10 +2989,10 @@ export default function ShortsFormatterStudio() {
                 {/* Platform Selector Tabs */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
                   {[
-                    { key: 'YOUTUBE', label: 'YouTube Shorts', icon: '▶️', color: '#FF334B' },
-                    { key: 'TIKTOK', label: 'TikTok', icon: '🎵', color: '#00F2FE' },
-                    { key: 'INSTAGRAM', label: 'IG Reels', icon: '📸', color: '#E1306C' },
-                    { key: 'TWITTER', label: 'X (Twitter)', icon: '✖️', color: '#FFFFFF' },
+                    { key: 'YOUTUBE', label: 'YouTube Shorts', icon: '▶️' },
+                    { key: 'TIKTOK', label: 'TikTok', icon: '🎵' },
+                    { key: 'INSTAGRAM', label: 'IG Reels', icon: '📸' },
+                    { key: 'TWITTER', label: 'X (Twitter)', icon: '✖️' },
                   ].map((p) => {
                     const isSelected = selectedSocialPlatform === p.key;
                     return (
@@ -3002,13 +3002,15 @@ export default function ShortsFormatterStudio() {
                         style={{
                           padding: '10px 8px',
                           borderRadius: 'var(--radius-sm)',
-                          border: isSelected ? `1px solid ${p.color}` : '1px solid var(--border-color)',
-                          background: isSelected ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.3)',
+                          border: isSelected ? '1px solid rgba(59, 130, 246, 0.6)' : '1px solid var(--border-color)',
+                          background: isSelected ? 'rgba(59, 130, 246, 0.12)' : 'rgba(255, 255, 255, 0.02)',
+                          boxShadow: isSelected ? '0 0 12px rgba(59, 130, 246, 0.2)' : 'none',
                           display: 'flex',
                           flexDirection: 'column',
                           alignItems: 'center',
                           gap: '4px',
                           cursor: 'pointer',
+                          transition: 'all 0.2s ease',
                         }}
                       >
                         <span style={{ fontSize: '16px' }}>{p.icon}</span>
@@ -3207,11 +3209,11 @@ export default function ShortsFormatterStudio() {
                   {selectedSocialPlatform === 'TIKTOK' && (
                     <>
                       {/* OAuth Connection Status & Direct Dispatch */}
-                      <div style={{ padding: '12px 14px', borderRadius: 'var(--radius-sm)', background: tiktokAccount ? 'rgba(0, 242, 254, 0.05)' : 'rgba(255, 255, 255, 0.02)', border: tiktokAccount ? '1px solid rgba(0, 242, 254, 0.25)' : '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <div style={{ padding: '12px 14px', borderRadius: 'var(--radius-sm)', background: tiktokAccount ? 'rgba(16, 185, 129, 0.05)' : 'rgba(255, 255, 255, 0.02)', border: tiktokAccount ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: tiktokAccount ? '#00F2FE' : '#64748B' }} />
-                            <span style={{ fontSize: '12px', fontWeight: 600, color: tiktokAccount ? '#00F2FE' : 'var(--text-secondary)' }}>
+                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: tiktokAccount ? '#10B981' : '#64748B' }} />
+                            <span style={{ fontSize: '12px', fontWeight: 600, color: tiktokAccount ? '#10B981' : 'var(--text-secondary)' }}>
                               {tiktokAccount ? `Connected: @${tiktokAccount.accountName || (tiktokAccount as any).account_name || 'Creator'}` : 'TikTok Account Not Connected'}
                             </span>
                           </div>
@@ -3229,7 +3231,7 @@ export default function ShortsFormatterStudio() {
                             <button
                               onClick={handleConnectTikTok}
                               className="btn btn--outline"
-                              style={{ padding: '5px 12px', fontSize: '12px', background: 'rgba(0, 242, 254, 0.1)', border: '1px solid rgba(0, 242, 254, 0.35)', color: '#00F2FE', fontWeight: 600 }}
+                              style={{ padding: '5px 12px', fontSize: '12px', background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.35)', color: '#60A5FA', fontWeight: 600 }}
                             >
                               🎵 Connect TikTok
                             </button>
@@ -3237,7 +3239,7 @@ export default function ShortsFormatterStudio() {
                         </div>
 
                         {tiktokConnectSuccessMsg && (
-                          <div style={{ fontSize: '11px', color: '#00F2FE', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <div style={{ fontSize: '11px', color: '#10B981', display: 'flex', alignItems: 'center', gap: '4px' }}>
                             <CheckCircle2 size={12} />
                             {tiktokConnectSuccessMsg}
                           </div>
@@ -3251,8 +3253,8 @@ export default function ShortsFormatterStudio() {
                         )}
 
                         {publishedTikTokUrl && (
-                          <div style={{ padding: '8px 10px', borderRadius: '4px', background: 'rgba(0, 242, 254, 0.15)', border: '1px solid #00F2FE', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#00F2FE', fontWeight: 600 }}>
+                          <div style={{ padding: '8px 10px', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.15)', border: '1px solid #10B981', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#10B981', fontWeight: 600 }}>
                               <CheckCircle2 size={14} />
                               <span>Live on TikTok Creator Hub!</span>
                             </div>
@@ -3260,7 +3262,7 @@ export default function ShortsFormatterStudio() {
                               href={publishedTikTokUrl}
                               target="_blank"
                               rel="noreferrer"
-                              style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#00F2FE', textDecoration: 'underline', fontWeight: 700 }}
+                              style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#60A5FA', textDecoration: 'underline', fontWeight: 700 }}
                             >
                               View TikTok <ExternalLink size={11} />
                             </a>
@@ -3269,9 +3271,9 @@ export default function ShortsFormatterStudio() {
 
                         {tiktokAccount && (
                           isPublishingTikTok ? (
-                            <div style={{ padding: '12px', borderRadius: 'var(--radius-sm)', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(0, 242, 254, 0.4)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <div style={{ padding: '12px', borderRadius: 'var(--radius-sm)', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(59, 130, 246, 0.4)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px' }}>
-                                <span style={{ color: '#00F2FE', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ color: 'var(--accent-teal)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
                                   <RefreshCw size={13} className="spin" />
                                   {publishTikTokStage === 'RENDERING' && `🎨 [1/3] Baking 1080x1920 Short with Kinetic Subtitles...`}
                                   {publishTikTokStage === 'INITIALIZING' && '⚡ [2/3] Initializing TikTok Upload Session...'}
@@ -3287,7 +3289,7 @@ export default function ShortsFormatterStudio() {
                                   style={{
                                     height: '100%',
                                     width: `${publishTikTokPercent}%`,
-                                    background: 'linear-gradient(90deg, #00F2FE, #4FACFE)',
+                                    background: 'linear-gradient(90deg, #6366F1 0%, #00F2FE 100%)',
                                     transition: 'width 0.3s ease',
                                   }}
                                 />
@@ -3297,24 +3299,25 @@ export default function ShortsFormatterStudio() {
                             <button
                               onClick={handlePublishToTikTok}
                               disabled={isPublishingTikTok || isExporting}
-                              className="btn"
+                              className="btn btn--primary"
                               style={{
                                 width: '100%',
                                 padding: '10px 16px',
-                                background: 'linear-gradient(135deg, #00F2FE, #0077FE)',
-                                color: '#000',
-                                fontWeight: 700,
+                                background: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)',
+                                border: '1px solid rgba(59, 130, 246, 0.5)',
+                                color: '#fff',
+                                fontWeight: 600,
                                 fontSize: '13px',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 gap: '8px',
-                                boxShadow: '0 4px 16px rgba(0, 242, 254, 0.25)',
+                                boxShadow: '0 4px 16px rgba(59, 130, 246, 0.25)',
                                 cursor: 'pointer',
                                 borderRadius: 'var(--radius-sm)',
                               }}
                             >
-                              <Send size={14} color="#000" />
+                              <Send size={14} color="#fff" />
                               🚀 Publish Directly to TikTok (1-Click)
                             </button>
                           )
@@ -3334,7 +3337,7 @@ export default function ShortsFormatterStudio() {
                           </button>
                         </div>
                         <div style={{ padding: '10px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: '4px', color: '#fff', fontSize: '13px', lineHeight: '1.5' }}>
-                          {thumbnailTitle} 🔥 Watch till the end! Link in bio for full blueprint ⚡ <span style={{ color: '#00F2FE' }}>#coding #ai #softwareengineer #tech #developer #opportunityos</span>
+                          {thumbnailTitle} 🔥 Watch till the end! Link in bio for full blueprint ⚡ <span style={{ color: '#60A5FA' }}>#coding #ai #softwareengineer #tech #developer #opportunityos</span>
                         </div>
                       </div>
 
@@ -3350,7 +3353,7 @@ export default function ShortsFormatterStudio() {
                             {copiedKey === 'tt_bio' ? 'Copied' : 'Copy'}
                           </button>
                         </div>
-                        <div style={{ padding: '8px 10px', background: 'rgba(255,255,255,0.04)', borderRadius: '4px', color: '#00F2FE', fontSize: '12px', fontWeight: 600 }}>
+                        <div style={{ padding: '8px 10px', background: 'rgba(255,255,255,0.04)', borderRadius: '4px', color: '#60A5FA', fontSize: '12px', fontWeight: 600 }}>
                           👉 https://opportunity-system.com/about
                         </div>
                       </div>
@@ -3361,11 +3364,11 @@ export default function ShortsFormatterStudio() {
                   {selectedSocialPlatform === 'INSTAGRAM' && (
                     <>
                       {/* OAuth Connection Status & Direct Dispatch */}
-                      <div style={{ padding: '12px 14px', borderRadius: 'var(--radius-sm)', background: instagramAccount ? 'rgba(225, 48, 108, 0.05)' : 'rgba(255, 255, 255, 0.02)', border: instagramAccount ? '1px solid rgba(225, 48, 108, 0.25)' : '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <div style={{ padding: '12px 14px', borderRadius: 'var(--radius-sm)', background: instagramAccount ? 'rgba(16, 185, 129, 0.05)' : 'rgba(255, 255, 255, 0.02)', border: instagramAccount ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: instagramAccount ? '#E1306C' : '#64748B' }} />
-                            <span style={{ fontSize: '12px', fontWeight: 600, color: instagramAccount ? '#E1306C' : 'var(--text-secondary)' }}>
+                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: instagramAccount ? '#10B981' : '#64748B' }} />
+                            <span style={{ fontSize: '12px', fontWeight: 600, color: instagramAccount ? '#10B981' : 'var(--text-secondary)' }}>
                               {instagramAccount ? `Connected: @${instagramAccount.accountName || (instagramAccount as any).account_name || 'Account'}` : 'Instagram Account Not Connected'}
                             </span>
                           </div>
@@ -3383,7 +3386,7 @@ export default function ShortsFormatterStudio() {
                             <button
                               onClick={handleConnectInstagram}
                               className="btn btn--outline"
-                              style={{ padding: '5px 12px', fontSize: '12px', background: 'rgba(225, 48, 108, 0.1)', border: '1px solid rgba(225, 48, 108, 0.35)', color: '#E1306C', fontWeight: 600 }}
+                              style={{ padding: '5px 12px', fontSize: '12px', background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.35)', color: '#60A5FA', fontWeight: 600 }}
                             >
                               📸 Connect Instagram
                             </button>
@@ -3391,7 +3394,7 @@ export default function ShortsFormatterStudio() {
                         </div>
 
                         {instagramConnectSuccessMsg && (
-                          <div style={{ fontSize: '11px', color: '#E1306C', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <div style={{ fontSize: '11px', color: '#10B981', display: 'flex', alignItems: 'center', gap: '4px' }}>
                             <CheckCircle2 size={12} />
                             {instagramConnectSuccessMsg}
                           </div>
@@ -3405,8 +3408,8 @@ export default function ShortsFormatterStudio() {
                         )}
 
                         {publishedInstagramUrl && (
-                          <div style={{ padding: '8px 10px', borderRadius: '4px', background: 'rgba(225, 48, 108, 0.15)', border: '1px solid #E1306C', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#E1306C', fontWeight: 600 }}>
+                          <div style={{ padding: '8px 10px', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.15)', border: '1px solid #10B981', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#10B981', fontWeight: 600 }}>
                               <CheckCircle2 size={14} />
                               <span>Live on Instagram Reels!</span>
                             </div>
@@ -3414,7 +3417,7 @@ export default function ShortsFormatterStudio() {
                               href={publishedInstagramUrl}
                               target="_blank"
                               rel="noreferrer"
-                              style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#00F2FE', textDecoration: 'underline', fontWeight: 700 }}
+                              style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#60A5FA', textDecoration: 'underline', fontWeight: 700 }}
                             >
                               View Reels <ExternalLink size={11} />
                             </a>
@@ -3423,9 +3426,9 @@ export default function ShortsFormatterStudio() {
 
                         {instagramAccount && (
                           isPublishingInstagram ? (
-                            <div style={{ padding: '12px', borderRadius: 'var(--radius-sm)', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(225, 48, 108, 0.4)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <div style={{ padding: '12px', borderRadius: 'var(--radius-sm)', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(59, 130, 246, 0.4)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px' }}>
-                                <span style={{ color: '#E1306C', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ color: 'var(--accent-teal)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
                                   <RefreshCw size={13} className="spin" />
                                   {publishInstagramStage === 'RENDERING' && `🎨 [1/3] Baking 1080x1920 Reel with Subtitles...`}
                                   {publishInstagramStage === 'INITIALIZING' && '⚡ [2/3] Initializing Instagram Container...'}
@@ -3441,7 +3444,7 @@ export default function ShortsFormatterStudio() {
                                   style={{
                                     height: '100%',
                                     width: `${publishInstagramPercent}%`,
-                                    background: 'linear-gradient(90deg, #E1306C, #F77737)',
+                                    background: 'linear-gradient(90deg, #6366F1 0%, #00F2FE 100%)',
                                     transition: 'width 0.3s ease',
                                   }}
                                 />
@@ -3451,19 +3454,20 @@ export default function ShortsFormatterStudio() {
                             <button
                               onClick={handlePublishToInstagram}
                               disabled={isPublishingInstagram || isExporting}
-                              className="btn"
+                              className="btn btn--primary"
                               style={{
                                 width: '100%',
                                 padding: '10px 16px',
-                                background: 'linear-gradient(135deg, #E1306C, #833AB4)',
+                                background: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)',
+                                border: '1px solid rgba(59, 130, 246, 0.5)',
                                 color: '#fff',
-                                fontWeight: 700,
+                                fontWeight: 600,
                                 fontSize: '13px',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 gap: '8px',
-                                boxShadow: '0 4px 16px rgba(225, 48, 108, 0.25)',
+                                boxShadow: '0 4px 16px rgba(59, 130, 246, 0.25)',
                                 cursor: 'pointer',
                                 borderRadius: 'var(--radius-sm)',
                               }}
@@ -3488,7 +3492,7 @@ export default function ShortsFormatterStudio() {
                           </button>
                         </div>
                         <div style={{ padding: '10px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: '4px', color: '#fff', fontSize: '13px', lineHeight: '1.5' }}>
-                          {thumbnailTitle} 🚀 Grab the free Chapter 1 blueprint via link in bio! <span style={{ color: '#E1306C' }}>#reels #ai #coding #softwarevelocity #developer</span>
+                          {thumbnailTitle} 🚀 Grab the free Chapter 1 blueprint via link in bio! <span style={{ color: '#60A5FA' }}>#reels #ai #coding #softwarevelocity #developer</span>
                         </div>
                       </div>
                     </>
@@ -3498,11 +3502,11 @@ export default function ShortsFormatterStudio() {
                   {selectedSocialPlatform === 'TWITTER' && (
                     <>
                       {/* OAuth Connection Status & Direct Dispatch */}
-                      <div style={{ padding: '12px 14px', borderRadius: 'var(--radius-sm)', background: twitterAccount ? 'rgba(255, 255, 255, 0.06)' : 'rgba(255, 255, 255, 0.02)', border: twitterAccount ? '1px solid rgba(255, 255, 255, 0.25)' : '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <div style={{ padding: '12px 14px', borderRadius: 'var(--radius-sm)', background: twitterAccount ? 'rgba(16, 185, 129, 0.05)' : 'rgba(255, 255, 255, 0.02)', border: twitterAccount ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: twitterAccount ? '#FFFFFF' : '#64748B' }} />
-                            <span style={{ fontSize: '12px', fontWeight: 600, color: twitterAccount ? '#FFFFFF' : 'var(--text-secondary)' }}>
+                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: twitterAccount ? '#10B981' : '#64748B' }} />
+                            <span style={{ fontSize: '12px', fontWeight: 600, color: twitterAccount ? '#10B981' : 'var(--text-secondary)' }}>
                               {twitterAccount ? `Connected: @${twitterAccount.accountName || (twitterAccount as any).account_name || 'Account'}` : 'X / Twitter Account Not Connected'}
                             </span>
                           </div>
@@ -3520,7 +3524,7 @@ export default function ShortsFormatterStudio() {
                             <button
                               onClick={handleConnectTwitter}
                               className="btn btn--outline"
-                              style={{ padding: '5px 12px', fontSize: '12px', background: 'rgba(255, 255, 255, 0.1)', border: '1px solid rgba(255, 255, 255, 0.35)', color: '#FFFFFF', fontWeight: 600 }}
+                              style={{ padding: '5px 12px', fontSize: '12px', background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.35)', color: '#60A5FA', fontWeight: 600 }}
                             >
                               ✖️ Connect X (Twitter)
                             </button>
@@ -3528,7 +3532,7 @@ export default function ShortsFormatterStudio() {
                         </div>
 
                         {twitterConnectSuccessMsg && (
-                          <div style={{ fontSize: '11px', color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <div style={{ fontSize: '11px', color: '#10B981', display: 'flex', alignItems: 'center', gap: '4px' }}>
                             <CheckCircle2 size={12} />
                             {twitterConnectSuccessMsg}
                           </div>
@@ -3542,8 +3546,8 @@ export default function ShortsFormatterStudio() {
                         )}
 
                         {publishedTwitterUrl && (
-                          <div style={{ padding: '8px 10px', borderRadius: '4px', background: 'rgba(255, 255, 255, 0.15)', border: '1px solid #FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#FFFFFF', fontWeight: 600 }}>
+                          <div style={{ padding: '8px 10px', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.15)', border: '1px solid #10B981', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#10B981', fontWeight: 600 }}>
                               <CheckCircle2 size={14} />
                               <span>Live on X / Twitter!</span>
                             </div>
@@ -3551,7 +3555,7 @@ export default function ShortsFormatterStudio() {
                               href={publishedTwitterUrl}
                               target="_blank"
                               rel="noreferrer"
-                              style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#00F2FE', textDecoration: 'underline', fontWeight: 700 }}
+                              style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#60A5FA', textDecoration: 'underline', fontWeight: 700 }}
                             >
                               View Post <ExternalLink size={11} />
                             </a>
@@ -3560,9 +3564,9 @@ export default function ShortsFormatterStudio() {
 
                         {twitterAccount && (
                           isPublishingTwitter ? (
-                            <div style={{ padding: '12px', borderRadius: 'var(--radius-sm)', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255, 255, 255, 0.4)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <div style={{ padding: '12px', borderRadius: 'var(--radius-sm)', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(59, 130, 246, 0.4)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px' }}>
-                                <span style={{ color: '#FFFFFF', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ color: 'var(--accent-teal)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
                                   <RefreshCw size={13} className="spin" />
                                   {publishTwitterStage === 'RENDERING' && `🎨 [1/3] Baking Video with Kinetic Subtitles...`}
                                   {publishTwitterStage === 'INITIALIZING' && '⚡ [2/3] Initializing X Media Upload...'}
@@ -3578,7 +3582,7 @@ export default function ShortsFormatterStudio() {
                                   style={{
                                     height: '100%',
                                     width: `${publishTwitterPercent}%`,
-                                    background: '#FFFFFF',
+                                    background: 'linear-gradient(90deg, #6366F1 0%, #00F2FE 100%)',
                                     transition: 'width 0.3s ease',
                                   }}
                                 />
@@ -3588,25 +3592,26 @@ export default function ShortsFormatterStudio() {
                             <button
                               onClick={handlePublishToTwitter}
                               disabled={isPublishingTwitter || isExporting}
-                              className="btn"
+                              className="btn btn--primary"
                               style={{
                                 width: '100%',
                                 padding: '10px 16px',
-                                background: '#FFFFFF',
-                                color: '#000000',
-                                fontWeight: 700,
+                                background: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)',
+                                border: '1px solid rgba(59, 130, 246, 0.5)',
+                                color: '#fff',
+                                fontWeight: 600,
                                 fontSize: '13px',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 gap: '8px',
-                                boxShadow: '0 4px 16px rgba(255, 255, 255, 0.25)',
+                                boxShadow: '0 4px 16px rgba(59, 130, 246, 0.25)',
                                 cursor: 'pointer',
                                 borderRadius: 'var(--radius-sm)',
                               }}
                             >
-                              <Send size={14} color="#000" />
-                              🚀 Publish Directly to X (1-Click)
+                              <Send size={14} color="#fff" />
+                              🚀 Publish Directly to X / Twitter (1-Click)
                             </button>
                           )
                         )}
