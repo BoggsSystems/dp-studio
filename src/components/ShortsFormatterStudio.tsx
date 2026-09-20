@@ -2622,11 +2622,11 @@ export default function ShortsFormatterStudio() {
       setPublishAboutPageStage('SAVING');
       setPublishAboutPagePercent(92);
       try {
-        if (!videoUrlToPublish || videoUrlToPublish.startsWith('blob:')) {
-          videoUrlToPublish = `${apiBase}/uploads/cdn/videos/shorts/opportunity-system/${encodeURIComponent(shortProjectId)}.mp4`;
+        if (!videoUrlToPublish || videoUrlToPublish.startsWith('blob:') || videoUrlToPublish.includes('/uploads/cdn/')) {
+          videoUrlToPublish = `https://pub-2af6e082fcb44c58add86361dad9d14b.r2.dev/videos/shorts/opportunity-system/${encodeURIComponent(shortProjectId)}.mp4`;
         }
-        if (!thumbUrlToPublish || thumbUrlToPublish.startsWith('blob:')) {
-          thumbUrlToPublish = `${apiBase}/uploads/cdn/thumbnails/shorts/opportunity-system/${encodeURIComponent(shortProjectId)}.jpg`;
+        if (!thumbUrlToPublish || thumbUrlToPublish.startsWith('blob:') || thumbUrlToPublish.includes('/uploads/cdn/')) {
+          thumbUrlToPublish = `https://pub-2af6e082fcb44c58add86361dad9d14b.r2.dev/thumbnails/shorts/opportunity-system/${encodeURIComponent(shortProjectId)}.jpg`;
         }
 
         const resp = await fetch(`${apiBase}/api/publisher/shorts/publish`, {
