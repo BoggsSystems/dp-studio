@@ -617,8 +617,10 @@ export default function ShortsFormatterStudio() {
 
   // Opportunity OS About Page Showcase State
   const [isPublishingAboutPage, setIsPublishingAboutPage] = useState<boolean>(false);
-  const [publishAboutPageStage, setPublishAboutPageStage] = useState<'IDLE' | 'RENDERING' | 'INITIALIZING' | 'SAVING' | 'DONE'>('IDLE');
+  const [publishAboutPageStage, setPublishAboutPageStage] = useState<'IDLE' | 'RENDERING' | 'INITIALIZING' | 'UPLOADING' | 'SAVING' | 'DONE'>('IDLE');
   const [publishAboutPagePercent, setPublishAboutPagePercent] = useState<number>(0);
+  const [publishAboutPageLoadedMb, setPublishAboutPageLoadedMb] = useState<string>('0.0');
+  const [publishAboutPageTotalMb, setPublishAboutPageTotalMb] = useState<string>('0.0');
   const [publishedAboutPageUrl, setPublishedAboutPageUrl] = useState<string | null>(null);
   const [publishAboutPageError, setPublishAboutPageError] = useState<string | null>(null);
 
@@ -2446,7 +2448,7 @@ export default function ShortsFormatterStudio() {
         bakedVideoBlob = videoFile || (await getDraftVideoBlob())?.blob || (await (await fetch(videoUrl!)).blob());
       }
 
-      setPublishAboutPagePercent(50);
+      setPublishAboutPagePercent(48);
       setPublishAboutPageStage('INITIALIZING');
 
       // 2. Stage 2: Bake High-CTR 9:16 Graphical Cover Image
@@ -2466,10 +2468,10 @@ export default function ShortsFormatterStudio() {
         console.warn('Thumbnail generation warning:', thumbErr);
       }
 
-      setPublishAboutPagePercent(60);
-      setPublishAboutPageStage('SAVING');
+      setPublishAboutPagePercent(55);
+      setPublishAboutPageStage('UPLOADING');
 
-      // 3. Stage 3: Direct Edge Upload to Cloudflare R2 via Presigned URLs
+      // 3. Stage 3: Direct Edge Upload to Cloudflare R2 / CDN via Presigned URLs
       let videoUrlToPublish: string = videoUrl || 'https://digitpop.opportunity-system.com/videos/opportunity-os-about.mp4';
       let thumbUrlToPublish: string = bakedThumbUrl || 'https://digitpop.opportunity-system.com/thumbnails/opportunity-os-about.jpg';
 
@@ -2489,9 +2491,14 @@ export default function ShortsFormatterStudio() {
                 xhr.setRequestHeader('Content-Type', bakedVideoBlob.type || 'video/mp4');
 
                 xhr.upload.onprogress = (event) => {
+                  setPublishAboutPageStage('UPLOADING');
                   if (event.lengthComputable) {
+                    const loadedMb = (event.loaded / (1024 * 1024)).toFixed(1);
+                    const totalMb = (event.total / (1024 * 1024)).toFixed(1);
+                    setPublishAboutPageLoadedMb(loadedMb);
+                    setPublishAboutPageTotalMb(totalMb);
                     const uploadPct = Math.round((event.loaded / event.total) * 100);
-                    const scaled = Math.min(85, 60 + Math.round((uploadPct * 25) / 100));
+                    const scaled = Math.min(90, 55 + Math.round((uploadPct * 35) / 100));
                     setPublishAboutPagePercent(scaled);
                   }
                 };
@@ -2612,7 +2619,8 @@ export default function ShortsFormatterStudio() {
       await saveShortProject(projectPayload, bakedVideoBlob);
 
       // 5. Register in Cloud Media Catalog
-      setPublishAboutPagePercent(90);
+      setPublishAboutPageStage('SAVING');
+      setPublishAboutPagePercent(92);
       try {
         if (!videoUrlToPublish || videoUrlToPublish.startsWith('blob:')) {
           videoUrlToPublish = `${apiBase}/uploads/cdn/videos/shorts/opportunity-system/${encodeURIComponent(shortProjectId)}.mp4`;
@@ -4935,29 +4943,36 @@ export default function ShortsFormatterStudio() {
                         )}
 
                         {isPublishingAboutPage ? (
-                          <div style={{ padding: '12px', borderRadius: 'var(--radius-sm)', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(59, 130, 246, 0.4)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          <div style={{ padding: '14px', borderRadius: 'var(--radius-sm)', background: 'rgba(0,0,0,0.65)', border: '1px solid rgba(59, 130, 246, 0.45)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px' }}>
-                              <span style={{ color: 'var(--accent-teal)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{ color: 'var(--accent-teal)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '7px' }}>
                                 <RefreshCw size={13} className="spin" />
-                                {publishAboutPageStage === 'RENDERING' && `🎨 [1/3] Baking 1080x1920 Short with Kinetic Subtitles...`}
-                                {publishAboutPageStage === 'INITIALIZING' && '⚡ [2/3] Generating 9:16 High-CTR Thumbnail...'}
-                                {publishAboutPageStage === 'SAVING' && '🚀 [3/3] Publishing to Opportunity OS Media Catalog...'}
+                                {publishAboutPageStage === 'RENDERING' && '🎬 [1/4] Rendering 1080x1920 Short & Kinetic Subtitles...'}
+                                {publishAboutPageStage === 'INITIALIZING' && '🖼️ [2/4] Baking 9:16 High-CTR Cover Art...'}
+                                {publishAboutPageStage === 'UPLOADING' && `☁️ [3/4] Uploading HD Video: ${publishAboutPageLoadedMb} MB / ${publishAboutPageTotalMb} MB...`}
+                                {publishAboutPageStage === 'SAVING' && '🚀 [4/4] Registering in Media Catalog & Going Live...'}
                                 {publishAboutPageStage === 'DONE' && '🎉 Live on About Page!'}
                               </span>
-                              <span style={{ color: '#fff', fontWeight: 700, fontSize: '13px' }}>
+                              <span style={{ color: '#fff', fontWeight: 700, fontSize: '13px', fontFamily: 'var(--font-mono, monospace)' }}>
                                 {publishAboutPagePercent}%
                               </span>
                             </div>
-                            <div style={{ width: '100%', height: '8px', borderRadius: '4px', background: 'rgba(255,255,255,0.1)', overflow: 'hidden' }}>
+                            <div style={{ width: '100%', height: '8px', borderRadius: '4px', background: 'rgba(255,255,255,0.12)', overflow: 'hidden' }}>
                               <div
                                 style={{
                                   height: '100%',
                                   width: `${publishAboutPagePercent}%`,
-                                  background: 'linear-gradient(90deg, #6366F1 0%, #00F2FE 100%)',
-                                  transition: 'width 0.3s ease',
+                                  background: 'linear-gradient(90deg, #6366F1 0%, #00F2FE 50%, #10B981 100%)',
+                                  transition: 'width 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
                                 }}
                               />
                             </div>
+                            {publishAboutPageStage === 'UPLOADING' && parseFloat(publishAboutPageTotalMb) > 0 && (
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                                <span>High-Definition 1080x1920 Video Stream</span>
+                                <span style={{ color: '#38BDF8', fontWeight: 600 }}>{Math.round((parseFloat(publishAboutPageLoadedMb) / parseFloat(publishAboutPageTotalMb)) * 100) || 0}% Uploaded</span>
+                              </div>
+                            )}
                           </div>
                         ) : (
                           <button
