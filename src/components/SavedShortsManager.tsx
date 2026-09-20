@@ -22,6 +22,7 @@ import {
   deleteShortProject,
   loadShortProjectIntoActiveDraft,
   getShortProject,
+  fetchCloudLibraryShorts,
 } from '../services/videoStorage';
 
 interface SavedShortsManagerProps {
@@ -36,9 +37,31 @@ export default function SavedShortsManager({ onOpenInStudio, onNewShort }: Saved
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const loadShorts = () => {
-    const list = getAllShortProjects();
-    setShorts(list);
+  const loadShorts = async () => {
+    // 1. Instant local read
+    const localList = getAllShortProjects();
+    setShorts(localList);
+
+    // 2. Async cloud merge
+    try {
+      const cloudList = await fetchCloudLibraryShorts('opportunity-system');
+      if (cloudList && cloudList.length > 0) {
+        setShorts((prev) => {
+          const map = new Map<string, FormattedShortProject>();
+          // Cloud items first
+          cloudList.forEach((c) => map.set(c.id, c));
+          // Local items overwrite/merge if newer
+          prev.forEach((p) => map.set(p.id, p));
+          return Array.from(map.values()).sort((a, b) => {
+            const tA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+            const tB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+            return tB - tA;
+          });
+        });
+      }
+    } catch (e) {
+      console.warn('Could not fetch cloud library shorts:', e);
+    }
   };
 
   useEffect(() => {

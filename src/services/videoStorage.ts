@@ -127,6 +127,130 @@ function removeDeletedShortId(id: string) {
   } catch (e) {}
 }
 
+export async function saveShortDraftToCloud(
+  short: FormattedShortProject,
+  videoBlob?: Blob,
+  thumbBlob?: Blob
+): Promise<{ success: boolean; shortId?: string; videoUrl?: string; thumbnailUrl?: string }> {
+  try {
+    const apiBase = (
+      (import.meta as any).env?.VITE_API_URL ||
+      (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+        ? 'http://localhost:9000'
+        : 'https://digitpop.opportunity-system.com')
+    ).replace(/\/+$/, '');
+
+    let videoUrl = short.videoUrl;
+    let thumbnailUrl = short.thumbnailUrl;
+
+    // Direct presigned upload if video blob is present
+    if (videoBlob) {
+      try {
+        const presignRes = await fetch(
+          `${apiBase}/api/publisher/shorts/presigned-url?shortId=${encodeURIComponent(short.id)}&fileType=video&creatorSlug=opportunity-system`
+        );
+        if (presignRes.ok) {
+          const presignData = await presignRes.json();
+          if (presignData.uploadUrl) {
+            const putRes = await fetch(presignData.uploadUrl, {
+              method: 'PUT',
+              headers: { 'Content-Type': videoBlob.type || 'video/mp4' },
+              body: videoBlob,
+            });
+            if (putRes.ok && presignData.publicUrl) {
+              videoUrl = presignData.publicUrl;
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Presigned draft video upload error:', e);
+      }
+    }
+
+    const payload = {
+      ...short,
+      videoUrl,
+      thumbnailUrl,
+      creatorSlug: 'opportunity-system',
+      destinationChannel: 'about',
+    };
+
+    const resp = await fetch(`${apiBase}/api/publisher/shorts/draft`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (resp.ok) {
+      const data = await resp.json();
+      return { success: true, shortId: data.shortId || short.id, videoUrl, thumbnailUrl };
+    }
+    return { success: false };
+  } catch (err) {
+    console.warn('saveShortDraftToCloud error:', err);
+    return { success: false };
+  }
+}
+
+export async function fetchCloudLibraryShorts(creatorSlug: string = 'opportunity-system'): Promise<FormattedShortProject[]> {
+  try {
+    const apiBase = (
+      (import.meta as any).env?.VITE_API_URL ||
+      (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+        ? 'http://localhost:9000'
+        : 'https://digitpop.opportunity-system.com')
+    ).replace(/\/+$/, '');
+
+    const res = await fetch(`${apiBase}/api/publisher/shorts/library?creatorSlug=${encodeURIComponent(creatorSlug)}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (!data || !Array.isArray(data.shorts)) return [];
+
+    return data.shorts.map((s: any) => {
+      const meta = s.metadata || {};
+      return {
+        id: s.id,
+        title: s.title || meta.thumbnailTitle || 'AI Shoppable Short',
+        videoFileName: meta.videoFileName || `${s.id}.mp4`,
+        videoUrl: s.videoUrl,
+        thumbnailUrl: s.thumbnailUrl,
+        durationSeconds: s.durationSeconds || 30,
+        words: meta.transcript || [],
+        editableTranscript: meta.editableTranscript || '',
+        highlightColor: meta.highlightColor || '#FFE600',
+        fontSize: meta.fontSize ?? 22,
+        verticalPosition: meta.verticalPosition ?? 78,
+        wordPacing: meta.wordPacing || 'POP_TWO_WORDS',
+        autoEmojis: meta.autoEmojis ?? true,
+        uppercase: meta.uppercase ?? true,
+        layoutMode: meta.layoutMode || 'FIT_BLUR',
+        showShoppableDrawer: meta.showShoppableDrawer ?? true,
+        showQrCode: meta.showQrCode ?? true,
+        qrPlacement: meta.qrPlacement || 'TOP_RIGHT',
+        qrCustomUrl: meta.qrCustomUrl,
+        productId: meta.productId,
+        productTitle: meta.productTitle,
+        productPrice: meta.productPrice,
+        thumbnailTitle: meta.thumbnailTitle || s.title,
+        thumbnailStyle: meta.thumbnailStyle || 'VIRAL_WHITE',
+        thumbnailFontSize: meta.thumbnailFontSize || 54,
+        thumbnailPosition: meta.thumbnailPosition || 45,
+        thumbnailBadge: s.thumbnailBadge || meta.thumbnailBadge || (s.status === 'READY' ? '⚡ READY' : '⚡ DRAFT'),
+        thumbnailStrokeWidth: meta.thumbnailStrokeWidth || 14,
+        thumbnailUppercase: meta.thumbnailUppercase ?? true,
+        publishedYouTubeUrl: meta.publishedYouTubeUrl,
+        publishedAt: s.updatedAt || s.createdAt,
+        status: s.status === 'READY' ? 'PUBLISHED' : 'DRAFT',
+        createdAt: s.createdAt,
+        updatedAt: s.updatedAt,
+      } as FormattedShortProject;
+    });
+  } catch (err) {
+    console.warn('Failed to fetch cloud library shorts:', err);
+    return [];
+  }
+}
+
 export async function saveShortProject(
   short: FormattedShortProject,
   videoBlob?: Blob
@@ -169,6 +293,11 @@ export async function saveShortProject(
       list.unshift({ ...short, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
     }
     localStorage.setItem(SHORTS_LIBRARY_KEY, JSON.stringify(list));
+
+    // 3. Background sync draft to PostgreSQL cloud database
+    saveShortDraftToCloud(short, videoBlob).catch((cloudErr) => {
+      console.warn('Cloud draft background sync warning:', cloudErr);
+    });
   } catch (err) {
     console.warn('Failed to save short project:', err);
   }
