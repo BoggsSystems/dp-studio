@@ -2448,9 +2448,11 @@ export default function ShortsFormatterStudio() {
 
       // 2. Prepare high-CTR thumbnail blob (9:16)
       let bakedThumbUrl: string | undefined = thumbnailImage || undefined;
+      let thumbBlobToUpload: Blob | null = null;
       try {
         const generatedThumb = await renderThumbnailBlob('9:16');
         if (generatedThumb) {
+          thumbBlobToUpload = generatedThumb;
           const reader = new FileReader();
           bakedThumbUrl = await new Promise<string>((resolve) => {
             reader.onloadend = () => resolve(reader.result as string);
@@ -2461,7 +2463,7 @@ export default function ShortsFormatterStudio() {
         console.warn('Thumbnail generation warning:', thumbErr);
       }
 
-      setPublishAboutPagePercent(85);
+      setPublishAboutPagePercent(75);
 
       // 3. Save as featured Short project in DigitPop Project storage
       const projectPayload: FormattedShortProject = {
@@ -2499,6 +2501,43 @@ export default function ShortsFormatterStudio() {
         updatedAt: new Date().toISOString(),
       };
       await saveShortProject(projectPayload, videoBlobToUpload);
+
+      // 4. Push directly to DigitPop Cloud Backend & Cloudflare R2
+      try {
+        setPublishAboutPagePercent(90);
+        const apiBase = (
+          import.meta.env.VITE_API_URL ||
+          (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+            ? 'http://localhost:9000'
+            : 'https://digitpop.opportunity-system.com')
+        ).replace(/\/+$/, '');
+
+        const formData = new FormData();
+        formData.append(
+          'payload',
+          JSON.stringify({
+            ...projectPayload,
+            creatorSlug: 'opportunity-system',
+            destinationChannel: 'about',
+          })
+        );
+        if (videoBlobToUpload) {
+          formData.append('video', videoBlobToUpload, videoFile?.name || `${shortProjectId}.mp4`);
+        }
+        if (thumbBlobToUpload) {
+          formData.append('thumbnail', thumbBlobToUpload, `${shortProjectId}_thumb.jpg`);
+        }
+
+        const resp = await fetch(`${apiBase}/api/publisher/shorts/publish`, {
+          method: 'POST',
+          body: formData,
+        });
+        if (!resp.ok) {
+          console.warn('DigitPop Cloud publish API warning:', resp.status, await resp.text().catch(() => ''));
+        }
+      } catch (cloudErr) {
+        console.warn('DigitPop Cloud upload warning:', cloudErr);
+      }
 
       setPublishAboutPageStage('DONE');
       setPublishAboutPagePercent(100);
