@@ -133,6 +133,10 @@ export async function saveShortDraftToCloud(
   thumbBlob?: Blob
 ): Promise<{ success: boolean; shortId?: string; videoUrl?: string; thumbnailUrl?: string }> {
   try {
+    if (short.status === 'PUBLISHED') {
+      return { success: true, shortId: short.id, videoUrl: short.videoUrl, thumbnailUrl: short.thumbnailUrl };
+    }
+
     const apiBase = (
       (import.meta as any).env?.VITE_API_URL ||
       (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
@@ -294,10 +298,12 @@ export async function saveShortProject(
     }
     localStorage.setItem(SHORTS_LIBRARY_KEY, JSON.stringify(list));
 
-    // 3. Background sync draft to PostgreSQL cloud database
-    saveShortDraftToCloud(short, videoBlob).catch((cloudErr) => {
-      console.warn('Cloud draft background sync warning:', cloudErr);
-    });
+    // 3. Background sync draft to PostgreSQL cloud database (only for non-published drafts)
+    if (short.status !== 'PUBLISHED') {
+      saveShortDraftToCloud(short, videoBlob).catch((cloudErr) => {
+        console.warn('Cloud draft background sync warning:', cloudErr);
+      });
+    }
   } catch (err) {
     console.warn('Failed to save short project:', err);
   }
