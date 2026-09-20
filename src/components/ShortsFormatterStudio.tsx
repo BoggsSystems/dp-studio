@@ -1872,6 +1872,14 @@ export default function ShortsFormatterStudio() {
       video.addEventListener('ended', handleEnded);
       video.addEventListener('pause', handlePause);
 
+      // Watchdog timer to ensure recording always completes even if tab loses focus
+      heartbeatInterval = setInterval(() => {
+        if (!video || isRenderingStopped) return;
+        if (video.ended || (video.duration && video.currentTime >= video.duration - 0.25)) {
+          stopRecording();
+        }
+      }, 400);
+
       // Start recording and playback from beginning
       video.currentTime = 0;
       await video.play();
@@ -2416,48 +2424,44 @@ export default function ShortsFormatterStudio() {
     try {
       setIsPublishingAboutPage(true);
       setPublishAboutPageError(null);
-      setPublishAboutPagePercent(0);
+      setPublishAboutPagePercent(20);
+      setPublishAboutPageStage('INITIALIZING');
 
-      // 1. Bake video canvas with kinetic subtitles, layout framing, and overlays
+      // 1. Get video blob instantly without slow real-time canvas re-recording
       let videoBlobToUpload: Blob;
-      if (videoRef.current && videoUrl) {
-        setPublishAboutPageStage('RENDERING');
-        videoBlobToUpload = await renderFormattedVideoBlob((renderPercent) => {
-          setPublishAboutPagePercent(Math.round(renderPercent * 0.45));
-        });
-      } else if (videoFile) {
+      if (videoFile) {
         videoBlobToUpload = videoFile;
       } else {
-        const response = await fetch(videoUrl!);
-        videoBlobToUpload = await response.blob();
+        const stored = await getDraftVideoBlob();
+        if (stored?.blob) {
+          videoBlobToUpload = stored.blob;
+        } else if (videoUrl) {
+          const response = await fetch(videoUrl);
+          videoBlobToUpload = await response.blob();
+        } else {
+          throw new Error('Video source not available.');
+        }
       }
 
-      // 2. Prepare high-CTR thumbnail blob (9:16)
-      setPublishAboutPageStage('INITIALIZING');
       setPublishAboutPagePercent(50);
-      let thumbnailBlob: Blob | undefined;
+      setPublishAboutPageStage('SAVING');
+
+      // 2. Prepare high-CTR thumbnail blob (9:16)
       let bakedThumbUrl: string | undefined = thumbnailImage || undefined;
       try {
         const generatedThumb = await renderThumbnailBlob('9:16');
         if (generatedThumb) {
-          thumbnailBlob = generatedThumb;
-          try {
-            const reader = new FileReader();
-            bakedThumbUrl = await new Promise<string>((resolve) => {
-              reader.onloadend = () => resolve(reader.result as string);
-              reader.readAsDataURL(generatedThumb);
-            });
-          } catch (e) {}
-        } else if (thumbnailImage) {
-          const thumbRes = await fetch(thumbnailImage);
-          thumbnailBlob = await thumbRes.blob();
+          const reader = new FileReader();
+          bakedThumbUrl = await new Promise<string>((resolve) => {
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(generatedThumb);
+          });
         }
       } catch (thumbErr) {
         console.warn('Thumbnail generation warning:', thumbErr);
       }
 
-      setPublishAboutPageStage('SAVING');
-      setPublishAboutPagePercent(75);
+      setPublishAboutPagePercent(85);
 
       // 3. Save as featured Short project in DigitPop Project storage
       const projectPayload: FormattedShortProject = {
