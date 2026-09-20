@@ -2484,6 +2484,7 @@ export default function ShortsFormatterStudio() {
             if (presignData.uploadUrl) {
               await new Promise<void>((resolve) => {
                 const xhr = new XMLHttpRequest();
+                xhr.timeout = 180000; // 3 minute fail-safe timeout
                 xhr.open('PUT', presignData.uploadUrl);
                 xhr.setRequestHeader('Content-Type', bakedVideoBlob.type || 'video/mp4');
 
@@ -2497,8 +2498,17 @@ export default function ShortsFormatterStudio() {
 
                 xhr.onload = () => {
                   if (xhr.status >= 200 && xhr.status < 300) {
-                    if (presignData.publicUrl) {
-                      videoUrlToPublish = presignData.publicUrl;
+                    try {
+                      const resJson = JSON.parse(xhr.responseText);
+                      if (resJson.publicUrl || resJson.url) {
+                        videoUrlToPublish = resJson.publicUrl || resJson.url;
+                      } else if (presignData.publicUrl) {
+                        videoUrlToPublish = presignData.publicUrl;
+                      }
+                    } catch (e) {
+                      if (presignData.publicUrl) {
+                        videoUrlToPublish = presignData.publicUrl;
+                      }
                     }
                   } else {
                     console.warn('Presigned PUT video returned status:', xhr.status);
@@ -2507,6 +2517,10 @@ export default function ShortsFormatterStudio() {
                 };
                 xhr.onerror = () => {
                   console.warn('Presigned PUT video network error');
+                  resolve();
+                };
+                xhr.ontimeout = () => {
+                  console.warn('Presigned PUT video upload timed out');
                   resolve();
                 };
                 xhr.send(bakedVideoBlob);
@@ -2529,15 +2543,28 @@ export default function ShortsFormatterStudio() {
             if (thumbPresignData.uploadUrl) {
               await new Promise<void>((resolve) => {
                 const xhr = new XMLHttpRequest();
+                xhr.timeout = 60000;
                 xhr.open('PUT', thumbPresignData.uploadUrl);
                 xhr.setRequestHeader('Content-Type', 'image/jpeg');
                 xhr.onload = () => {
-                  if (xhr.status >= 200 && xhr.status < 300 && thumbPresignData.publicUrl) {
-                    thumbUrlToPublish = thumbPresignData.publicUrl;
+                  if (xhr.status >= 200 && xhr.status < 300) {
+                    try {
+                      const resJson = JSON.parse(xhr.responseText);
+                      if (resJson.publicUrl || resJson.url) {
+                        thumbUrlToPublish = resJson.publicUrl || resJson.url;
+                      } else if (thumbPresignData.publicUrl) {
+                        thumbUrlToPublish = thumbPresignData.publicUrl;
+                      }
+                    } catch (e) {
+                      if (thumbPresignData.publicUrl) {
+                        thumbUrlToPublish = thumbPresignData.publicUrl;
+                      }
+                    }
                   }
                   resolve();
                 };
                 xhr.onerror = () => resolve();
+                xhr.ontimeout = () => resolve();
                 xhr.send(thumbBlobToUpload);
               });
             }
