@@ -1786,7 +1786,7 @@ export default function ShortsFormatterStudio() {
           audioDestRef.current = audioContextRef.current.createMediaStreamDestination();
           audioSourceRef.current = audioContextRef.current.createMediaElementSource(video);
           audioSourceRef.current.connect(audioDestRef.current);
-          audioSourceRef.current.connect(audioContextRef.current.destination);
+          // Audio is captured in high-fidelity for the video file without playing aloud on physical speakers
         }
         if (audioContextRef.current.state === 'suspended') {
           await audioContextRef.current.resume();
@@ -1824,8 +1824,8 @@ export default function ShortsFormatterStudio() {
 
       const mediaRecorder = new MediaRecorder(combinedStream, {
         mimeType,
-        videoBitsPerSecond: 18000000, // 18 Mbps high quality 1080p
-        audioBitsPerSecond: 256000,   // 256 kbps studio audio
+        videoBitsPerSecond: 4500000, // 4.5 Mbps industry standard for 1080x1920 Short HD (~35MB for 2m video)
+        audioBitsPerSecond: 256000,  // 256 kbps studio audio
       });
 
       const chunksRecorded: Blob[] = [];
@@ -2484,7 +2484,7 @@ export default function ShortsFormatterStudio() {
           if (presignRes.ok) {
             const presignData = await presignRes.json();
             if (presignData.uploadUrl) {
-              await new Promise<void>((resolve) => {
+              await new Promise<void>((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
                 xhr.timeout = 180000; // 3 minute fail-safe timeout
                 xhr.open('PUT', presignData.uploadUrl);
@@ -2517,25 +2517,24 @@ export default function ShortsFormatterStudio() {
                         videoUrlToPublish = presignData.publicUrl;
                       }
                     }
+                    resolve();
                   } else {
-                    console.warn('Presigned PUT video returned status:', xhr.status);
+                    reject(new Error(`Video upload failed with status HTTP ${xhr.status}`));
                   }
-                  resolve();
                 };
                 xhr.onerror = () => {
-                  console.warn('Presigned PUT video network error');
-                  resolve();
+                  reject(new Error('Video upload failed due to network error.'));
                 };
                 xhr.ontimeout = () => {
-                  console.warn('Presigned PUT video upload timed out');
-                  resolve();
+                  reject(new Error('Video upload timed out.'));
                 };
                 xhr.send(bakedVideoBlob);
               });
             }
           }
-        } catch (uploadErr) {
-          console.warn('Direct presigned video upload warning:', uploadErr);
+        } catch (uploadErr: any) {
+          console.error('Direct presigned video upload error:', uploadErr);
+          throw uploadErr;
         }
       }
 
