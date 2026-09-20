@@ -2424,29 +2424,17 @@ export default function ShortsFormatterStudio() {
     try {
       setIsPublishingAboutPage(true);
       setPublishAboutPageError(null);
-      setPublishAboutPagePercent(20);
+      setPublishAboutPagePercent(10);
       setPublishAboutPageStage('INITIALIZING');
 
-      // 1. Get video blob instantly without slow real-time canvas re-recording
-      let videoBlobToUpload: Blob;
-      if (videoFile) {
-        videoBlobToUpload = videoFile;
-      } else {
-        const stored = await getDraftVideoBlob();
-        if (stored?.blob) {
-          videoBlobToUpload = stored.blob;
-        } else if (videoUrl) {
-          const response = await fetch(videoUrl);
-          videoBlobToUpload = await response.blob();
-        } else {
-          throw new Error('Video source not available.');
-        }
-      }
+      const apiBase = (
+        import.meta.env.VITE_API_URL ||
+        (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+          ? 'http://localhost:9000'
+          : 'https://digitpop.opportunity-system.com')
+      ).replace(/\/+$/, '');
 
-      setPublishAboutPagePercent(50);
-      setPublishAboutPageStage('SAVING');
-
-      // 2. Prepare high-CTR thumbnail blob (9:16)
+      // 1. Prepare high-CTR thumbnail blob (9:16)
       let bakedThumbUrl: string | undefined = thumbnailImage || undefined;
       let thumbBlobToUpload: Blob | null = null;
       try {
@@ -2463,9 +2451,67 @@ export default function ShortsFormatterStudio() {
         console.warn('Thumbnail generation warning:', thumbErr);
       }
 
-      setPublishAboutPagePercent(75);
+      setPublishAboutPagePercent(25);
+      setPublishAboutPageStage('SAVING');
 
-      // 3. Save as featured Short project in DigitPop Project storage
+      // 2. Resolve video URL & upload video asset if local
+      let videoUrlToPublish: string = videoUrl || 'https://digitpop.opportunity-system.com/videos/opportunity-os-about.mp4';
+      let videoBlobForLocalCache: Blob | undefined = videoFile || undefined;
+
+      if (videoFile) {
+        // Direct Presigned Upload for local file with granular XHR progress
+        try {
+          const presignRes = await fetch(
+            `${apiBase}/api/publisher/shorts/presigned-url?shortId=${encodeURIComponent(shortProjectId)}&fileType=video&creatorSlug=opportunity-system`
+          );
+          if (presignRes.ok) {
+            const presignData = await presignRes.json();
+            if (presignData.uploadUrl) {
+              await new Promise<void>((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open('PUT', presignData.uploadUrl);
+                xhr.setRequestHeader('Content-Type', videoFile.type || 'video/mp4');
+
+                xhr.upload.onprogress = (event) => {
+                  if (event.lengthComputable) {
+                    const uploadPct = Math.round((event.loaded / event.total) * 100);
+                    const scaled = Math.min(85, 25 + Math.round((uploadPct * 60) / 100));
+                    setPublishAboutPagePercent(scaled);
+                  }
+                };
+
+                xhr.onload = () => {
+                  if (xhr.status >= 200 && xhr.status < 300) {
+                    if (presignData.publicUrl) {
+                      videoUrlToPublish = presignData.publicUrl;
+                    }
+                    resolve();
+                  } else {
+                    console.warn('Presigned PUT returned status:', xhr.status);
+                    resolve();
+                  }
+                };
+                xhr.onerror = () => {
+                  console.warn('Presigned PUT network error');
+                  resolve();
+                };
+                xhr.send(videoFile);
+              });
+            }
+          }
+        } catch (uploadErr) {
+          console.warn('Direct presigned video upload warning:', uploadErr);
+        }
+      } else {
+        // Smart Bypass: Video is already hosted on remote CDN or in draft storage
+        const stored = await getDraftVideoBlob();
+        if (stored?.blob) {
+          videoBlobForLocalCache = stored.blob;
+        }
+        setPublishAboutPagePercent(80);
+      }
+
+      // 3. Save to local IndexedDB & LocalStorage
       const projectPayload: FormattedShortProject = {
         id: shortProjectId,
         title: videoTitle || thumbnailTitle || 'Opportunity OS Short',
@@ -2500,37 +2546,23 @@ export default function ShortsFormatterStudio() {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
-      await saveShortProject(projectPayload, videoBlobToUpload);
+      await saveShortProject(projectPayload, videoBlobForLocalCache);
 
-      // 4. Push directly to DigitPop Cloud Backend & Cloudflare R2
+      // 4. Save metadata to Cloud Media Hub API
+      setPublishAboutPagePercent(90);
       try {
-        setPublishAboutPagePercent(90);
-        const apiBase = (
-          import.meta.env.VITE_API_URL ||
-          (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-            ? 'http://localhost:9000'
-            : 'https://digitpop.opportunity-system.com')
-        ).replace(/\/+$/, '');
-
-        const formData = new FormData();
-        formData.append(
-          'payload',
-          JSON.stringify({
-            ...projectPayload,
-            creatorSlug: 'opportunity-system',
-            destinationChannel: 'about',
-          })
-        );
-        if (videoBlobToUpload) {
-          formData.append('video', videoBlobToUpload, videoFile?.name || `${shortProjectId}.mp4`);
-        }
-        if (thumbBlobToUpload) {
-          formData.append('thumbnail', thumbBlobToUpload, `${shortProjectId}_thumb.jpg`);
-        }
-
         const resp = await fetch(`${apiBase}/api/publisher/shorts/publish`, {
           method: 'POST',
-          body: formData,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            ...projectPayload,
+            videoUrl: videoUrlToPublish,
+            thumbnailUrl: bakedThumbUrl,
+            creatorSlug: 'opportunity-system',
+            destinationChannel: 'about',
+          }),
         });
         if (!resp.ok) {
           console.warn('DigitPop Cloud publish API warning:', resp.status, await resp.text().catch(() => ''));
