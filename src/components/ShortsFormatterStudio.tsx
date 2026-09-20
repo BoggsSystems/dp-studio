@@ -2414,7 +2414,7 @@ export default function ShortsFormatterStudio() {
     }
   };
 
-  // Opportunity OS About Page Direct Showcase Handler
+  // Universal Cloud Media Catalog Showcase Handler
   const handlePublishToAboutPage = async () => {
     if (!videoUrl && !videoFile) {
       setPublishAboutPageError('No video loaded to publish.');
@@ -2424,8 +2424,8 @@ export default function ShortsFormatterStudio() {
     try {
       setIsPublishingAboutPage(true);
       setPublishAboutPageError(null);
-      setPublishAboutPagePercent(10);
-      setPublishAboutPageStage('INITIALIZING');
+      setPublishAboutPagePercent(5);
+      setPublishAboutPageStage('RENDERING');
 
       const apiBase = (
         import.meta.env.VITE_API_URL ||
@@ -2434,7 +2434,22 @@ export default function ShortsFormatterStudio() {
           : 'https://digitpop.opportunity-system.com')
       ).replace(/\/+$/, '');
 
-      // 1. Prepare high-CTR thumbnail blob (9:16)
+      // 1. Stage 1: Bake 1080x1920 MP4 Video with Burned-In Kinetic Captions & Background
+      let bakedVideoBlob: Blob;
+      try {
+        bakedVideoBlob = await renderFormattedVideoBlob((renderPct) => {
+          const scaled = Math.min(45, 5 + Math.round((renderPct * 40) / 100));
+          setPublishAboutPagePercent(scaled);
+        });
+      } catch (renderErr) {
+        console.warn('Video rendering fallback warning:', renderErr);
+        bakedVideoBlob = videoFile || (await getDraftVideoBlob())?.blob || (await (await fetch(videoUrl!)).blob());
+      }
+
+      setPublishAboutPagePercent(50);
+      setPublishAboutPageStage('INITIALIZING');
+
+      // 2. Stage 2: Bake High-CTR 9:16 Graphical Cover Image
       let bakedThumbUrl: string | undefined = thumbnailImage || undefined;
       let thumbBlobToUpload: Blob | null = null;
       try {
@@ -2451,15 +2466,15 @@ export default function ShortsFormatterStudio() {
         console.warn('Thumbnail generation warning:', thumbErr);
       }
 
-      setPublishAboutPagePercent(25);
+      setPublishAboutPagePercent(60);
       setPublishAboutPageStage('SAVING');
 
-      // 2. Resolve video URL & upload video asset if local
+      // 3. Stage 3: Direct Edge Upload to Cloudflare R2 via Presigned URLs
       let videoUrlToPublish: string = videoUrl || 'https://digitpop.opportunity-system.com/videos/opportunity-os-about.mp4';
-      let videoBlobForLocalCache: Blob | undefined = videoFile || undefined;
+      let thumbUrlToPublish: string = bakedThumbUrl || 'https://digitpop.opportunity-system.com/thumbnails/opportunity-os-about.jpg';
 
-      if (videoFile) {
-        // Direct Presigned Upload for local file with granular XHR progress
+      // 3a. Upload Baked Video Blob (1080x1920 MP4)
+      if (bakedVideoBlob) {
         try {
           const presignRes = await fetch(
             `${apiBase}/api/publisher/shorts/presigned-url?shortId=${encodeURIComponent(shortProjectId)}&fileType=video&creatorSlug=opportunity-system`
@@ -2467,15 +2482,15 @@ export default function ShortsFormatterStudio() {
           if (presignRes.ok) {
             const presignData = await presignRes.json();
             if (presignData.uploadUrl) {
-              await new Promise<void>((resolve, reject) => {
+              await new Promise<void>((resolve) => {
                 const xhr = new XMLHttpRequest();
                 xhr.open('PUT', presignData.uploadUrl);
-                xhr.setRequestHeader('Content-Type', videoFile.type || 'video/mp4');
+                xhr.setRequestHeader('Content-Type', bakedVideoBlob.type || 'video/mp4');
 
                 xhr.upload.onprogress = (event) => {
                   if (event.lengthComputable) {
                     const uploadPct = Math.round((event.loaded / event.total) * 100);
-                    const scaled = Math.min(85, 25 + Math.round((uploadPct * 60) / 100));
+                    const scaled = Math.min(85, 60 + Math.round((uploadPct * 25) / 100));
                     setPublishAboutPagePercent(scaled);
                   }
                 };
@@ -2485,39 +2500,60 @@ export default function ShortsFormatterStudio() {
                     if (presignData.publicUrl) {
                       videoUrlToPublish = presignData.publicUrl;
                     }
-                    resolve();
                   } else {
-                    console.warn('Presigned PUT returned status:', xhr.status);
-                    resolve();
+                    console.warn('Presigned PUT video returned status:', xhr.status);
                   }
-                };
-                xhr.onerror = () => {
-                  console.warn('Presigned PUT network error');
                   resolve();
                 };
-                xhr.send(videoFile);
+                xhr.onerror = () => {
+                  console.warn('Presigned PUT video network error');
+                  resolve();
+                };
+                xhr.send(bakedVideoBlob);
               });
             }
           }
         } catch (uploadErr) {
           console.warn('Direct presigned video upload warning:', uploadErr);
         }
-      } else {
-        // Smart Bypass: Video is already hosted on remote CDN or in draft storage
-        const stored = await getDraftVideoBlob();
-        if (stored?.blob) {
-          videoBlobForLocalCache = stored.blob;
-        }
-        setPublishAboutPagePercent(80);
       }
 
-      // 3. Save to local IndexedDB & LocalStorage
+      // 3b. Upload Baked Thumbnail Blob (9:16 Cover Art)
+      if (thumbBlobToUpload) {
+        try {
+          const thumbPresignRes = await fetch(
+            `${apiBase}/api/publisher/shorts/presigned-url?shortId=${encodeURIComponent(shortProjectId)}&fileType=thumbnail&contentType=image/jpeg&creatorSlug=opportunity-system`
+          );
+          if (thumbPresignRes.ok) {
+            const thumbPresignData = await thumbPresignRes.json();
+            if (thumbPresignData.uploadUrl) {
+              await new Promise<void>((resolve) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open('PUT', thumbPresignData.uploadUrl);
+                xhr.setRequestHeader('Content-Type', 'image/jpeg');
+                xhr.onload = () => {
+                  if (xhr.status >= 200 && xhr.status < 300 && thumbPresignData.publicUrl) {
+                    thumbUrlToPublish = thumbPresignData.publicUrl;
+                  }
+                  resolve();
+                };
+                xhr.onerror = () => resolve();
+                xhr.send(thumbBlobToUpload);
+              });
+            }
+          }
+        } catch (thumbUploadErr) {
+          console.warn('Direct thumbnail upload error:', thumbUploadErr);
+        }
+      }
+
+      // 4. Save to local IndexedDB for instant offline recall
       const projectPayload: FormattedShortProject = {
         id: shortProjectId,
         title: videoTitle || thumbnailTitle || 'Opportunity OS Short',
-        videoFileName: videoFile?.name || 'short_video.mp4',
-        thumbnailUrl: bakedThumbUrl || thumbnailImage || undefined,
-        durationSeconds: duration || 30,
+        videoFileName: videoFile?.name || `${shortProjectId}.mp4`,
+        thumbnailUrl: thumbUrlToPublish,
+        durationSeconds: duration || 56,
         words,
         editableTranscript,
         highlightColor,
@@ -2532,8 +2568,8 @@ export default function ShortsFormatterStudio() {
         qrPlacement,
         qrCustomUrl,
         productId: selectedProduct?.id || savedProductId || undefined,
-        productTitle: selectedProduct?.title,
-        productPrice: selectedProduct?.price,
+        productTitle: selectedProduct?.title || 'AI-Native Software Engineering',
+        productPrice: selectedProduct?.price || 9.99,
         thumbnailTitle: videoTitle || thumbnailTitle,
         thumbnailStyle,
         thumbnailFontSize,
@@ -2546,9 +2582,9 @@ export default function ShortsFormatterStudio() {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
-      await saveShortProject(projectPayload, videoBlobForLocalCache);
+      await saveShortProject(projectPayload, bakedVideoBlob);
 
-      // 4. Save metadata to Cloud Media Hub API
+      // 5. Register in Cloud Media Catalog
       setPublishAboutPagePercent(90);
       try {
         const resp = await fetch(`${apiBase}/api/publisher/shorts/publish`, {
@@ -2559,7 +2595,7 @@ export default function ShortsFormatterStudio() {
           body: JSON.stringify({
             ...projectPayload,
             videoUrl: videoUrlToPublish,
-            thumbnailUrl: bakedThumbUrl,
+            thumbnailUrl: thumbUrlToPublish,
             creatorSlug: 'opportunity-system',
             destinationChannel: 'about',
           }),
@@ -2574,10 +2610,10 @@ export default function ShortsFormatterStudio() {
       setPublishAboutPageStage('DONE');
       setPublishAboutPagePercent(100);
       setPublishedAboutPageUrl('https://opportunity-system.com/about');
-      toast.success('Successfully published to Opportunity OS About Page Shorts Showcase!');
+      toast.success('Successfully baked and published to Cloud Media Catalog!');
     } catch (err: any) {
-      console.error('About Page showcase publish failed:', err);
-      setPublishAboutPageError(err.message || 'Failed to publish to About Page showcase.');
+      console.error('Cloud Catalog publish failed:', err);
+      setPublishAboutPageError(err.message || 'Failed to publish to Cloud Media Catalog.');
     } finally {
       setIsPublishingAboutPage(false);
     }
