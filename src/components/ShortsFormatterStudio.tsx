@@ -2614,6 +2614,13 @@ export default function ShortsFormatterStudio() {
       // 5. Register in Cloud Media Catalog
       setPublishAboutPagePercent(90);
       try {
+        if (!videoUrlToPublish || videoUrlToPublish.startsWith('blob:')) {
+          videoUrlToPublish = `${apiBase}/uploads/cdn/videos/shorts/opportunity-system/${encodeURIComponent(shortProjectId)}.mp4`;
+        }
+        if (!thumbUrlToPublish || thumbUrlToPublish.startsWith('blob:')) {
+          thumbUrlToPublish = `${apiBase}/uploads/cdn/thumbnails/shorts/opportunity-system/${encodeURIComponent(shortProjectId)}.jpg`;
+        }
+
         const resp = await fetch(`${apiBase}/api/publisher/shorts/publish`, {
           method: 'POST',
           headers: {
