@@ -453,8 +453,69 @@ export async function deleteShortProject(id: string): Promise<void> {
       const tx = db.transaction(STORE_NAME, 'readwrite');
       tx.objectStore(STORE_NAME).delete(`short_video_${id}`);
     } catch (e) {}
+
+    // 5. Delete from cloud DB (best-effort — only fires if ID is a server UUID)
+    if (/^[0-9a-f-]{36}$/i.test(id)) {
+      try {
+        const apiBase = (
+          (import.meta as any).env?.VITE_API_URL ||
+          (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+            ? 'http://localhost:9000'
+            : 'https://digitpop.opportunity-system.com')
+        ).replace(/\/+$/, '');
+        await fetch(`${apiBase}/api/publisher/shorts/${id}`, { method: 'DELETE' });
+      } catch (e) {
+        console.warn('Cloud delete best-effort failed:', e);
+      }
+    }
   } catch (err) {
     console.warn('Failed to delete short project:', err);
+  }
+}
+
+const getApiBase = () =>
+  (
+    (import.meta as any).env?.VITE_API_URL ||
+    (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+      ? 'http://localhost:9000'
+      : 'https://digitpop.opportunity-system.com')
+  ).replace(/\/+$/, '');
+
+/**
+ * Toggle a short's published state in the cloud DB.
+ * publish=true  → status READY (visible on About page)
+ * publish=false → status DRAFT (hidden from About page)
+ */
+export async function setShortPublishedInCloud(
+  id: string,
+  publish: boolean,
+): Promise<{ success: boolean; status?: string }> {
+  try {
+    const action = publish ? 'publish' : 'unpublish';
+    const res = await fetch(`${getApiBase()}/api/publisher/shorts/${id}/${action}`, { method: 'PATCH' });
+    if (!res.ok) return { success: false };
+    const data = await res.json();
+    return { success: data.success === true, status: data.status };
+  } catch (err) {
+    console.warn(`setShortPublishedInCloud(${id}, ${publish}) error:`, err);
+    return { success: false };
+  }
+}
+
+/**
+ * Permanently delete a 16:9 VOD project from the cloud DB.
+ */
+export async function deleteVodProjectFromCloud(
+  projectId: string,
+): Promise<{ success: boolean }> {
+  try {
+    const res = await fetch(`${getApiBase()}/api/publisher/projects/${projectId}`, { method: 'DELETE' });
+    if (!res.ok) return { success: false };
+    const data = await res.json();
+    return { success: data.success === true };
+  } catch (err) {
+    console.warn(`deleteVodProjectFromCloud(${projectId}) error:`, err);
+    return { success: false };
   }
 }
 

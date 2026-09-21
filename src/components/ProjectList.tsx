@@ -4,7 +4,7 @@ import { Project, FormattedShortProject } from '../types';
 import ProjectWizardModal from './ProjectWizardModal';
 import ConfirmModal from './ConfirmModal';
 import { toast } from '../services/toast';
-import { getAllShortProjects, getShortProject, loadShortProjectIntoActiveDraft, deleteShortProject } from '../services/videoStorage';
+import { getAllShortProjects, getShortProject, loadShortProjectIntoActiveDraft, deleteShortProject, setShortPublishedInCloud, deleteVodProjectFromCloud } from '../services/videoStorage';
 
 interface ProjectListProps {
   projects: Project[];
@@ -34,6 +34,11 @@ export default function ProjectList({
   const [categoryFilter, setCategoryFilter] = useState<'ALL' | 'VOD' | 'SHORTS'>('ALL');
   const [savedShorts, setSavedShorts] = useState<FormattedShortProject[]>([]);
   const [deletingShortId, setDeletingShortId] = useState<string | null>(null);
+  const [togglingPublishId, setTogglingPublishId] = useState<string | null>(null);
+  const [deletingVodId, setDeletingVodId] = useState<string | null>(null);
+  const [localProjects, setLocalProjects] = useState<Project[]>(projects);
+
+  useEffect(() => { setLocalProjects(projects); }, [projects]);
 
   useEffect(() => {
     setSavedShorts(getAllShortProjects());
@@ -64,7 +69,44 @@ export default function ProjectList({
     await deleteShortProject(deletingShortId);
     setSavedShorts(getAllShortProjects());
     setDeletingShortId(null);
-    toast.success('Short project removed from library', 'Deleted');
+    toast.success('Short removed from library and cloud', 'Deleted');
+  };
+
+  const handleTogglePublish = async (e: React.MouseEvent, short: FormattedShortProject) => {
+    e.stopPropagation();
+    if (togglingPublishId === short.id) return;
+    const willPublish = short.status !== 'PUBLISHED';
+    setTogglingPublishId(short.id);
+    const result = await setShortPublishedInCloud(short.id, willPublish);
+    if (result.success) {
+      setSavedShorts((prev) =>
+        prev.map((s) =>
+          s.id === short.id ? { ...s, status: willPublish ? 'PUBLISHED' : 'DRAFT' } : s,
+        ),
+      );
+      toast.success(willPublish ? 'Short published to About page' : 'Short unpublished from About page', willPublish ? 'Published' : 'Unpublished');
+    } else {
+      toast.error('Failed to update publish status', 'Error');
+    }
+    setTogglingPublishId(null);
+  };
+
+  const handleDeleteVod = (e: React.MouseEvent, projectId: string) => {
+    e.stopPropagation();
+    setDeletingVodId(projectId);
+  };
+
+  const handleConfirmDeleteVod = async () => {
+    if (!deletingVodId) return;
+    const result = await deleteVodProjectFromCloud(deletingVodId);
+    if (result.success) {
+      setLocalProjects((prev) => prev.filter((p) => p.id !== deletingVodId));
+      if (onDeleteProject) onDeleteProject(deletingVodId);
+      toast.success('Project permanently deleted', 'Deleted');
+    } else {
+      toast.error('Failed to delete project from server', 'Error');
+    }
+    setDeletingVodId(null);
   };
 
   const totalCount = projects.length + savedShorts.length;
@@ -138,7 +180,7 @@ export default function ProjectList({
         >
           {/* 1. Render 16:9 VOD Projects */}
           {categoryFilter !== 'SHORTS' &&
-            projects.map((proj) => {
+            localProjects.map((proj) => {
               const pinCount = proj.productGroups?.length || 0;
               const basketCount = proj.baskets?.length || 0;
               const thumbSrc = getResolvedThumbnailUrl(proj.thumbnailUrl);
@@ -276,6 +318,16 @@ export default function ProjectList({
                         <Edit3 size={12} />
                         <span>Edit Project</span>
                       </button>
+
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        style={{ padding: '6px 10px', fontSize: '12px', color: 'var(--text-muted)' }}
+                        onClick={(e) => handleDeleteVod(e, proj.id)}
+                        title="Delete Project"
+                      >
+                        <Trash2 size={13} />
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -394,6 +446,22 @@ export default function ProjectList({
                       <button
                         type="button"
                         className="btn btn-secondary"
+                        style={{
+                          padding: '6px 10px',
+                          fontSize: '12px',
+                          color: isPublished ? 'var(--accent-amber)' : 'var(--accent-emerald)',
+                          opacity: togglingPublishId === short.id ? 0.6 : 1,
+                        }}
+                        onClick={(e) => handleTogglePublish(e, short)}
+                        title={isPublished ? 'Unpublish (hide from About page)' : 'Publish (show on About page)'}
+                        disabled={togglingPublishId === short.id}
+                      >
+                        {isPublished ? <CheckCircle2 size={13} /> : <CheckCircle size={13} />}
+                      </button>
+
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
                         style={{ padding: '6px 10px', fontSize: '12px', color: 'var(--text-muted)' }}
                         onClick={(e) => handleDeleteShort(e, short.id)}
                         title="Delete Short Project"
@@ -418,15 +486,26 @@ export default function ProjectList({
         }}
       />
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Short Confirmation Modal */}
       <ConfirmModal
         isOpen={!!deletingShortId}
         title="Delete Short Project"
-        message="Are you sure you want to delete this short? This action cannot be undone and will remove the cached video from your device."
+        message="Are you sure you want to delete this short? This action cannot be undone and will remove the video from your device and the cloud."
         confirmText="Delete Short"
         variant="danger"
         onConfirm={handleConfirmDelete}
         onClose={() => setDeletingShortId(null)}
+      />
+
+      {/* Delete VOD Project Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!deletingVodId}
+        title="Delete Project"
+        message="Are you sure you want to permanently delete this project? This will remove it from the cloud and cannot be undone."
+        confirmText="Delete Project"
+        variant="danger"
+        onConfirm={handleConfirmDeleteVod}
+        onClose={() => setDeletingVodId(null)}
       />
     </div>
   );
