@@ -572,18 +572,14 @@ export default function ShortsFormatterStudio() {
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
 
   // AI Title & Description Studio State
-  const [videoTitle, setVideoTitle] = useState<string>("DON'T LEARN SYNTAX IN 2026");
-  const [videoDescription, setVideoDescription] = useState<string>(
-    `All right, guys, I'm back after a few months. I've been busy developing software. You can see it at opportunity-system.com. And I'm here to talk with a lot of developers that are either juniors or you're in university right now and you're trying to figure out what to do with your software career.\n\n👉 Grab the Blueprint & Software Tools: https://opportunity-system.com/about\n⚡ Featured Product: AI-Native Software Engineering: The New Physics of Software Velocity\n\n#Shorts #Programming #SoftwareEngineering #AI #TechCareers #OpportunityOS`
-  );
-  const [pinnedCommentText, setPinnedCommentText] = useState<string>(
-    `👉 Grab the AI-Native Software Engineering: The New Physics of Software Velocity and free Chapter 1 blueprint here: https://opportunity-system.com/about (Link also in Bio ⚡)`
-  );
+  const [videoTitle, setVideoTitle] = useState<string>('');
+  const [videoDescription, setVideoDescription] = useState<string>('');
+  const [pinnedCommentText, setPinnedCommentText] = useState<string>('');
   const [isAiGeneratingMeta, setIsAiGeneratingMeta] = useState<boolean>(false);
 
   // High-CTR Thumbnail Studio State
   const [thumbnailImage, setThumbnailImage] = useState<string | null>(null);
-  const [thumbnailTitle, setThumbnailTitle] = useState<string>("DON'T LEARN SYNTAX IN 2026");
+  const [thumbnailTitle, setThumbnailTitle] = useState<string>('');
   const [thumbnailStyle, setThumbnailStyle] = useState<ThumbnailStyle>('VIRAL_WHITE');
   const [thumbnailFontSize, setThumbnailFontSize] = useState<number>(54);
   const [thumbnailPosition, setThumbnailPosition] = useState<number>(45); // % from top
@@ -1045,8 +1041,9 @@ export default function ShortsFormatterStudio() {
       const productUrl = 'https://opportunity-system.com/about';
 
       if (!text || text.trim().length === 0) {
-        setVideoTitle("DON'T LEARN SYNTAX IN 2026");
-        setThumbnailTitle("DON'T LEARN SYNTAX IN 2026");
+        const fileFallback = videoFile?.name ? videoFile.name.replace(/\.[^/.]+$/, '').toUpperCase() : 'AI SHOPPABLE SHORT';
+        setVideoTitle(fileFallback);
+        setThumbnailTitle(fileFallback);
         setVideoDescription(
           `🚀 Grab the free Chapter 1 blueprint & software tools: ${productUrl}\n⚡ Featured Product: ${productName}\n\n#Shorts #Programming #SoftwareEngineering #AI #TechCareers #OpportunityOS`
         );
@@ -1055,13 +1052,32 @@ export default function ShortsFormatterStudio() {
       }
 
       const cleanText = text.replace(/\s+/g, ' ').trim();
-      const sentences = cleanText.split(/[.!?]+/).filter((s) => s.trim().length > 6);
-      let hook = "DON'T LEARN SYNTAX IN 2026";
+      const sentences = cleanText.split(/[.!?]+/).map((s) => s.trim()).filter((s) => s.length > 4);
+      
+      let hook = '';
       if (sentences.length > 0) {
-        const first = sentences[0].trim();
-        if (first.length >= 10 && first.length <= 80) {
+        const first = sentences[0];
+        if (first.length <= 60) {
           hook = first.toUpperCase();
+        } else {
+          // If the first spoken thought is long, cleanly grab the first 6-8 words up to 55 chars
+          const words = first.split(/\s+/);
+          let sliced = '';
+          for (const w of words) {
+            if ((sliced + ' ' + w).trim().length <= 55) {
+              sliced = (sliced + ' ' + w).trim();
+            } else {
+              break;
+            }
+          }
+          hook = (sliced || first.slice(0, 50)).toUpperCase();
         }
+      } else {
+        hook = cleanText.slice(0, 50).toUpperCase();
+      }
+
+      if (!hook) {
+        hook = videoFile?.name ? videoFile.name.replace(/\.[^/.]+$/, '').toUpperCase() : 'AI SHOPPABLE SHORT';
       }
 
       const hookSnippet = cleanText.length > 240 ? cleanText.slice(0, 240) + '...' : cleanText;
@@ -1080,11 +1096,17 @@ export default function ShortsFormatterStudio() {
   // Handle Video File Selection
   const handleFileChange = async (file: File) => {
     if (!file) return;
+    setShortProjectId(`short_${Date.now()}`);
     setVideoFile(file);
     const objectUrl = URL.createObjectURL(file);
     setVideoUrl(objectUrl);
     setIsPlaying(false);
     setCurrentTime(0);
+
+    // Derive instant initial title from filename before transcription completes
+    const baseName = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ').toUpperCase();
+    setVideoTitle(baseName);
+    setThumbnailTitle(baseName);
 
     // Save video file to IndexedDB for persistent recovery across page reloads
     await saveDraftVideoBlob(file, file.name);
