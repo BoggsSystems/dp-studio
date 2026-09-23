@@ -1824,7 +1824,7 @@ export default function ShortsFormatterStudio() {
 
       const mediaRecorder = new MediaRecorder(combinedStream, {
         mimeType,
-        videoBitsPerSecond: 4500000, // 4.5 Mbps industry standard for 1080x1920 Short HD (~35MB for 2m video)
+        videoBitsPerSecond: 6500000, // 6.5 Mbps crisp 1080x1920 HD (~45MB for 2m short)
         audioBitsPerSecond: 256000,  // 256 kbps studio audio
       });
 
