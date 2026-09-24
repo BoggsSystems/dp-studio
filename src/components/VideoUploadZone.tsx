@@ -33,7 +33,8 @@ export default function VideoUploadZone({
 
     setUploadProgress(0);
     try {
-      const { url } = await api.uploadMedia(file, 'vods', (pct) => {
+      const { url } = await api.uploadMedia(file, 'vods', (prog) => {
+        const pct = typeof prog === 'number' ? prog : prog.percent;
         setUploadProgress(pct);
       });
 

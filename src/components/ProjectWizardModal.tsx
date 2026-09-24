@@ -47,6 +47,10 @@ export default function ProjectWizardModal({
 
   // Execution State
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadStage, setUploadStage] = useState<string>('');
+  const [uploadPercent, setUploadPercent] = useState<number>(0);
+  const [loadedMb, setLoadedMb] = useState<string>('0');
+  const [totalMb, setTotalMb] = useState<string>('0');
   const [error, setError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -61,6 +65,10 @@ export default function ProjectWizardModal({
     setVideoUrl('');
     setSelectedFile(null);
     setIsSubmitting(false);
+    setUploadStage('');
+    setUploadPercent(0);
+    setLoadedMb('0');
+    setTotalMb('0');
     setError(null);
     onClose();
   };
@@ -97,10 +105,12 @@ export default function ProjectWizardModal({
 
     setIsSubmitting(true);
     setError(null);
+    setUploadPercent(0);
 
     try {
       // 1. LIVE BROADCAST CREATION FLOW
       if (format === 'LIVE') {
+        setUploadStage('Scheduling real-time broadcast session...');
         const sessionTitle = effectiveTitle || 'Live Shopping Event';
         const session = await api.createStreamSession(sessionTitle);
         toast.success(`Live Broadcast "${sessionTitle}" scheduled!`, 'Live Deck Ready');
@@ -117,36 +127,26 @@ export default function ProjectWizardModal({
         const shortDraftId = `short_${Date.now()}`;
 
         if (selectedFile) {
-          await saveDraftVideoBlob(selectedFile, selectedFile.name);
+          setUploadStage('Streaming video directly to cloud storage...');
+          const uploadRes = await api.uploadMedia(selectedFile, 'videos/shorts/opportunity-system', (prog) => {
+            const pct = typeof prog === 'number' ? prog : prog.percent;
+            const lMb = typeof prog === 'number' ? (selectedFile.size * (pct / 100) / (1024 * 1024)).toFixed(1) : prog.loadedMb;
+            const tMb = typeof prog === 'number' ? (selectedFile.size / (1024 * 1024)).toFixed(1) : prog.totalMb;
+            setUploadPercent(pct);
+            setLoadedMb(lMb);
+            setTotalMb(tMb);
+            setUploadStage(`Uploading video to cloud: ${lMb} MB / ${tMb} MB (${pct}%)`);
+          });
 
-          try {
-            const formData = new FormData();
-            formData.append('file', selectedFile);
-            formData.append('creatorSlug', 'opportunity-system');
-
-            const apiBase = (
-              (import.meta as any).env?.VITE_API_URL ||
-              (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-                ? 'http://localhost:9000'
-                : 'https://digitpop.opportunity-system.com')
-            ).replace(/\/+$/, '');
-
-            const uploadRes = await fetch(`${apiBase}/api/publisher/shorts/upload-direct`, {
-              method: 'POST',
-              body: formData,
-            });
-
-            if (uploadRes.ok) {
-              const uploadData = await uploadRes.json();
-              if (uploadData.url) {
-                finalVideoUrl = uploadData.url;
-              }
-            }
-          } catch (uploadErr) {
-            console.warn('Direct upload warning (draft stored in IndexedDB):', uploadErr);
+          if (uploadRes && uploadRes.url) {
+            finalVideoUrl = uploadRes.url;
           }
+
+          // Save local backup blob for instant offline editing
+          await saveDraftVideoBlob(selectedFile, selectedFile.name);
         }
 
+        setUploadStage('Initializing AI Studio workspace...');
         const initialDraft = {
           id: shortDraftId,
           title: effectiveTitle,
@@ -154,7 +154,7 @@ export default function ProjectWizardModal({
           videoUrl: finalVideoUrl,
           words: [],
           editableTranscript: '',
-          highlightColor: '#FFE600',
+          highlightColor: 'amber',
           fontSize: 22,
           verticalPosition: 78,
           wordPacing: 'POP_TWO_WORDS',
@@ -176,7 +176,7 @@ export default function ProjectWizardModal({
         };
         localStorage.setItem('digitpop_shorts_formatter_draft_v1', JSON.stringify(initialDraft));
 
-        toast.success(`Short created! Opening Studio for auto-transcription & AI hook...`, 'Shorts Ready');
+        toast.success(`Short initialized! Launching AI Studio...`, 'Shorts Ready');
         if (onOpenShortStudio) {
           onOpenShortStudio(shortDraftId);
         }
@@ -188,34 +188,23 @@ export default function ProjectWizardModal({
       let resolvedVodUrl = videoUrl;
 
       if (selectedFile) {
-        try {
-          const formData = new FormData();
-          formData.append('file', selectedFile);
-          formData.append('creatorSlug', 'opportunity-system');
+        setUploadStage('Streaming 16:9 VOD master to cloud storage...');
+        const uploadRes = await api.uploadMedia(selectedFile, 'raw_videos/opportunity-system', (prog) => {
+          const pct = typeof prog === 'number' ? prog : prog.percent;
+          const lMb = typeof prog === 'number' ? (selectedFile.size * (pct / 100) / (1024 * 1024)).toFixed(1) : prog.loadedMb;
+          const tMb = typeof prog === 'number' ? (selectedFile.size / (1024 * 1024)).toFixed(1) : prog.totalMb;
+          setUploadPercent(pct);
+          setLoadedMb(lMb);
+          setTotalMb(tMb);
+          setUploadStage(`Uploading master VOD: ${lMb} MB / ${tMb} MB (${pct}%)`);
+        });
 
-          const apiBase = (
-            (import.meta as any).env?.VITE_API_URL ||
-            (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-              ? 'http://localhost:9000'
-              : 'https://digitpop.opportunity-system.com')
-          ).replace(/\/+$/, '');
-
-          const uploadRes = await fetch(`${apiBase}/api/publisher/shorts/upload-direct`, {
-            method: 'POST',
-            body: formData,
-          });
-
-          if (uploadRes.ok) {
-            const uploadData = await uploadRes.json();
-            if (uploadData.url) {
-              resolvedVodUrl = uploadData.url;
-            }
-          }
-        } catch (upErr) {
-          console.warn('VOD Upload warning:', upErr);
+        if (uploadRes && uploadRes.url) {
+          resolvedVodUrl = uploadRes.url;
         }
       }
 
+      setUploadStage('Registering interactive project in database...');
       const newProjectPayload: Partial<Project> = {
         name: effectiveTitle,
         description: '',
@@ -238,6 +227,7 @@ export default function ProjectWizardModal({
       setError(err.message || 'Failed to create experience');
     } finally {
       setIsSubmitting(false);
+      setUploadStage('');
     }
   };
 
@@ -625,15 +615,16 @@ export default function ProjectWizardModal({
                           accept="video/mp4,video/quicktime,video/webm"
                           style={{ display: 'none' }}
                           onChange={handleFileChange}
+                          disabled={isSubmitting}
                         />
                         <div
-                          onClick={() => fileInputRef.current?.click()}
+                          onClick={() => !isSubmitting && fileInputRef.current?.click()}
                           style={{
-                            border: '2px dashed rgba(99, 102, 241, 0.35)',
+                            border: `2px dashed ${selectedFile ? '#6366F1' : 'rgba(99, 102, 241, 0.35)'}`,
                             borderRadius: 'var(--radius-lg)',
-                            padding: '36px 20px',
+                            padding: '30px 20px',
                             textAlign: 'center',
-                            cursor: 'pointer',
+                            cursor: isSubmitting ? 'not-allowed' : 'pointer',
                             background: selectedFile ? 'rgba(99, 102, 241, 0.08)' : 'rgba(0, 0, 0, 0.25)',
                             transition: 'all 0.2s ease',
                           }}
@@ -643,7 +634,7 @@ export default function ProjectWizardModal({
                             <div>
                               <div style={{ fontSize: '14px', fontWeight: 700, color: '#fff' }}>{selectedFile.name}</div>
                               <div style={{ fontSize: '12px', color: '#818CF8', marginTop: '4px', fontWeight: 600 }}>
-                                {(selectedFile.size / (1024 * 1024)).toFixed(1)} MB • Ready for AI Ingestion
+                                {(selectedFile.size / (1024 * 1024)).toFixed(1)} MB • Direct Cloud-Native Pipeline
                               </div>
                             </div>
                           ) : (
@@ -657,6 +648,62 @@ export default function ProjectWizardModal({
                             </div>
                           )}
                         </div>
+
+                        {/* Real-Time Upload & Ingestion Progress Bar */}
+                        {isSubmitting && (
+                          <div
+                            style={{
+                              marginTop: '16px',
+                              padding: '14px 16px',
+                              borderRadius: 'var(--radius-md)',
+                              background: 'rgba(15, 23, 42, 0.95)',
+                              border: '1px solid rgba(99, 102, 241, 0.4)',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '10px',
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <Loader2 size={16} className="animate-spin" color="#818CF8" />
+                                <span style={{ fontSize: '13px', fontWeight: 600, color: '#fff' }}>
+                                  {uploadStage || 'Processing video ingestion...'}
+                                </span>
+                              </div>
+                              <span style={{ fontSize: '13px', fontWeight: 700, color: '#818CF8', fontFamily: 'var(--font-mono)' }}>
+                                {uploadPercent > 0 ? `${uploadPercent}%` : ''}
+                              </span>
+                            </div>
+
+                            {/* Progress track */}
+                            <div
+                              style={{
+                                width: '100%',
+                                height: '6px',
+                                background: 'rgba(255, 255, 255, 0.08)',
+                                borderRadius: '3px',
+                                overflow: 'hidden',
+                              }}
+                            >
+                              <div
+                                style={{
+                                  width: `${Math.max(5, uploadPercent)}%`,
+                                  height: '100%',
+                                  background: 'linear-gradient(90deg, #6366F1 0%, #38BDF8 100%)',
+                                  borderRadius: '3px',
+                                  transition: 'width 0.2s ease',
+                                }}
+                              />
+                            </div>
+
+                            {loadedMb !== '0' && totalMb !== '0' && (
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                                <span>Uploaded: {loadedMb} MB</span>
+                                <span>Total: {totalMb} MB</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <div>
@@ -666,6 +713,7 @@ export default function ProjectWizardModal({
                           placeholder="https://pub-...r2.dev/video.mp4"
                           value={videoUrl}
                           onChange={(e) => setVideoUrl(e.target.value)}
+                          disabled={isSubmitting}
                         />
                         <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
                           Supports MP4, WebM, and HLS .m3u8 adaptive bitrate manifests.

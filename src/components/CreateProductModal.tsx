@@ -217,7 +217,8 @@ export default function CreateProductModal({
       let completed = 0;
       const uploadedUrls: string[] = [];
       for (const file of validFiles) {
-        const { url } = await api.uploadMedia(file, 'products', (pct) => {
+        const { url } = await api.uploadMedia(file, 'products', (prog) => {
+          const pct = typeof prog === 'number' ? prog : prog.percent;
           const overall = Math.round((completed * 100 + pct) / validFiles.length);
           setUploadProgress(overall);
         });

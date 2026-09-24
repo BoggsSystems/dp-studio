@@ -309,42 +309,68 @@ export const api = {
     }
   },
 
-  // --- Cloudflare R2 Upload ---
+  // --- Direct Video Upload with Real-Time Progress ---
   async uploadMedia(
     file: File,
     pathPrefix: string = 'vods',
-    onProgress?: (pct: number) => void
+    onProgress?: (progress: { percent: number; loadedBytes: number; totalBytes: number; loadedMb: string; totalMb: string } | number) => void
   ): Promise<{ url: string; key: string }> {
     const filename = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
     const key = `${pathPrefix}/${filename}`;
-    const destinationUrl = `${R2_PUBLIC_DOMAIN}/${key}`;
 
     const formData = new FormData();
     formData.append('file', file);
     formData.append('key', key);
 
-    try {
+    return new Promise<{ url: string; key: string }>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      const uploadPromise = new Promise<{ url: string; key: string }>((resolve) => {
-        xhr.upload.addEventListener('progress', (e) => {
-          if (e.lengthComputable && onProgress) {
-            onProgress(Math.round((e.loaded / e.total) * 100));
+
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable && onProgress) {
+          const percent = Math.min(99, Math.round((e.loaded / e.total) * 100));
+          const loadedMb = (e.loaded / (1024 * 1024)).toFixed(1);
+          const totalMb = (e.total / (1024 * 1024)).toFixed(1);
+          try {
+            (onProgress as any)({ percent, loadedBytes: e.loaded, totalBytes: e.total, loadedMb, totalMb });
+          } catch {
+            (onProgress as any)(percent);
           }
-        });
-        xhr.addEventListener('load', () => {
-          resolve({ url: destinationUrl, key });
-        });
-        xhr.addEventListener('error', () => {
-          resolve({ url: destinationUrl, key });
-        });
+        }
       });
 
-      xhr.open('POST', `${API_BASE_URL}/api/storage/upload`);
+      xhr.addEventListener('load', () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const data = JSON.parse(xhr.responseText);
+            const resolvedUrl = data.url || data.publicUrl || `${R2_PUBLIC_DOMAIN}/${key}`;
+            if (onProgress) {
+              const totalMb = (file.size / (1024 * 1024)).toFixed(1);
+              try {
+                (onProgress as any)({ percent: 100, loadedBytes: file.size, totalBytes: file.size, loadedMb: totalMb, totalMb });
+              } catch {
+                (onProgress as any)(100);
+              }
+            }
+            resolve({ url: resolvedUrl, key: data.key || key });
+          } catch {
+            resolve({ url: `${R2_PUBLIC_DOMAIN}/${key}`, key });
+          }
+        } else {
+          reject(new Error(`Upload failed with HTTP ${xhr.status}`));
+        }
+      });
+
+      xhr.addEventListener('error', () => {
+        reject(new Error('Network error during video upload. Please check your connection.'));
+      });
+
+      xhr.addEventListener('abort', () => {
+        reject(new Error('Upload was cancelled.'));
+      });
+
+      xhr.open('POST', `${API_BASE_URL}/api/publisher/shorts/upload-direct?key=${encodeURIComponent(key)}`);
       xhr.send(formData);
-      return await uploadPromise;
-    } catch (err) {
-      return { url: destinationUrl, key };
-    }
+    });
   },
 
   // --- AI Autopilot Scanner ---

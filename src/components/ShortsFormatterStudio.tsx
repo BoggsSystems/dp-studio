@@ -78,6 +78,10 @@ const HIGHLIGHT_COLORS: Record<HighlightColor, { label: string; hex: string; glo
   violet: { label: 'Neon Violet', hex: '#8B5CF6', glow: 'rgba(139, 92, 246, 0.6)' },
 };
 
+const getHighlightColorConfig = (colorKey: string) => {
+  return HIGHLIGHT_COLORS[colorKey as HighlightColor] || HIGHLIGHT_COLORS.amber;
+};
+
 export const THUMBNAIL_STYLES: Record<ThumbnailStyle, { name: string; fontColor: string; strokeColor: string; glow: string }> = {
   VIRAL_WHITE: { name: 'Viral White (High CTR)', fontColor: '#FFFFFF', strokeColor: '#000000', glow: 'rgba(0,0,0,0.95)' },
   FLAME_ORANGE: { name: 'Flame Orange (Urgency)', fontColor: '#FF6B00', strokeColor: '#000000', glow: 'rgba(255,107,0,0.7)' },
@@ -677,6 +681,7 @@ export default function ShortsFormatterStudio() {
         const savedDraftJson = localStorage.getItem('digitpop_shorts_formatter_draft_v1');
         let hasRestoredData = false;
 
+        let draftWordsFound = false;
         if (savedDraftJson) {
           const draft = JSON.parse(savedDraftJson);
           if (draft.id) setShortProjectId(draft.id);
@@ -684,12 +689,20 @@ export default function ShortsFormatterStudio() {
           if (draft.words && draft.words.length > 0) {
             setWords(draft.words);
             hasRestoredData = true;
+            draftWordsFound = true;
           }
           if (draft.editableTranscript) {
             setEditableTranscript(draft.editableTranscript);
             hasRestoredData = true;
           }
-          if (draft.highlightColor) setHighlightColor(draft.highlightColor);
+          if (draft.highlightColor) {
+            const validKeys: HighlightColor[] = ['amber', 'emerald', 'cyan', 'pink', 'orange', 'violet'];
+            if (validKeys.includes(draft.highlightColor)) {
+              setHighlightColor(draft.highlightColor);
+            } else {
+              setHighlightColor('amber');
+            }
+          }
           if (draft.fontSize !== undefined) setFontSize(draft.fontSize);
           if (draft.verticalPosition !== undefined) setVerticalPosition(draft.verticalPosition);
           if (draft.wordPacing) setWordPacing(draft.wordPacing);
@@ -714,7 +727,7 @@ export default function ShortsFormatterStudio() {
           if (draft.thumbnailImage) setThumbnailImage(draft.thumbnailImage);
         }
 
-        // Restore video from IndexedDB
+        // Restore video from IndexedDB or cloud draft
         const storedVideo = await getDraftVideoBlob();
         if (storedVideo && storedVideo.blob && !isCancelled) {
           const file = new File([storedVideo.blob], storedVideo.name || 'short_video.mp4', {
@@ -724,6 +737,11 @@ export default function ShortsFormatterStudio() {
           const objUrl = URL.createObjectURL(file);
           setVideoUrl(objUrl);
           hasRestoredData = true;
+
+          // If this is a fresh launch from wizard with no transcript words yet, auto-run transcription
+          if (!draftWordsFound) {
+            runTranscription(file);
+          }
         }
 
         if (hasRestoredData && !isCancelled) {
@@ -2042,12 +2060,12 @@ export default function ShortsFormatterStudio() {
             ctx.save();
             ctx.lineWidth = 14;
             ctx.strokeStyle = '#000000';
-            ctx.shadowColor = item.isActive ? HIGHLIGHT_COLORS[highlightColor].glow : 'rgba(0,0,0,0.9)';
+            ctx.shadowColor = item.isActive ? getHighlightColorConfig(highlightColor).glow : 'rgba(0,0,0,0.9)';
             ctx.shadowBlur = item.isActive ? 24 : 14;
 
             ctx.strokeText(item.word, currentX, yPos + (item.isActive ? -4 : 0));
 
-            ctx.fillStyle = item.isActive ? HIGHLIGHT_COLORS[highlightColor].hex : '#FFFFFF';
+            ctx.fillStyle = item.isActive ? getHighlightColorConfig(highlightColor).hex : '#FFFFFF';
             ctx.fillText(item.word, currentX, yPos + (item.isActive ? -4 : 0));
             ctx.restore();
 
@@ -2065,7 +2083,7 @@ export default function ShortsFormatterStudio() {
 
           ctx.save();
           ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
-          ctx.strokeStyle = HIGHLIGHT_COLORS[highlightColor].hex;
+          ctx.strokeStyle = getHighlightColorConfig(highlightColor).hex;
           ctx.lineWidth = 4;
           ctx.beginPath();
           if (typeof (ctx as any).roundRect === 'function') {
@@ -2088,7 +2106,7 @@ export default function ShortsFormatterStudio() {
           ctx.drawImage(qrImg, qrX + 24, qrY + 24, 172, 172);
 
           ctx.font = '900 20px Inter, sans-serif';
-          ctx.fillStyle = HIGHLIGHT_COLORS[highlightColor].hex;
+          ctx.fillStyle = getHighlightColorConfig(highlightColor).hex;
           ctx.textAlign = 'center';
           ctx.fillText('⚡ SCAN TO BUY', qrX + w / 2, qrY + 234);
 
@@ -3360,11 +3378,11 @@ export default function ShortsFormatterStudio() {
                           borderRadius: '4px',
                           fontSize: '12px',
                           fontWeight: isActive ? 800 : 500,
-                          background: isActive ? HIGHLIGHT_COLORS[highlightColor].hex : 'rgba(255,255,255,0.06)',
+                          background: isActive ? getHighlightColorConfig(highlightColor).hex : 'rgba(255,255,255,0.06)',
                           color: isActive ? '#000' : '#fff',
                           cursor: 'pointer',
                           transition: 'all 0.1s',
-                          boxShadow: isActive ? `0 0 10px ${HIGHLIGHT_COLORS[highlightColor].glow}` : 'none',
+                          boxShadow: isActive ? `0 0 10px ${getHighlightColorConfig(highlightColor).glow}` : 'none',
                         }}
                       >
                         {wordObj.word}
@@ -5270,9 +5288,9 @@ export default function ShortsFormatterStudio() {
                           fontWeight: 900,
                           lineHeight: 1.1,
                           letterSpacing: '-0.5px',
-                          color: isWordActive ? HIGHLIGHT_COLORS[highlightColor].hex : '#ffffff',
+                          color: isWordActive ? getHighlightColorConfig(highlightColor).hex : '#ffffff',
                           textShadow: isWordActive
-                            ? `0 0 20px ${HIGHLIGHT_COLORS[highlightColor].glow}, 0 4px 12px rgba(0,0,0,0.9), 2px 2px 0 #000, -2px -2px 0 #000, -2px 2px 0 #000, 2px -2px 0 #000`
+                            ? `0 0 20px ${getHighlightColorConfig(highlightColor).glow}, 0 4px 12px rgba(0,0,0,0.9), 2px 2px 0 #000, -2px -2px 0 #000, -2px 2px 0 #000, 2px -2px 0 #000`
                             : '0 4px 10px rgba(0,0,0,0.9), 2px 2px 0 #000, -2px -2px 0 #000, -2px 2px 0 #000, 2px -2px 0 #000',
                           transform: isWordActive ? 'scale(1.15) translateY(-2px)' : 'scale(1)',
                           transition: 'transform 0.08s ease-out, color 0.08s ease-out',
@@ -5300,7 +5318,7 @@ export default function ShortsFormatterStudio() {
                     backdropFilter: 'blur(12px)',
                     padding: '6px 8px',
                     borderRadius: '12px',
-                    border: `1.5px solid ${HIGHLIGHT_COLORS[highlightColor].hex}`,
+                    border: `1.5px solid ${getHighlightColorConfig(highlightColor).hex}`,
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
@@ -5318,7 +5336,7 @@ export default function ShortsFormatterStudio() {
                       style={{ width: '56px', height: '56px', display: 'block', borderRadius: '3px' }}
                     />
                   </div>
-                  <span style={{ fontSize: '8px', fontWeight: 900, color: HIGHLIGHT_COLORS[highlightColor].hex, letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+                  <span style={{ fontSize: '8px', fontWeight: 900, color: getHighlightColorConfig(highlightColor).hex, letterSpacing: '0.5px', textTransform: 'uppercase' }}>
                     ⚡ Scan to Buy
                   </span>
                   {selectedProduct && (
