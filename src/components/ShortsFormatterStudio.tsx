@@ -1036,7 +1036,43 @@ export default function ShortsFormatterStudio() {
     setIsAiGeneratingMeta(true);
     try {
       const text = textInput || editableTranscript || words.map((w) => w.word).join(' ');
-      const product = productOverride !== undefined ? productOverride : selectedProduct;
+      
+      // Auto-match best product from catalog if no manual product override is set
+      let matchedProduct = productOverride !== undefined ? productOverride : selectedProduct;
+      if (!productOverride && products && products.length > 0 && text) {
+        const textLower = text.toLowerCase();
+        let bestScore = -1;
+        let bestCandidate: Product | null = null;
+
+        for (const p of products) {
+          let score = 0;
+          const titleWords = (p.title || '').toLowerCase().split(/\s+/).filter((w) => w.length > 2);
+          const descWords = (p.description || '').toLowerCase().split(/\s+/).filter((w) => w.length > 3);
+
+          for (const tw of titleWords) {
+            if (textLower.includes(tw)) score += 3;
+          }
+          for (const dw of descWords) {
+            if (textLower.includes(dw)) score += 1;
+          }
+
+          if (score > bestScore) {
+            bestScore = score;
+            bestCandidate = p;
+          }
+        }
+
+        if (bestCandidate && bestScore > 0) {
+          matchedProduct = bestCandidate;
+          setSelectedProduct(bestCandidate);
+          setSavedProductId(bestCandidate.id);
+          if (bestCandidate.externalUrl) {
+            setQrCustomUrl(bestCandidate.externalUrl);
+          }
+        }
+      }
+
+      const product = matchedProduct || selectedProduct;
       const productUrl = product?.externalUrl || 'https://opportunity-system.com/about';
 
       const productSnippet = product

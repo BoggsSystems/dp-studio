@@ -8,7 +8,6 @@ import {
   Link as LinkIcon,
   CheckCircle2,
   AlertCircle,
-  ShoppingBag,
   ArrowRight,
   Loader2,
 } from 'lucide-react';
@@ -36,19 +35,15 @@ export default function ProjectWizardModal({
   onOpenLiveStudio,
   availableProducts = [],
 }: ProjectWizardModalProps) {
-  // Wizard Steps: 1 = Format Selection, 2 = Assets & Details, 3 = Catalog Linking
-  const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [format, setFormat] = useState<ExperienceFormat>('VOD');
+  // Ultra-Clean 2-Step Flow: Step 1 = Format Selection, Step 2 = Drop Asset & Launch
+  const [step, setStep] = useState<1 | 2>(1);
+  const [format, setFormat] = useState<ExperienceFormat>('SHORT');
 
   // Form State
   const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('Technology & SaaS');
-  const [channel, setChannel] = useState('about');
   const [sourceType, setSourceType] = useState<'upload' | 'url'>('upload');
   const [videoUrl, setVideoUrl] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
 
   // Execution State
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -60,15 +55,11 @@ export default function ProjectWizardModal({
 
   const handleReset = () => {
     setStep(1);
-    setFormat('VOD');
+    setFormat('SHORT');
     setTitle('');
-    setDescription('');
-    setCategory('Technology & SaaS');
-    setChannel('about');
     setSourceType('upload');
     setVideoUrl('');
     setSelectedFile(null);
-    setSelectedProductIds([]);
     setIsSubmitting(false);
     setError(null);
     onClose();
@@ -84,31 +75,10 @@ export default function ProjectWizardModal({
       const file = e.target.files[0];
       setSelectedFile(file);
       const cleanName = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
-      if (!title || isGenericFilename(title)) {
-        if (isGenericFilename(file.name)) {
-          setTitle('');
-        } else {
-          setTitle(cleanName.charAt(0).toUpperCase() + cleanName.slice(1));
-        }
+      if (!isGenericFilename(file.name)) {
+        setTitle(cleanName.charAt(0).toUpperCase() + cleanName.slice(1));
       }
     }
-  };
-
-  const handleGenerateTitleFromProduct = () => {
-    if (availableProducts.length > 0) {
-      const prod = selectedProductIds.length > 0
-        ? availableProducts.find((p) => p.id === selectedProductIds[0])
-        : availableProducts[0];
-      if (prod) {
-        setTitle(format === 'SHORT' ? `${prod.title.toUpperCase()} • 1-CLICK BUY` : `${prod.title} Product Showcase`);
-      }
-    }
-  };
-
-  const handleToggleProduct = (prodId: string) => {
-    setSelectedProductIds((prev) =>
-      prev.includes(prodId) ? prev.filter((id) => id !== prodId) : [...prev, prodId]
-    );
   };
 
   const handleFinalSubmit = async (e?: React.FormEvent) => {
@@ -117,12 +87,7 @@ export default function ProjectWizardModal({
     // Determine smart effective title
     let effectiveTitle = title.trim();
     if (!effectiveTitle || isGenericFilename(effectiveTitle)) {
-      if (selectedProductIds.length > 0) {
-        const prod = availableProducts.find((p) => p.id === selectedProductIds[0]);
-        if (prod) {
-          effectiveTitle = format === 'SHORT' ? `${prod.title.toUpperCase()} • 1-CLICK BUY` : `${prod.title} Showcase`;
-        }
-      } else if (selectedFile && !isGenericFilename(selectedFile.name)) {
+      if (selectedFile && !isGenericFilename(selectedFile.name)) {
         const cleanName = selectedFile.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
         effectiveTitle = cleanName.charAt(0).toUpperCase() + cleanName.slice(1);
       } else {
@@ -136,8 +101,9 @@ export default function ProjectWizardModal({
     try {
       // 1. LIVE BROADCAST CREATION FLOW
       if (format === 'LIVE') {
-        const session = await api.createStreamSession(effectiveTitle);
-        toast.success(`Live Broadcast "${effectiveTitle}" scheduled!`, 'Live Deck Ready');
+        const sessionTitle = effectiveTitle || 'Live Shopping Event';
+        const session = await api.createStreamSession(sessionTitle);
+        toast.success(`Live Broadcast "${sessionTitle}" scheduled!`, 'Live Deck Ready');
         if (onOpenLiveStudio) {
           onOpenLiveStudio(session);
         }
@@ -199,7 +165,7 @@ export default function ProjectWizardModal({
           showQrCode: true,
           qrPlacement: 'TOP_RIGHT',
           qrCustomUrl: '',
-          selectedProductId: selectedProductIds[0] || null,
+          selectedProductId: null,
           thumbnailTitle: effectiveTitle,
           thumbnailStyle: 'VIRAL_WHITE',
           thumbnailFontSize: 54,
@@ -210,7 +176,7 @@ export default function ProjectWizardModal({
         };
         localStorage.setItem('digitpop_shorts_formatter_draft_v1', JSON.stringify(initialDraft));
 
-        toast.success(`Short "${effectiveTitle}" created! Opening Shorts Studio...`, 'Shorts Ready');
+        toast.success(`Short created! Opening Studio for auto-transcription & AI hook...`, 'Shorts Ready');
         if (onOpenShortStudio) {
           onOpenShortStudio(shortDraftId);
         }
@@ -250,31 +216,17 @@ export default function ProjectWizardModal({
         }
       }
 
-      const linkedProducts = availableProducts.filter((p) => selectedProductIds.includes(p.id));
-
       const newProjectPayload: Partial<Project> = {
         name: effectiveTitle,
-        description,
-        category,
-        channel,
+        description: '',
+        category: 'Technology & SaaS',
+        channel: 'about',
         mediaType: 'VOD',
         masterVodUrl: resolvedVodUrl || 'https://pub-2af6e082fcb44c58add86361dad9d14b.r2.dev/raw_videos/opportunity_os_showcase.mp4',
         hlsManifestUrl: resolvedVodUrl?.endsWith('.m3u8') ? resolvedVodUrl : undefined,
         status: 'READY',
         isActive: true,
-        productGroups:
-          linkedProducts.length > 0
-            ? [
-                {
-                  id: `pg_${Date.now()}`,
-                  title: 'Featured Collection',
-                  subtitle: 'In-Stream Offer',
-                  timestampSeconds: 5.0,
-                  viewingMode: 'SIDE_PANEL',
-                  products: linkedProducts,
-                },
-              ]
-            : [],
+        productGroups: [],
         baskets: [],
       };
 
@@ -307,7 +259,7 @@ export default function ProjectWizardModal({
         className="surface-panel"
         style={{
           width: '100%',
-          maxWidth: step === 1 ? '780px' : '620px',
+          maxWidth: step === 1 ? '760px' : '560px',
           borderRadius: 'var(--radius-lg)',
           overflow: 'hidden',
           background: '#0c111d',
@@ -362,15 +314,13 @@ export default function ProjectWizardModal({
                 {step === 1 && 'Create New Shoppable Experience'}
                 {step === 2 &&
                   (format === 'VOD'
-                    ? '🎬 Configure 16:9 Interactive VOD'
+                    ? '🎬 Upload 16:9 Master Video'
                     : format === 'SHORT'
-                    ? '⚡ Configure 9:16 Vertical Short'
-                    : '📡 Schedule Live Shopping Broadcast')}
-                {step === 3 && '📦 Link Products from Store Catalog'}
+                    ? '⚡ Upload 9:16 Video Asset'
+                    : '📡 Schedule Live Shopping Event')}
               </h2>
               <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                Step {step} of {format === 'LIVE' ? 2 : 3} •{' '}
-                {step === 1 ? 'Select Format' : step === 2 ? 'Details & Assets' : 'Catalog Pins'}
+                Step {step} of 2 • {step === 1 ? 'Choose Experience Format' : 'Asset Ingestion & AI Auto-Match'}
               </div>
             </div>
           </div>
@@ -411,69 +361,11 @@ export default function ProjectWizardModal({
           {step === 1 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                Select the shoppable format you want to create. Each experience provides a dedicated studio workspace:
+                Select the shoppable format you want to create:
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
-                {/* 1. 16:9 VOD Card */}
-                <div
-                  onClick={() => setFormat('VOD')}
-                  style={{
-                    padding: '20px 16px',
-                    borderRadius: 'var(--radius-lg)',
-                    background:
-                      format === 'VOD'
-                        ? 'linear-gradient(180deg, rgba(20, 184, 166, 0.12) 0%, rgba(20, 184, 166, 0.04) 100%)'
-                        : 'rgba(255, 255, 255, 0.02)',
-                    border: `1.5px solid ${format === 'VOD' ? 'var(--accent-teal)' : 'rgba(255, 255, 255, 0.08)'}`,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '12px',
-                    transition: 'all 0.2s ease',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div
-                      style={{
-                        padding: '8px',
-                        borderRadius: '8px',
-                        background: 'rgba(20, 184, 166, 0.2)',
-                        color: 'var(--accent-teal)',
-                      }}
-                    >
-                      <Film size={22} />
-                    </div>
-                    {format === 'VOD' && <CheckCircle2 size={18} color="var(--accent-teal)" />}
-                  </div>
-
-                  <div>
-                    <div style={{ fontSize: '15px', fontWeight: 700, color: '#fff' }}>16:9 Interactive VOD</div>
-                    <div style={{ fontSize: '11px', color: 'var(--accent-teal)', fontWeight: 600, marginTop: '2px' }}>
-                      Landscape / Keynote
-                    </div>
-                  </div>
-
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.4 }}>
-                    Long-form video with timestamped product pin drops, chapter overlays, and interactive checkout drawers.
-                  </div>
-
-                  <div
-                    style={{
-                      marginTop: 'auto',
-                      padding: '4px 8px',
-                      borderRadius: '4px',
-                      background: 'rgba(0, 0, 0, 0.4)',
-                      fontSize: '10px',
-                      fontFamily: 'var(--font-mono)',
-                      color: 'var(--text-secondary)',
-                    }}
-                  >
-                    Timeline Scrubber + Pin Drop
-                  </div>
-                </div>
-
-                {/* 2. 9:16 Shorts Card */}
+                {/* 1. 9:16 Shorts Card (Default & Recommended) */}
                 <div
                   onClick={() => setFormat('SHORT')}
                   style={{
@@ -527,7 +419,65 @@ export default function ProjectWizardModal({
                       color: 'var(--text-secondary)',
                     }}
                   >
-                    Groq Turbo + AI Hook Studio
+                    Groq Turbo + AI Hook
+                  </div>
+                </div>
+
+                {/* 2. 16:9 VOD Card */}
+                <div
+                  onClick={() => setFormat('VOD')}
+                  style={{
+                    padding: '20px 16px',
+                    borderRadius: 'var(--radius-lg)',
+                    background:
+                      format === 'VOD'
+                        ? 'linear-gradient(180deg, rgba(20, 184, 166, 0.12) 0%, rgba(20, 184, 166, 0.04) 100%)'
+                        : 'rgba(255, 255, 255, 0.02)',
+                    border: `1.5px solid ${format === 'VOD' ? 'var(--accent-teal)' : 'rgba(255, 255, 255, 0.08)'}`,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div
+                      style={{
+                        padding: '8px',
+                        borderRadius: '8px',
+                        background: 'rgba(20, 184, 166, 0.2)',
+                        color: 'var(--accent-teal)',
+                      }}
+                    >
+                      <Film size={22} />
+                    </div>
+                    {format === 'VOD' && <CheckCircle2 size={18} color="var(--accent-teal)" />}
+                  </div>
+
+                  <div>
+                    <div style={{ fontSize: '15px', fontWeight: 700, color: '#fff' }}>16:9 Interactive VOD</div>
+                    <div style={{ fontSize: '11px', color: 'var(--accent-teal)', fontWeight: 600, marginTop: '2px' }}>
+                      Landscape / Keynote
+                    </div>
+                  </div>
+
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                    Long-form video with timestamped product pin drops, chapter overlays, and interactive checkout drawers.
+                  </div>
+
+                  <div
+                    style={{
+                      marginTop: 'auto',
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      background: 'rgba(0, 0, 0, 0.4)',
+                      fontSize: '10px',
+                      fontFamily: 'var(--font-mono)',
+                      color: 'var(--text-secondary)',
+                    }}
+                  >
+                    Timeline Scrubber + Pins
                   </div>
                 </div>
 
@@ -585,307 +535,163 @@ export default function ProjectWizardModal({
                       color: 'var(--text-secondary)',
                     }}
                   >
-                    On-Air Broadcast Deck
+                    Broadcast Deck
                   </div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* ================= STEP 2: ASSETS & METADATA ================= */}
+          {/* ================= STEP 2: DROP ASSET & LAUNCH ================= */}
           {step === 2 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <label
-                    className="form-label"
-                    style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}
-                  >
-                    {format === 'LIVE' ? 'Broadcast Event Title *' : 'Project Title *'}
-                  </label>
-                  {availableProducts.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={handleGenerateTitleFromProduct}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        color: 'var(--accent-teal)',
-                        fontSize: '11px',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        padding: 0,
-                      }}
-                    >
-                      <Sparkles size={12} />
-                      <span>Auto-Generate from Catalog</span>
-                    </button>
-                  )}
-                </div>
-                <input
-                  type="text"
-                  className="input-field"
-                  placeholder={
-                    format === 'VOD'
-                      ? '✨ Auto-generated on transcription (or type custom title)...'
-                      : format === 'SHORT'
-                      ? '✨ Auto-generated from speech hook (or type custom title)...'
-                      : 'e.g. Black Friday Live Launch Event'
-                  }
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  autoFocus
-                />
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                  {format === 'SHORT'
-                    ? '💡 If left blank or generic (e.g. IMG_0974), the title will auto-generate from the video\'s spoken speech hook in the studio.'
-                    : '💡 Enter a custom title or leave blank to auto-name from video metadata.'}
-                </span>
-              </div>
-
-              {format !== 'LIVE' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {format === 'LIVE' ? (
                 <div>
                   <label
                     className="form-label"
                     style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}
                   >
-                    Video Asset Source
+                    Broadcast Event Title *
                   </label>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
-                    <button
-                      type="button"
-                      onClick={() => setSourceType('upload')}
-                      style={{
-                        padding: '10px',
-                        borderRadius: 'var(--radius-md)',
-                        background: sourceType === 'upload' ? 'rgba(20, 184, 166, 0.15)' : 'rgba(255, 255, 255, 0.03)',
-                        border: `1px solid ${sourceType === 'upload' ? 'var(--accent-teal)' : 'rgba(255, 255, 255, 0.08)'}`,
-                        color: sourceType === 'upload' ? 'var(--accent-teal)' : 'var(--text-secondary)',
-                        fontWeight: 600,
-                        fontSize: '12px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '6px',
-                      }}
-                    >
-                      <UploadCloud size={14} />
-                      <span>Upload Video File (2GB Limit)</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setSourceType('url')}
-                      style={{
-                        padding: '10px',
-                        borderRadius: 'var(--radius-md)',
-                        background: sourceType === 'url' ? 'rgba(20, 184, 166, 0.15)' : 'rgba(255, 255, 255, 0.03)',
-                        border: `1px solid ${sourceType === 'url' ? 'var(--accent-teal)' : 'rgba(255, 255, 255, 0.08)'}`,
-                        color: sourceType === 'url' ? 'var(--accent-teal)' : 'var(--text-secondary)',
-                        fontWeight: 600,
-                        fontSize: '12px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '6px',
-                      }}
-                    >
-                      <LinkIcon size={14} />
-                      <span>Direct CDN / R2 URL</span>
-                    </button>
-                  </div>
-
-                  {sourceType === 'upload' ? (
-                    <div>
-                      <input
-                        type="file"
-                        ref={fileInputRef}
-                        accept="video/mp4,video/quicktime,video/webm"
-                        style={{ display: 'none' }}
-                        onChange={handleFileChange}
-                      />
-                      <div
-                        onClick={() => fileInputRef.current?.click()}
-                        style={{
-                          border: '2px dashed rgba(255, 255, 255, 0.15)',
-                          borderRadius: 'var(--radius-md)',
-                          padding: '24px 16px',
-                          textAlign: 'center',
-                          cursor: 'pointer',
-                          background: selectedFile ? 'rgba(20, 184, 166, 0.05)' : 'rgba(0, 0, 0, 0.2)',
-                          transition: 'all 0.2s ease',
-                        }}
-                      >
-                        <UploadCloud size={28} color={selectedFile ? 'var(--accent-teal)' : 'var(--text-muted)'} style={{ margin: '0 auto 8px auto' }} />
-                        {selectedFile ? (
-                          <div>
-                            <div style={{ fontSize: '13px', fontWeight: 600, color: '#fff' }}>{selectedFile.name}</div>
-                            <div style={{ fontSize: '11px', color: 'var(--accent-teal)', marginTop: '2px' }}>
-                              {(selectedFile.size / (1024 * 1024)).toFixed(1)} MB • Ready for ingestion
-                            </div>
-                          </div>
-                        ) : (
-                          <div>
-                            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                              Click or drag video file here
-                            </div>
-                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                              MP4, MOV, or WebM up to 2GB
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    <div>
-                      <input
-                        type="url"
-                        className="input-field"
-                        placeholder="https://pub-...r2.dev/video.mp4"
-                        value={videoUrl}
-                        onChange={(e) => setVideoUrl(e.target.value)}
-                      />
-                      <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                        Supports MP4, WebM, and HLS .m3u8 adaptive bitrate manifests.
-                      </span>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div>
-                  <label
-                    className="form-label"
-                    style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}
-                  >
-                    Category
-                  </label>
-                  <select
+                  <input
+                    type="text"
                     className="input-field"
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                  >
-                    <option value="Technology & SaaS">Technology & SaaS</option>
-                    <option value="Fashion & Apparel">Fashion & Apparel</option>
-                    <option value="Consumer Electronics">Consumer Electronics</option>
-                    <option value="Education & Careers">Education & Careers</option>
-                    <option value="Entertainment">Entertainment</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label
-                    className="form-label"
-                    style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}
-                  >
-                    Target Channel
-                  </label>
-                  <select
-                    className="input-field"
-                    value={channel}
-                    onChange={(e) => setChannel(e.target.value)}
-                  >
-                    <option value="about">About / Showcase</option>
-                    <option value="tech">Tech / Engineering</option>
-                    <option value="keynotes">Keynotes & Demos</option>
-                    <option value="store">Storefront</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label
-                  className="form-label"
-                  style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}
-                >
-                  Description (Optional)
-                </label>
-                <textarea
-                  className="input-field"
-                  rows={2}
-                  placeholder="Overview of the video and product promotions..."
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* ================= STEP 3: CATALOG LINKING ================= */}
-          {step === 3 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                Select initial products to link to this video. You can fine-tune timestamps and overlay styles in the studio workspace:
-              </div>
-
-              {availableProducts.length === 0 ? (
-                <div
-                  style={{
-                    padding: '24px',
-                    textAlign: 'center',
-                    background: 'rgba(255, 255, 255, 0.02)',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid rgba(255, 255, 255, 0.08)',
-                    color: 'var(--text-muted)',
-                    fontSize: '13px',
-                  }}
-                >
-                  <ShoppingBag size={28} style={{ margin: '0 auto 8px auto', opacity: 0.5 }} />
-                  <div>No products found in catalog. You can add them later inside the studio.</div>
+                    placeholder="e.g. Black Friday Live Launch Event"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    autoFocus
+                  />
                 </div>
               ) : (
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
-                    gap: '10px',
-                    maxHeight: '280px',
-                    overflowY: 'auto',
-                    paddingRight: '4px',
-                  }}
-                >
-                  {availableProducts.map((p) => {
-                    const isSelected = selectedProductIds.includes(p.id);
-                    return (
-                      <div
-                        key={p.id}
-                        onClick={() => handleToggleProduct(p.id)}
+                <>
+                  <div>
+                    <label
+                      className="form-label"
+                      style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}
+                    >
+                      Video Asset Source
+                    </label>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setSourceType('upload')}
                         style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '10px',
                           padding: '10px',
                           borderRadius: 'var(--radius-md)',
-                          background: isSelected ? 'rgba(20, 184, 166, 0.12)' : 'rgba(255, 255, 255, 0.03)',
-                          border: `1px solid ${isSelected ? 'var(--accent-teal)' : 'rgba(255, 255, 255, 0.08)'}`,
+                          background: sourceType === 'upload' ? 'rgba(99, 102, 241, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+                          border: `1px solid ${sourceType === 'upload' ? '#6366F1' : 'rgba(255, 255, 255, 0.08)'}`,
+                          color: sourceType === 'upload' ? '#818CF8' : 'var(--text-secondary)',
+                          fontWeight: 600,
+                          fontSize: '12px',
                           cursor: 'pointer',
-                          transition: 'all 0.15s ease',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
                         }}
                       >
-                        <img
-                          src={p.imageUrl}
-                          alt={p.title}
-                          style={{ width: '36px', height: '36px', borderRadius: '4px', objectFit: 'cover' }}
+                        <UploadCloud size={14} />
+                        <span>Upload Video File (2GB Limit)</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setSourceType('url')}
+                        style={{
+                          padding: '10px',
+                          borderRadius: 'var(--radius-md)',
+                          background: sourceType === 'url' ? 'rgba(99, 102, 241, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+                          border: `1px solid ${sourceType === 'url' ? '#6366F1' : 'rgba(255, 255, 255, 0.08)'}`,
+                          color: sourceType === 'url' ? '#818CF8' : 'var(--text-secondary)',
+                          fontWeight: 600,
+                          fontSize: '12px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
+                        }}
+                      >
+                        <LinkIcon size={14} />
+                        <span>Direct CDN / R2 URL</span>
+                      </button>
+                    </div>
+
+                    {sourceType === 'upload' ? (
+                      <div>
+                        <input
+                          type="file"
+                          ref={fileInputRef}
+                          accept="video/mp4,video/quicktime,video/webm"
+                          style={{ display: 'none' }}
+                          onChange={handleFileChange}
                         />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: '12px', fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {p.title}
-                          </div>
-                          <div style={{ fontSize: '11px', color: 'var(--accent-teal)' }}>
-                            ${p.price.toFixed(2)}
-                          </div>
+                        <div
+                          onClick={() => fileInputRef.current?.click()}
+                          style={{
+                            border: '2px dashed rgba(99, 102, 241, 0.35)',
+                            borderRadius: 'var(--radius-lg)',
+                            padding: '36px 20px',
+                            textAlign: 'center',
+                            cursor: 'pointer',
+                            background: selectedFile ? 'rgba(99, 102, 241, 0.08)' : 'rgba(0, 0, 0, 0.25)',
+                            transition: 'all 0.2s ease',
+                          }}
+                        >
+                          <UploadCloud size={36} color={selectedFile ? '#818CF8' : 'var(--text-muted)'} style={{ margin: '0 auto 12px auto' }} />
+                          {selectedFile ? (
+                            <div>
+                              <div style={{ fontSize: '14px', fontWeight: 700, color: '#fff' }}>{selectedFile.name}</div>
+                              <div style={{ fontSize: '12px', color: '#818CF8', marginTop: '4px', fontWeight: 600 }}>
+                                {(selectedFile.size / (1024 * 1024)).toFixed(1)} MB • Ready for AI Ingestion
+                              </div>
+                            </div>
+                          ) : (
+                            <div>
+                              <div style={{ fontSize: '14px', fontWeight: 600, color: '#fff' }}>
+                                Click or drag your video file here
+                              </div>
+                              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                                High-throughput direct upload (MP4, MOV, WebM up to 2GB)
+                              </div>
+                            </div>
+                          )}
                         </div>
-                        {isSelected && <CheckCircle2 size={16} color="var(--accent-teal)" />}
                       </div>
-                    );
-                  })}
-                </div>
+                    ) : (
+                      <div>
+                        <input
+                          type="url"
+                          className="input-field"
+                          placeholder="https://pub-...r2.dev/video.mp4"
+                          value={videoUrl}
+                          onChange={(e) => setVideoUrl(e.target.value)}
+                        />
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
+                          Supports MP4, WebM, and HLS .m3u8 adaptive bitrate manifests.
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* AI Value-Add Callout */}
+                  <div
+                    style={{
+                      padding: '14px 16px',
+                      borderRadius: 'var(--radius-md)',
+                      background: 'rgba(99, 102, 241, 0.08)',
+                      border: '1px solid rgba(99, 102, 241, 0.25)',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '12px',
+                    }}
+                  >
+                    <Sparkles size={18} color="#818CF8" style={{ marginTop: '2px', flexShrink: 0 }} />
+                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                      <strong style={{ color: '#fff' }}>AI Auto-Synthesis on Launch:</strong> Groq Whisper will transcribe audio in ~0.4s, extract the primary speech hook for your title, auto-match the best catalog product, and generate descriptions, captions, and buy QR badges.
+                    </div>
+                  </div>
+                </>
               )}
             </div>
           )}
@@ -906,7 +712,7 @@ export default function ProjectWizardModal({
             <button
               type="button"
               className="btn btn-secondary"
-              onClick={() => setStep((prev) => (prev - 1) as any)}
+              onClick={() => setStep(1)}
               disabled={isSubmitting}
             >
               Back
@@ -933,48 +739,22 @@ export default function ProjectWizardModal({
               </button>
             )}
 
-            {step === 2 && format === 'LIVE' && (
+            {step === 2 && (
               <button
                 type="button"
                 className="btn btn-primary"
                 onClick={() => handleFinalSubmit()}
-                disabled={isSubmitting || !title.trim()}
-              >
-                {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Radio size={14} />}
-                <span>{isSubmitting ? 'Scheduling...' : 'Create & Open Live Deck'}</span>
-              </button>
-            )}
-
-            {step === 2 && format !== 'LIVE' && (
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={() => {
-                  setError(null);
-                  setStep(3);
-                }}
-              >
-                <span>Select Products</span>
-                <ArrowRight size={14} />
-              </button>
-            )}
-
-            {step === 3 && (
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={() => handleFinalSubmit()}
-                disabled={isSubmitting}
+                disabled={isSubmitting || (format !== 'LIVE' && !selectedFile && !videoUrl)}
               >
                 {isSubmitting ? (
                   <>
                     <Loader2 size={14} className="animate-spin" />
-                    <span>Creating & Uploading...</span>
+                    <span>Uploading & Initializing...</span>
                   </>
                 ) : (
                   <>
                     <Sparkles size={14} />
-                    <span>Create & Open Studio</span>
+                    <span>Launch Studio 🚀</span>
                   </>
                 )}
               </button>
