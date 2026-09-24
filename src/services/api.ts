@@ -309,19 +309,42 @@ export const api = {
     }
   },
 
-  // --- Direct Video Upload with Real-Time Progress ---
+  // --- Cloudflare R2 Direct Edge Upload with Real-Time Progress ---
   async uploadMedia(
     file: File,
     pathPrefix: string = 'vods',
     onProgress?: (progress: { percent: number; loadedBytes: number; totalBytes: number; loadedMb: string; totalMb: string } | number) => void
   ): Promise<{ url: string; key: string }> {
     const filename = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-    const key = `${pathPrefix}/${filename}`;
+    const cleanPrefix = pathPrefix.replace(/^\/+/, '').replace(/\/+$/, '');
+    const shortId = `upload_${Date.now()}`;
+    const fileType = file.type.startsWith('image/') ? 'thumbnail' : 'video';
+    const contentType = file.type || (fileType === 'thumbnail' ? 'image/jpeg' : 'video/mp4');
 
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('key', key);
+    // 1. Request Authorized Direct-to-R2 Presigned URL
+    let presignedUrl: string | null = null;
+    let publicUrl: string | null = null;
+    let targetKey: string = `${cleanPrefix}/${filename}`;
+    let isDirectR2 = false;
 
+    try {
+      const presignRes = await fetch(
+        `${API_BASE_URL}/api/publisher/shorts/presigned-url?shortId=${encodeURIComponent(shortId)}&fileType=${fileType}&contentType=${encodeURIComponent(contentType)}&creatorSlug=opportunity-system`
+      );
+      if (presignRes.ok) {
+        const presignData = await presignRes.json();
+        if (presignData.uploadUrl) {
+          presignedUrl = presignData.uploadUrl;
+          publicUrl = presignData.publicUrl;
+          if (presignData.key) targetKey = presignData.key;
+          isDirectR2 = presignData.mode === 'DIRECT_R2';
+        }
+      }
+    } catch (e) {
+      console.warn('Presigned URL negotiation notice, using direct relay:', e);
+    }
+
+    // 2. Execute High-Speed Stream with Real-Time Progress Telemetry
     return new Promise<{ url: string; key: string }>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
 
@@ -340,23 +363,28 @@ export const api = {
 
       xhr.addEventListener('load', () => {
         if (xhr.status >= 200 && xhr.status < 300) {
-          try {
-            const data = JSON.parse(xhr.responseText);
-            const resolvedUrl = data.url || data.publicUrl || `${R2_PUBLIC_DOMAIN}/${key}`;
-            if (onProgress) {
-              const totalMb = (file.size / (1024 * 1024)).toFixed(1);
-              try {
-                (onProgress as any)({ percent: 100, loadedBytes: file.size, totalBytes: file.size, loadedMb: totalMb, totalMb });
-              } catch {
-                (onProgress as any)(100);
-              }
+          const totalMb = (file.size / (1024 * 1024)).toFixed(1);
+          if (onProgress) {
+            try {
+              (onProgress as any)({ percent: 100, loadedBytes: file.size, totalBytes: file.size, loadedMb: totalMb, totalMb });
+            } catch {
+              (onProgress as any)(100);
             }
-            resolve({ url: resolvedUrl, key: data.key || key });
-          } catch {
-            resolve({ url: `${R2_PUBLIC_DOMAIN}/${key}`, key });
+          }
+
+          if (isDirectR2 && publicUrl) {
+            resolve({ url: publicUrl, key: targetKey });
+          } else {
+            try {
+              const data = JSON.parse(xhr.responseText);
+              const resolvedUrl = data.url || data.publicUrl || publicUrl || `${R2_PUBLIC_DOMAIN}/${targetKey}`;
+              resolve({ url: resolvedUrl, key: data.key || targetKey });
+            } catch {
+              resolve({ url: publicUrl || `${R2_PUBLIC_DOMAIN}/${targetKey}`, key: targetKey });
+            }
           }
         } else {
-          reject(new Error(`Upload failed with HTTP ${xhr.status}`));
+          reject(new Error(`Upload failed with HTTP ${xhr.status}: ${xhr.statusText}`));
         }
       });
 
@@ -368,8 +396,20 @@ export const api = {
         reject(new Error('Upload was cancelled.'));
       });
 
-      xhr.open('POST', `${API_BASE_URL}/api/publisher/shorts/upload-direct?key=${encodeURIComponent(key)}`);
-      xhr.send(formData);
+      if (isDirectR2 && presignedUrl) {
+        // Direct AWS SigV4 PUT stream to Cloudflare R2 edge
+        xhr.open('PUT', presignedUrl);
+        xhr.setRequestHeader('Content-Type', contentType);
+        xhr.send(file);
+      } else {
+        // Fallback: Multipart upload relay
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('key', targetKey);
+        const relayUrl = presignedUrl || `${API_BASE_URL}/api/publisher/shorts/upload-direct?key=${encodeURIComponent(targetKey)}`;
+        xhr.open('POST', relayUrl);
+        xhr.send(formData);
+      }
     });
   },
 
