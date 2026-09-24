@@ -140,16 +140,27 @@ export async function createCloudShortProject(
         : 'https://digitpop.opportunity-system.com')
     ).replace(/\/+$/, '');
 
-    const res = await fetch(`${apiBase}/api/publisher/shorts/create`, {
+    // Try dedicated create endpoint first
+    let res = await fetch(`${apiBase}/api/publisher/shorts/create`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title, creatorSlug, channel }),
     });
 
+    // Fallback to draft endpoint if create is not available
+    if (!res.ok) {
+      res = await fetch(`${apiBase}/api/publisher/shorts/draft`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, creatorSlug, destinationChannel: channel }),
+      });
+    }
+
     if (res.ok) {
       const data = await res.json();
-      if (data.projectId) {
-        return data.projectId;
+      const id = data.projectId || data.shortId || data.project?.id;
+      if (id) {
+        return id;
       }
     }
   } catch (err) {
