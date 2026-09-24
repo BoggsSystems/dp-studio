@@ -2478,20 +2478,23 @@ export default function ShortsFormatterStudio() {
           : 'https://digitpop.opportunity-system.com')
       ).replace(/\/+$/, '');
 
-      // 1. Stage 1: Bake 1080x1920 MP4 Video with Burned-In Kinetic Captions & Background
-      let bakedVideoBlob: Blob;
-      try {
-        bakedVideoBlob = await renderFormattedVideoBlob((renderPct) => {
-          const scaled = Math.min(45, 5 + Math.round((renderPct * 40) / 100));
-          setPublishAboutPagePercent(scaled);
-        });
-      } catch (renderErr) {
-        console.warn('Video rendering fallback warning:', renderErr);
-        bakedVideoBlob = videoFile || (await getDraftVideoBlob())?.blob || (await (await fetch(videoUrl!)).blob());
-      }
-
-      setPublishAboutPagePercent(48);
+      // 1. Stage 1: Prepare Original High-Definition Video Stream (Zero Transcoding Lag, Native 60fps)
       setPublishAboutPageStage('INITIALIZING');
+      setPublishAboutPagePercent(20);
+
+      let videoBlobToUpload: Blob;
+      if (videoFile) {
+        videoBlobToUpload = videoFile;
+      } else {
+        const stored = await getDraftVideoBlob();
+        if (stored?.blob) {
+          videoBlobToUpload = stored.blob;
+        } else if (videoUrl) {
+          videoBlobToUpload = await (await fetch(videoUrl)).blob();
+        } else {
+          throw new Error('No video file available to publish');
+        }
+      }
 
       // 2. Stage 2: Bake High-CTR 9:16 Graphical Cover Image
       let bakedThumbUrl: string | undefined = thumbnailImage || undefined;
@@ -2510,15 +2513,15 @@ export default function ShortsFormatterStudio() {
         console.warn('Thumbnail generation warning:', thumbErr);
       }
 
-      setPublishAboutPagePercent(55);
+      setPublishAboutPagePercent(45);
       setPublishAboutPageStage('UPLOADING');
 
       // 3. Stage 3: Direct Edge Upload to Cloudflare R2 / CDN via Presigned URLs
       let videoUrlToPublish: string = videoUrl || 'https://digitpop.opportunity-system.com/videos/opportunity-os-about.mp4';
       let thumbUrlToPublish: string = bakedThumbUrl || 'https://digitpop.opportunity-system.com/thumbnails/opportunity-os-about.jpg';
 
-      // 3a. Upload Baked Video Blob (1080x1920 MP4)
-      if (bakedVideoBlob) {
+      // 3a. Upload Native 60fps Video Blob
+      if (videoBlobToUpload) {
         try {
           const presignRes = await fetch(
             `${apiBase}/api/publisher/shorts/presigned-url?shortId=${encodeURIComponent(shortProjectId)}&fileType=video&creatorSlug=opportunity-system`
@@ -2530,7 +2533,7 @@ export default function ShortsFormatterStudio() {
                 const xhr = new XMLHttpRequest();
                 xhr.timeout = 180000; // 3 minute fail-safe timeout
                 xhr.open('PUT', presignData.uploadUrl);
-                xhr.setRequestHeader('Content-Type', bakedVideoBlob.type || 'video/mp4');
+                xhr.setRequestHeader('Content-Type', videoBlobToUpload.type || 'video/mp4');
 
                 xhr.upload.onprogress = (event) => {
                   setPublishAboutPageStage('UPLOADING');
@@ -2570,7 +2573,7 @@ export default function ShortsFormatterStudio() {
                 xhr.ontimeout = () => {
                   reject(new Error('Video upload timed out.'));
                 };
-                xhr.send(bakedVideoBlob);
+                xhr.send(videoBlobToUpload);
               });
             }
           }
@@ -2657,7 +2660,7 @@ export default function ShortsFormatterStudio() {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
-      await saveShortProject(projectPayload, bakedVideoBlob);
+      await saveShortProject(projectPayload, videoBlobToUpload);
 
       // 5. Register in Cloud Media Catalog
       setPublishAboutPageStage('SAVING');
@@ -2687,7 +2690,7 @@ export default function ShortsFormatterStudio() {
           const publishedData = await resp.json().catch(() => null);
           if (publishedData && publishedData.id) {
             projectPayload.id = publishedData.id;
-            await saveShortProject(projectPayload, bakedVideoBlob);
+            await saveShortProject(projectPayload, videoBlobToUpload);
           }
         } else {
           console.warn('DigitPop Cloud publish API warning:', resp.status, await resp.text().catch(() => ''));
