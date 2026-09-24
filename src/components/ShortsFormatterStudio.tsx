@@ -1031,23 +1031,30 @@ export default function ShortsFormatterStudio() {
     }
   };
 
-  // Generate AI Title, Rich Description, and Pinned Comment from transcript
+  // Generate AI Title, Rich Description, and Pinned Comment from transcript & selected product
   const generateAiMetadata = (textInput?: string, productOverride?: Product | null) => {
     setIsAiGeneratingMeta(true);
     try {
       const text = textInput || editableTranscript || words.map((w) => w.word).join(' ');
       const product = productOverride !== undefined ? productOverride : selectedProduct;
-      const productName = product?.title || 'AI-Native Software Engineering: The New Physics of Software Velocity';
-      const productUrl = 'https://opportunity-system.com/about';
+      const productUrl = product?.externalUrl || 'https://opportunity-system.com/about';
+
+      const productSnippet = product
+        ? `\n⚡ Featured Product: ${product.title} ($${product.price.toFixed(2)})\n👉 Buy / Details: ${productUrl}`
+        : `\n👉 Explore Blueprint & Platform: ${productUrl}`;
+
+      const pinnedSnippet = product
+        ? `👉 Grab the ${product.title} here: ${productUrl} (Link in Bio ⚡)`
+        : `👉 Explore Opportunity OS and free tools here: ${productUrl} (Link in Bio ⚡)`;
 
       if (!text || text.trim().length === 0) {
         const fileFallback = videoFile?.name ? videoFile.name.replace(/\.[^/.]+$/, '').toUpperCase() : 'AI SHOPPABLE SHORT';
         setVideoTitle(fileFallback);
         setThumbnailTitle(fileFallback);
         setVideoDescription(
-          `🚀 Grab the free Chapter 1 blueprint & software tools: ${productUrl}\n⚡ Featured Product: ${productName}\n\n#Shorts #Programming #SoftwareEngineering #AI #TechCareers #OpportunityOS`
+          `🚀 Grab the blueprint & software tools: ${productUrl}${productSnippet}\n\n#Shorts #Programming #SoftwareEngineering #AI #TechCareers #OpportunityOS`
         );
-        setPinnedCommentText(`👉 Grab the blueprint & software tools: ${productUrl} (Link in Bio ⚡)`);
+        setPinnedCommentText(pinnedSnippet);
         return;
       }
 
@@ -1081,16 +1088,24 @@ export default function ShortsFormatterStudio() {
       }
 
       const hookSnippet = cleanText.length > 240 ? cleanText.slice(0, 240) + '...' : cleanText;
-      const desc = `${hookSnippet}\n\n👉 Grab the Blueprint & Software Tools: ${productUrl}\n⚡ Featured Product: ${productName}\n\n#Shorts #Programming #SoftwareEngineering #AI #TechCareers #OpportunityOS`;
-      const pinned = `👉 Grab the ${productName} and free Chapter 1 blueprint here: ${productUrl} (Link also in Bio ⚡)`;
+      const desc = `${hookSnippet}\n\n${productSnippet}\n\n#Shorts #Programming #SoftwareEngineering #AI #TechCareers #OpportunityOS`;
 
       setVideoTitle(hook);
       setThumbnailTitle(hook);
       setVideoDescription(desc);
-      setPinnedCommentText(pinned);
+      setPinnedCommentText(pinnedSnippet);
     } finally {
       setTimeout(() => setIsAiGeneratingMeta(false), 300);
     }
+  };
+
+  const handleSelectProduct = (product: Product) => {
+    setSelectedProduct(product);
+    setSavedProductId(product.id);
+    if (product.externalUrl) {
+      setQrCustomUrl(product.externalUrl);
+    }
+    generateAiMetadata(undefined, product);
   };
 
   // Handle Video File Selection
@@ -3139,10 +3154,7 @@ export default function ShortsFormatterStudio() {
                     return (
                       <div
                         key={p.id}
-                        onClick={() => {
-                          setSelectedProduct(p);
-                          setSavedProductId(p.id);
-                        }}
+                        onClick={() => handleSelectProduct(p)}
                         style={{
                           minWidth: '220px',
                           padding: '8px 12px',
