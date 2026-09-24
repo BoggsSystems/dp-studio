@@ -167,6 +167,7 @@ export interface AiTagDetection {
 
 export interface FormattedShortProject {
   id: string;
+  clientShortId?: string;
   title: string;
   videoUrl?: string;
   videoFileName?: string;

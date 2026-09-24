@@ -214,6 +214,7 @@ export async function fetchCloudLibraryShorts(creatorSlug: string = 'opportunity
       const meta = s.metadata || {};
       return {
         id: s.id,
+        clientShortId: s.clientShortId || meta.clientShortId || s.id,
         title: s.title || meta.thumbnailTitle || 'AI Shoppable Short',
         videoFileName: meta.videoFileName || `${s.id}.mp4`,
         videoUrl: s.videoUrl,
@@ -279,7 +280,7 @@ export async function saveShortProject(
       );
     }
 
-    // 2. Save metadata to localStorage library
+    // 2. Save metadata to localStorage library with canonical deduplication
     let list: FormattedShortProject[] = [];
     const raw = localStorage.getItem(SHORTS_LIBRARY_KEY);
     if (raw) {
@@ -290,11 +291,15 @@ export async function saveShortProject(
       }
     }
 
-    const existingIdx = list.findIndex((item) => item.id === short.id);
+    const clientKey = short.clientShortId || short.id;
+    const existingIdx = list.findIndex(
+      (item) => item.id === short.id || item.clientShortId === clientKey || item.id === clientKey
+    );
+
     if (existingIdx >= 0) {
-      list[existingIdx] = { ...short, updatedAt: new Date().toISOString() };
+      list[existingIdx] = { ...short, clientShortId: clientKey, updatedAt: new Date().toISOString() };
     } else {
-      list.unshift({ ...short, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+      list.unshift({ ...short, clientShortId: clientKey, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
     }
     localStorage.setItem(SHORTS_LIBRARY_KEY, JSON.stringify(list));
 

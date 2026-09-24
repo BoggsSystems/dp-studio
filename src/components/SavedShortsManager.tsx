@@ -42,17 +42,35 @@ export default function SavedShortsManager({ onOpenInStudio, onNewShort }: Saved
     const localList = getAllShortProjects();
     setShorts(localList);
 
-    // 2. Async cloud merge
+    // 2. Async cloud merge with smart multi-key deduplication
     try {
       const cloudList = await fetchCloudLibraryShorts('opportunity-system');
       if (cloudList && cloudList.length > 0) {
         setShorts((prev) => {
-          const map = new Map<string, FormattedShortProject>();
-          // Cloud items first
-          cloudList.forEach((c) => map.set(c.id, c));
-          // Local items overwrite/merge if newer
-          prev.forEach((p) => map.set(p.id, p));
-          return Array.from(map.values()).sort((a, b) => {
+          const combined = [...cloudList, ...prev];
+          const seenIds = new Set<string>();
+          const seenKeys = new Set<string>();
+          const result: FormattedShortProject[] = [];
+
+          for (const item of combined) {
+            if (!item || !item.id) continue;
+            if (seenIds.has(item.id)) continue;
+
+            // Extract video stem key (e.g. short_1790212094707)
+            const clientKey = item.clientShortId || item.id;
+            const videoKey = item.videoUrl ? item.videoUrl.split('/').pop()?.replace(/\.[^/.]+$/, '') : null;
+
+            if (seenKeys.has(clientKey) || (videoKey && seenKeys.has(videoKey))) {
+              continue;
+            }
+
+            seenIds.add(item.id);
+            seenKeys.add(clientKey);
+            if (videoKey) seenKeys.add(videoKey);
+            result.push(item);
+          }
+
+          return result.sort((a, b) => {
             const tA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
             const tB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
             return tB - tA;
