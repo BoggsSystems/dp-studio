@@ -2532,8 +2532,7 @@ export default function ShortsFormatterStudio() {
               await new Promise<void>((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
                 xhr.timeout = 600000; // 10 minute fail-safe timeout for large 4K/60fps video uploads
-                xhr.open('PUT', presignData.uploadUrl);
-                xhr.setRequestHeader('Content-Type', videoBlobToUpload.type || 'video/mp4');
+                xhr.open('POST', presignData.uploadUrl);
 
                 xhr.upload.onprogress = (event) => {
                   setPublishAboutPageStage('UPLOADING');
@@ -2573,7 +2572,11 @@ export default function ShortsFormatterStudio() {
                 xhr.ontimeout = () => {
                   reject(new Error('Video upload timed out.'));
                 };
-                xhr.send(videoBlobToUpload);
+
+                const formData = new FormData();
+                const videoFilename = (videoFile as any)?.name || `${shortProjectId}.mp4`;
+                formData.append('file', videoBlobToUpload, videoFilename);
+                xhr.send(formData);
               });
             }
           }
@@ -2595,8 +2598,7 @@ export default function ShortsFormatterStudio() {
               await new Promise<void>((resolve) => {
                 const xhr = new XMLHttpRequest();
                 xhr.timeout = 60000;
-                xhr.open('PUT', thumbPresignData.uploadUrl);
-                xhr.setRequestHeader('Content-Type', 'image/jpeg');
+                xhr.open('POST', thumbPresignData.uploadUrl);
                 xhr.onload = () => {
                   if (xhr.status >= 200 && xhr.status < 300) {
                     try {
@@ -2616,7 +2618,10 @@ export default function ShortsFormatterStudio() {
                 };
                 xhr.onerror = () => resolve();
                 xhr.ontimeout = () => resolve();
-                xhr.send(thumbBlobToUpload);
+
+                const thumbForm = new FormData();
+                thumbForm.append('file', thumbBlobToUpload!, `${shortProjectId}.jpg`);
+                xhr.send(thumbForm);
               });
             }
           }
