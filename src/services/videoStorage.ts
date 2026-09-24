@@ -327,64 +327,35 @@ export function getAllShortProjects(): FormattedShortProject[] {
       }
     }
 
-    // Filter out deleted projects
-    list = list.filter((item) => !deletedSet.has(item.id));
+    // Deduplicate items by ID, clientShortId, and content signature (title + transcript)
+    const seenIds = new Set<string>();
+    const seenSignatures = new Set<string>();
+    const deduplicated: FormattedShortProject[] = [];
 
-    // Auto-migration & synchronization: If library is missing the active working draft,
-    // synthesize an entry from digitpop_shorts_formatter_draft_v1 so active drafts are never lost.
-    const draftJson = localStorage.getItem('digitpop_shorts_formatter_draft_v1');
-    if (draftJson) {
-      try {
-        const draft = JSON.parse(draftJson);
-        const draftId = draft.id || 'short_active_draft';
-        const alreadyExists = list.some((item) => item.id === draftId);
-        const isDeleted = deletedSet.has(draftId);
+    for (const item of list) {
+      if (!item || !item.id) continue;
+      if (seenIds.has(item.id)) continue;
 
-        if (!isDeleted && !alreadyExists && (draft.words?.length > 0 || draft.editableTranscript || draft.thumbnailTitle || draft.thumbnailImage)) {
-          const synthesized: FormattedShortProject = {
-            id: draftId,
-            title: draft.thumbnailTitle || 'AI Shoppable Short (Draft)',
-            videoFileName: draft.videoFileName || 'short_video.mp4',
-            thumbnailUrl: draft.thumbnailImage || undefined,
-            durationSeconds: draft.durationSeconds || (draft.words?.length ? Math.ceil(draft.words[draft.words.length - 1].end) : 30),
-            words: draft.words || [],
-            editableTranscript: draft.editableTranscript || '',
-            highlightColor: draft.highlightColor || '#FFE600',
-            fontSize: draft.fontSize ?? 22,
-            verticalPosition: draft.verticalPosition ?? 78,
-            wordPacing: draft.wordPacing || 'POP_TWO_WORDS',
-            autoEmojis: draft.autoEmojis ?? true,
-            uppercase: draft.uppercase ?? true,
-            layoutMode: draft.layoutMode || 'FIT_BLUR',
-            showShoppableDrawer: draft.showShoppableDrawer ?? true,
-            showQrCode: draft.showQrCode ?? true,
-            qrPlacement: draft.qrPlacement || 'TOP_RIGHT',
-            qrCustomUrl: draft.qrCustomUrl,
-            productId: draft.selectedProductId,
-            productTitle: draft.productTitle,
-            productPrice: draft.productPrice,
-            thumbnailTitle: draft.thumbnailTitle,
-            thumbnailStyle: draft.thumbnailStyle || 'VIRAL_WHITE',
-            thumbnailFontSize: draft.thumbnailFontSize || 54,
-            thumbnailPosition: draft.thumbnailPosition || 45,
-            thumbnailBadge: draft.thumbnailBadge || '⚡ MUST WATCH',
-            thumbnailStrokeWidth: draft.thumbnailStrokeWidth || 14,
-            thumbnailUppercase: draft.thumbnailUppercase ?? true,
-            publishedYouTubeUrl: draft.publishedYouTubeUrl,
-            publishedAt: draft.publishedAt,
-            status: draft.publishedYouTubeUrl ? 'PUBLISHED' : 'DRAFT',
-            createdAt: draft.createdAt || new Date().toISOString(),
-            updatedAt: new Date(draft.updatedAt || Date.now()).toISOString(),
-          };
-          list.unshift(synthesized);
-          localStorage.setItem(SHORTS_LIBRARY_KEY, JSON.stringify(list));
-        }
-      } catch (e) {
-        console.warn('Failed to parse draft for library migration:', e);
+      const normTitle = (item.title || '').trim().toLowerCase();
+      const normTranscript = (item.editableTranscript || '').slice(0, 60).trim().toLowerCase();
+      const signature = normTitle ? `${normTitle}|${normTranscript}` : item.id;
+
+      if (seenSignatures.has(signature)) {
+        continue;
       }
+
+      seenIds.add(item.id);
+      if (item.clientShortId) seenIds.add(item.clientShortId);
+      if (signature) seenSignatures.add(signature);
+      deduplicated.push(item);
     }
 
-    return list;
+    // Persist cleaned deduplicated list
+    if (deduplicated.length !== list.length) {
+      localStorage.setItem(SHORTS_LIBRARY_KEY, JSON.stringify(deduplicated));
+    }
+
+    return deduplicated;
   } catch (err) {
     console.warn('Failed to get saved shorts:', err);
     return [];

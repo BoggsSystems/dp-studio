@@ -50,23 +50,31 @@ export default function SavedShortsManager({ onOpenInStudio, onNewShort }: Saved
           const combined = [...cloudList, ...prev];
           const seenIds = new Set<string>();
           const seenKeys = new Set<string>();
+          const seenSignatures = new Set<string>();
           const result: FormattedShortProject[] = [];
 
           for (const item of combined) {
             if (!item || !item.id) continue;
             if (seenIds.has(item.id)) continue;
 
-            // Extract video stem key (e.g. short_1790212094707)
             const clientKey = item.clientShortId || item.id;
             const videoKey = item.videoUrl ? item.videoUrl.split('/').pop()?.replace(/\.[^/.]+$/, '') : null;
+            const normTitle = (item.title || '').trim().toLowerCase();
+            const normTranscript = (item.editableTranscript || '').slice(0, 60).trim().toLowerCase();
+            const signature = normTitle ? `${normTitle}|${normTranscript}` : item.id;
 
-            if (seenKeys.has(clientKey) || (videoKey && seenKeys.has(videoKey))) {
+            if (
+              seenKeys.has(clientKey) ||
+              (videoKey && seenKeys.has(videoKey)) ||
+              seenSignatures.has(signature)
+            ) {
               continue;
             }
 
             seenIds.add(item.id);
             seenKeys.add(clientKey);
             if (videoKey) seenKeys.add(videoKey);
+            if (signature) seenSignatures.add(signature);
             result.push(item);
           }
 
