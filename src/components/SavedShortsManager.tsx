@@ -42,48 +42,37 @@ export default function SavedShortsManager({ onOpenInStudio, onNewShort }: Saved
     const localList = getAllShortProjects();
     setShorts(localList);
 
-    // 2. Async cloud merge with smart multi-key deduplication
+    // 2. Authoritative cloud library merge & local draft cleanup
     try {
       const cloudList = await fetchCloudLibraryShorts('opportunity-system');
       if (cloudList && cloudList.length > 0) {
-        setShorts((prev) => {
-          const combined = [...cloudList, ...prev];
-          const seenIds = new Set<string>();
-          const seenKeys = new Set<string>();
-          const seenSignatures = new Set<string>();
-          const result: FormattedShortProject[] = [];
+        const cloudIds = new Set(cloudList.map((c) => c.id));
+        const cloudClientIds = new Set(cloudList.map((c) => c.clientShortId).filter(Boolean));
+        const cloudTitles = new Set(cloudList.map((c) => (c.title || '').trim().toLowerCase()));
 
-          for (const item of combined) {
-            if (!item || !item.id) continue;
-            if (seenIds.has(item.id)) continue;
-
-            const clientKey = item.clientShortId || item.id;
-            const videoKey = item.videoUrl ? item.videoUrl.split('/').pop()?.replace(/\.[^/.]+$/, '') : null;
-            const normTitle = (item.title || '').trim().toLowerCase();
-            const normTranscript = (item.editableTranscript || '').slice(0, 60).trim().toLowerCase();
-            const signature = normTitle ? `${normTitle}|${normTranscript}` : item.id;
-
-            if (
-              seenKeys.has(clientKey) ||
-              (videoKey && seenKeys.has(videoKey)) ||
-              seenSignatures.has(signature)
-            ) {
-              continue;
-            }
-
-            seenIds.add(item.id);
-            seenKeys.add(clientKey);
-            if (videoKey) seenKeys.add(videoKey);
-            if (signature) seenSignatures.add(signature);
-            result.push(item);
-          }
-
-          return result.sort((a, b) => {
-            const tA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
-            const tB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
-            return tB - tA;
-          });
+        // Keep only local drafts that do NOT exist in the cloud library
+        const uniqueLocal = localList.filter((local) => {
+          if (!local || !local.id) return false;
+          if (cloudIds.has(local.id)) return false;
+          if (local.clientShortId && cloudClientIds.has(local.clientShortId)) return false;
+          if (cloudClientIds.has(local.id)) return false;
+          const normTitle = (local.title || '').trim().toLowerCase();
+          if (normTitle && cloudTitles.has(normTitle)) return false;
+          return true;
         });
+
+        // Clean up stale local storage so duplicate drafts are permanently eliminated
+        if (uniqueLocal.length !== localList.length) {
+          localStorage.setItem('digitpop_saved_shorts_library_v1', JSON.stringify(uniqueLocal));
+        }
+
+        const merged = [...cloudList, ...uniqueLocal].sort((a, b) => {
+          const tA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+          const tB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+          return tB - tA;
+        });
+
+        setShorts(merged);
       }
     } catch (e) {
       console.warn('Could not fetch cloud library shorts:', e);

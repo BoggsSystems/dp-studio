@@ -44,7 +44,7 @@ import {
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { api } from '../services/api';
-import { saveDraftVideoBlob, getDraftVideoBlob, clearDraftVideoBlob, saveShortProject } from '../services/videoStorage';
+import { saveDraftVideoBlob, getDraftVideoBlob, clearDraftVideoBlob, saveShortProject, createCloudShortProject } from '../services/videoStorage';
 import { toast } from '../services/toast';
 import { Product, FormattedShortProject } from '../types';
 
@@ -663,7 +663,7 @@ export default function ShortsFormatterStudio() {
   const [exportProgress, setExportProgress] = useState<number>(0);
 
   // Persistence and Auto-Recovery State
-  const [shortProjectId, setShortProjectId] = useState<string>(() => 'short_active_draft');
+  const [shortProjectId, setShortProjectId] = useState<string>(() => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `draft-${Date.now()}`));
   const [isDraftRestored, setIsDraftRestored] = useState<boolean>(false);
   const [savedProductId, setSavedProductId] = useState<string | null>(null);
   const isMountedRef = useRef<boolean>(false);
@@ -1111,17 +1111,21 @@ export default function ShortsFormatterStudio() {
   // Handle Video File Selection
   const handleFileChange = async (file: File) => {
     if (!file) return;
-    setShortProjectId(`short_${Date.now()}`);
-    setVideoFile(file);
-    const objectUrl = URL.createObjectURL(file);
-    setVideoUrl(objectUrl);
-    setIsPlaying(false);
-    setCurrentTime(0);
 
     // Derive instant initial title from filename before transcription completes
     const baseName = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ').toUpperCase();
     setVideoTitle(baseName);
     setThumbnailTitle(baseName);
+
+    // Allocate canonical backend project UUID immediately
+    const allocatedId = await createCloudShortProject(baseName);
+    setShortProjectId(allocatedId);
+
+    setVideoFile(file);
+    const objectUrl = URL.createObjectURL(file);
+    setVideoUrl(objectUrl);
+    setIsPlaying(false);
+    setCurrentTime(0);
 
     // Save video file to IndexedDB for persistent recovery across page reloads
     await saveDraftVideoBlob(file, file.name);
@@ -1139,7 +1143,8 @@ export default function ShortsFormatterStudio() {
       console.warn('Draft clear error:', e);
     }
 
-    setShortProjectId(`short_${Date.now()}`);
+    const newDraftId = await createCloudShortProject('Untitled Short Draft');
+    setShortProjectId(newDraftId);
     setVideoFile(null);
     setVideoUrl(null);
     setWords([]);
@@ -2678,7 +2683,13 @@ export default function ShortsFormatterStudio() {
             destinationChannel: 'about',
           }),
         });
-        if (!resp.ok) {
+        if (resp.ok) {
+          const publishedData = await resp.json().catch(() => null);
+          if (publishedData && publishedData.id) {
+            projectPayload.id = publishedData.id;
+            await saveShortProject(projectPayload, bakedVideoBlob);
+          }
+        } else {
           console.warn('DigitPop Cloud publish API warning:', resp.status, await resp.text().catch(() => ''));
         }
       } catch (cloudErr) {

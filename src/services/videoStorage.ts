@@ -127,6 +127,37 @@ function removeDeletedShortId(id: string) {
   } catch (e) {}
 }
 
+export async function createCloudShortProject(
+  title?: string,
+  creatorSlug: string = 'opportunity-system',
+  channel: string = 'about'
+): Promise<string> {
+  try {
+    const apiBase = (
+      (import.meta as any).env?.VITE_API_URL ||
+      (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+        ? 'http://localhost:9000'
+        : 'https://digitpop.opportunity-system.com')
+    ).replace(/\/+$/, '');
+
+    const res = await fetch(`${apiBase}/api/publisher/shorts/create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, creatorSlug, channel }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data.projectId) {
+        return data.projectId;
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to allocate cloud short project UUID:', err);
+  }
+  return typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `draft-${Date.now()}`;
+}
+
 export async function saveShortDraftToCloud(
   short: FormattedShortProject,
   videoBlob?: Blob,
