@@ -74,13 +74,33 @@ export default function ProjectWizardModal({
     onClose();
   };
 
+  const isGenericFilename = (name: string) => {
+    const raw = name.replace(/\.[^/.]+$/, '').trim();
+    return /^(IMG|MOV|VID|VIDEO|FILE|DSC|CLIP|RECORDING|SCREEN_RECORDING)[-_0-9\s]*$/i.test(raw);
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       setSelectedFile(file);
-      if (!title) {
-        const cleanName = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
-        setTitle(cleanName.charAt(0).toUpperCase() + cleanName.slice(1));
+      const cleanName = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+      if (!title || isGenericFilename(title)) {
+        if (isGenericFilename(file.name)) {
+          setTitle('');
+        } else {
+          setTitle(cleanName.charAt(0).toUpperCase() + cleanName.slice(1));
+        }
+      }
+    }
+  };
+
+  const handleGenerateTitleFromProduct = () => {
+    if (availableProducts.length > 0) {
+      const prod = selectedProductIds.length > 0
+        ? availableProducts.find((p) => p.id === selectedProductIds[0])
+        : availableProducts[0];
+      if (prod) {
+        setTitle(format === 'SHORT' ? `${prod.title.toUpperCase()} • 1-CLICK BUY` : `${prod.title} Product Showcase`);
       }
     }
   };
@@ -93,10 +113,21 @@ export default function ProjectWizardModal({
 
   const handleFinalSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!title.trim()) {
-      setError('Please provide a title for your experience.');
-      setStep(2);
-      return;
+
+    // Determine smart effective title
+    let effectiveTitle = title.trim();
+    if (!effectiveTitle || isGenericFilename(effectiveTitle)) {
+      if (selectedProductIds.length > 0) {
+        const prod = availableProducts.find((p) => p.id === selectedProductIds[0]);
+        if (prod) {
+          effectiveTitle = format === 'SHORT' ? `${prod.title.toUpperCase()} • 1-CLICK BUY` : `${prod.title} Showcase`;
+        }
+      } else if (selectedFile && !isGenericFilename(selectedFile.name)) {
+        const cleanName = selectedFile.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+        effectiveTitle = cleanName.charAt(0).toUpperCase() + cleanName.slice(1);
+      } else {
+        effectiveTitle = format === 'SHORT' ? 'AI SHOPPABLE SHORT' : (format === 'LIVE' ? 'Live Shopping Stream' : 'Shoppable Video Experience');
+      }
     }
 
     setIsSubmitting(true);
@@ -105,8 +136,8 @@ export default function ProjectWizardModal({
     try {
       // 1. LIVE BROADCAST CREATION FLOW
       if (format === 'LIVE') {
-        const session = await api.createStreamSession(title);
-        toast.success(`Live Broadcast "${title}" scheduled!`, 'Live Deck Ready');
+        const session = await api.createStreamSession(effectiveTitle);
+        toast.success(`Live Broadcast "${effectiveTitle}" scheduled!`, 'Live Deck Ready');
         if (onOpenLiveStudio) {
           onOpenLiveStudio(session);
         }
@@ -152,7 +183,7 @@ export default function ProjectWizardModal({
 
         const initialDraft = {
           id: shortDraftId,
-          title: title,
+          title: effectiveTitle,
           videoFileName: selectedFile?.name || 'short_video.mp4',
           videoUrl: finalVideoUrl,
           words: [],
@@ -169,7 +200,7 @@ export default function ProjectWizardModal({
           qrPlacement: 'TOP_RIGHT',
           qrCustomUrl: '',
           selectedProductId: selectedProductIds[0] || null,
-          thumbnailTitle: title,
+          thumbnailTitle: effectiveTitle,
           thumbnailStyle: 'VIRAL_WHITE',
           thumbnailFontSize: 54,
           thumbnailPosition: 45,
@@ -179,7 +210,7 @@ export default function ProjectWizardModal({
         };
         localStorage.setItem('digitpop_shorts_formatter_draft_v1', JSON.stringify(initialDraft));
 
-        toast.success(`Short "${title}" created! Opening Shorts Studio...`, 'Shorts Ready');
+        toast.success(`Short "${effectiveTitle}" created! Opening Shorts Studio...`, 'Shorts Ready');
         if (onOpenShortStudio) {
           onOpenShortStudio(shortDraftId);
         }
@@ -222,7 +253,7 @@ export default function ProjectWizardModal({
       const linkedProducts = availableProducts.filter((p) => selectedProductIds.includes(p.id));
 
       const newProjectPayload: Partial<Project> = {
-        name: title,
+        name: effectiveTitle,
         description,
         category,
         channel,
@@ -565,27 +596,54 @@ export default function ProjectWizardModal({
           {step === 2 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
               <div>
-                <label
-                  className="form-label"
-                  style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}
-                >
-                  {format === 'LIVE' ? 'Broadcast Event Title *' : 'Project Title *'}
-                </label>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <label
+                    className="form-label"
+                    style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}
+                  >
+                    {format === 'LIVE' ? 'Broadcast Event Title *' : 'Project Title *'}
+                  </label>
+                  {availableProducts.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleGenerateTitleFromProduct}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--accent-teal)',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: 0,
+                      }}
+                    >
+                      <Sparkles size={12} />
+                      <span>Auto-Generate from Catalog</span>
+                    </button>
+                  )}
+                </div>
                 <input
                   type="text"
                   className="input-field"
                   placeholder={
                     format === 'VOD'
-                      ? 'e.g. ATS Autofill Engine Walkthrough'
+                      ? '✨ Auto-generated on transcription (or type custom title)...'
                       : format === 'SHORT'
-                      ? 'e.g. Web3 Scams You Must Avoid'
+                      ? '✨ Auto-generated from speech hook (or type custom title)...'
                       : 'e.g. Black Friday Live Launch Event'
                   }
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  required
                   autoFocus
                 />
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
+                  {format === 'SHORT'
+                    ? '💡 If left blank or generic (e.g. IMG_0974), the title will auto-generate from the video\'s spoken speech hook in the studio.'
+                    : '💡 Enter a custom title or leave blank to auto-name from video metadata.'}
+                </span>
               </div>
 
               {format !== 'LIVE' && (
@@ -892,10 +950,6 @@ export default function ProjectWizardModal({
                 type="button"
                 className="btn btn-primary"
                 onClick={() => {
-                  if (!title.trim()) {
-                    setError('Title is required.');
-                    return;
-                  }
                   setError(null);
                   setStep(3);
                 }}
