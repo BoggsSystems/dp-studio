@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Video, Play, Edit3, ExternalLink, Trash2, Layers, ShoppingBag, CheckCircle, Sparkles, Smartphone, CheckCircle2 } from 'lucide-react';
-import { Project, FormattedShortProject } from '../types';
+import { Project, FormattedShortProject, StreamSession, Product } from '../types';
 import ProjectWizardModal from './ProjectWizardModal';
 import ConfirmModal from './ConfirmModal';
 import { toast } from '../services/toast';
@@ -11,7 +11,9 @@ interface ProjectListProps {
   onSelectProject: (project: Project) => void;
   onProjectCreated: (project: Project) => void;
   onDeleteProject?: (projectId: string) => void;
-  onOpenShort?: (short: FormattedShortProject) => void;
+  onOpenShort?: (short?: FormattedShortProject) => void;
+  onOpenLiveStudio?: (session: StreamSession) => void;
+  availableProducts?: Product[];
 }
 
 const getResolvedThumbnailUrl = (url?: string | null) => {
@@ -29,6 +31,8 @@ export default function ProjectList({
   onProjectCreated,
   onDeleteProject,
   onOpenShort,
+  onOpenLiveStudio,
+  availableProducts = [],
 }: ProjectListProps) {
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<'ALL' | 'VOD' | 'SHORTS'>('ALL');
@@ -480,9 +484,20 @@ export default function ProjectList({
       <ProjectWizardModal
         isOpen={isWizardOpen}
         onClose={() => setIsWizardOpen(false)}
+        availableProducts={availableProducts}
         onProjectCreated={(newProj) => {
           onProjectCreated(newProj);
           onSelectProject(newProj);
+        }}
+        onOpenShortStudio={(draftId) => {
+          if (onOpenShort) {
+            onOpenShort();
+          }
+        }}
+        onOpenLiveStudio={(session) => {
+          if (onOpenLiveStudio) {
+            onOpenLiveStudio(session);
+          }
         }}
       />
 

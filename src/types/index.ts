@@ -75,6 +75,10 @@ export interface Project {
   name: string;
   description?: string;
   category?: string;
+  channel?: string;
+  mediaType?: 'VOD' | 'SHORT' | 'LIVE';
+  thumbnailBadge?: string;
+  chapterRef?: string;
   masterVodUrl?: string;
   hlsManifestUrl?: string;
   thumbnailUrl?: string;

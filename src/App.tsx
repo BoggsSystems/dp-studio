@@ -416,6 +416,7 @@ function StudioApp() {
             {activeTab === 'projects' && (
               <ProjectList
                 projects={projects}
+                availableProducts={catalogProducts}
                 onSelectProject={(selected) => {
                   setProject(selected);
                   setActiveTab('vod');
@@ -427,6 +428,9 @@ function StudioApp() {
                 }}
                 onOpenShort={() => {
                   setActiveTab('clips');
+                }}
+                onOpenLiveStudio={(session) => {
+                  setActiveLiveSession(session);
                 }}
               />
             )}

@@ -94,16 +94,38 @@ export default function Header({
             onClick={() => setActiveTab('projects')}
           >
             <FolderGit2 size={14} />
-            <span>Projects</span>
+            <span>Projects & Hub</span>
           </button>
 
-          <button
-            className={`tab-btn ${activeTab === 'vod' ? 'active' : ''}`}
-            onClick={() => setActiveTab('vod')}
-          >
-            <Film size={14} />
-            <span>Timeline Editor</span>
-          </button>
+          {activeTab === 'vod' && (
+            <button
+              className="tab-btn active"
+              onClick={() => setActiveTab('vod')}
+            >
+              <Film size={14} color="var(--accent-teal)" />
+              <span>16:9 VOD Studio</span>
+            </button>
+          )}
+
+          {activeTab === 'clips' && (
+            <button
+              className="tab-btn active"
+              onClick={() => setActiveTab('clips')}
+            >
+              <Sparkles size={14} color="#818CF8" />
+              <span>9:16 Shorts Studio</span>
+            </button>
+          )}
+
+          {activeTab === 'live' && (
+            <button
+              className="tab-btn active"
+              onClick={() => setActiveTab('live')}
+            >
+              <Radio size={14} color="var(--accent-red)" />
+              <span>Live Broadcast Deck</span>
+            </button>
+          )}
 
           <button
             className={`tab-btn ${activeTab === 'products' ? 'active' : ''}`}
@@ -114,27 +136,11 @@ export default function Header({
           </button>
 
           <button
-            className={`tab-btn ${activeTab === 'live' ? 'active' : ''}`}
-            onClick={() => setActiveTab('live')}
-          >
-            <Radio size={14} color={activeTab === 'live' ? 'var(--accent-red)' : undefined} />
-            <span>Livestream Hub</span>
-          </button>
-
-          <button
             className={`tab-btn ${activeTab === 'campaigns' ? 'active' : ''}`}
             onClick={() => setActiveTab('campaigns')}
           >
             <Target size={14} />
             <span>Campaigns</span>
-          </button>
-
-          <button
-            className={`tab-btn ${activeTab === 'clips' ? 'active' : ''}`}
-            onClick={() => setActiveTab('clips')}
-          >
-            <Sparkles size={14} />
-            <span>AI Shorts (9:16)</span>
           </button>
 
           <button
