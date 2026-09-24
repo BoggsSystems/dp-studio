@@ -2567,120 +2567,48 @@ export default function ShortsFormatterStudio() {
         console.warn('Thumbnail generation warning:', thumbErr);
       }
 
-      setPublishAboutPagePercent(45);
-      setPublishAboutPageStage('UPLOADING');
-
-      // 3. Stage 3: Direct Edge Upload to Cloudflare R2 / CDN via Presigned URLs
-      let videoUrlToPublish: string = videoUrl || 'https://digitpop.opportunity-system.com/videos/opportunity-os-about.mp4';
+      // 3. Stage 3: Direct Edge Upload to Cloudflare R2 / CDN (Reuse existing cloud video URL if already uploaded)
+      const isCloudVideoUrl = videoUrl && (videoUrl.startsWith('http://') || videoUrl.startsWith('https://')) && !videoUrl.startsWith('blob:');
+      let videoUrlToPublish: string = isCloudVideoUrl ? videoUrl! : 'https://digitpop.opportunity-system.com/videos/opportunity-os-about.mp4';
       let thumbUrlToPublish: string = bakedThumbUrl || 'https://digitpop.opportunity-system.com/thumbnails/opportunity-os-about.jpg';
 
-      // 3a. Upload Native 60fps Video Blob
-      if (videoBlobToUpload) {
+      // 3a. If video was not already uploaded to cloud during ingestion, upload now via resilient chunked pipeline
+      if (!isCloudVideoUrl && videoBlobToUpload) {
         try {
-          const presignRes = await fetch(
-            `${apiBase}/api/publisher/shorts/presigned-url?shortId=${encodeURIComponent(shortProjectId)}&fileType=video&creatorSlug=opportunity-system`
-          );
-          if (presignRes.ok) {
-            const presignData = await presignRes.json();
-            if (presignData.uploadUrl) {
-              await new Promise<void>((resolve, reject) => {
-                const xhr = new XMLHttpRequest();
-                xhr.timeout = 600000; // 10 minute fail-safe timeout for large 4K/60fps video uploads
-                xhr.open('POST', presignData.uploadUrl);
-
-                xhr.upload.onprogress = (event) => {
-                  setPublishAboutPageStage('UPLOADING');
-                  if (event.lengthComputable) {
-                    const loadedMb = (event.loaded / (1024 * 1024)).toFixed(1);
-                    const totalMb = (event.total / (1024 * 1024)).toFixed(1);
-                    setPublishAboutPageLoadedMb(loadedMb);
-                    setPublishAboutPageTotalMb(totalMb);
-                    const uploadPct = Math.round((event.loaded / event.total) * 100);
-                    const scaled = Math.min(90, 55 + Math.round((uploadPct * 35) / 100));
-                    setPublishAboutPagePercent(scaled);
-                  }
-                };
-
-                xhr.onload = () => {
-                  if (xhr.status >= 200 && xhr.status < 300) {
-                    try {
-                      const resJson = JSON.parse(xhr.responseText);
-                      if (resJson.publicUrl || resJson.url) {
-                        videoUrlToPublish = resJson.publicUrl || resJson.url;
-                      } else if (presignData.publicUrl) {
-                        videoUrlToPublish = presignData.publicUrl;
-                      }
-                    } catch (e) {
-                      if (presignData.publicUrl) {
-                        videoUrlToPublish = presignData.publicUrl;
-                      }
-                    }
-                    resolve();
-                  } else {
-                    reject(new Error(`Video upload failed with status HTTP ${xhr.status}`));
-                  }
-                };
-                xhr.onerror = () => {
-                  reject(new Error('Video upload failed due to network error.'));
-                };
-                xhr.ontimeout = () => {
-                  reject(new Error('Video upload timed out.'));
-                };
-
-                const formData = new FormData();
-                const videoFilename = (videoFile as any)?.name || `${shortProjectId}.mp4`;
-                formData.append('file', videoBlobToUpload, videoFilename);
-                xhr.send(formData);
-              });
-            }
+          const fileToUpload = videoBlobToUpload instanceof File ? videoBlobToUpload : new File([videoBlobToUpload], `${shortProjectId}.mp4`, { type: 'video/mp4' });
+          const uploadedVideo = await api.uploadMedia(fileToUpload, 'videos/shorts/opportunity-system', (prog) => {
+            const pct = typeof prog === 'number' ? prog : prog.percent;
+            const lMb = typeof prog === 'number' ? (fileToUpload.size * (pct / 100) / (1024 * 1024)).toFixed(1) : prog.loadedMb;
+            const tMb = typeof prog === 'number' ? (fileToUpload.size / (1024 * 1024)).toFixed(1) : prog.totalMb;
+            setPublishAboutPageLoadedMb(lMb);
+            setPublishAboutPageTotalMb(tMb);
+            const scaled = Math.min(90, 45 + Math.round((pct * 40) / 100));
+            setPublishAboutPagePercent(scaled);
+            setPublishAboutPageStage('UPLOADING');
+          });
+          if (uploadedVideo && uploadedVideo.url) {
+            videoUrlToPublish = uploadedVideo.url;
+            setVideoUrl(uploadedVideo.url);
           }
         } catch (uploadErr: any) {
-          console.error('Direct presigned video upload error:', uploadErr);
+          console.error('Video upload error during publish:', uploadErr);
           throw uploadErr;
         }
+      } else {
+        setPublishAboutPagePercent(85);
+        setPublishAboutPageStage('SAVING');
       }
 
-      // 3b. Upload Baked Thumbnail Blob (9:16 Cover Art)
+      // 3b. Upload Baked Thumbnail Blob (9:16 Cover Art, ~80KB)
       if (thumbBlobToUpload) {
         try {
-          const thumbPresignRes = await fetch(
-            `${apiBase}/api/publisher/shorts/presigned-url?shortId=${encodeURIComponent(shortProjectId)}&fileType=thumbnail&contentType=image/jpeg&creatorSlug=opportunity-system`
-          );
-          if (thumbPresignRes.ok) {
-            const thumbPresignData = await thumbPresignRes.json();
-            if (thumbPresignData.uploadUrl) {
-              await new Promise<void>((resolve) => {
-                const xhr = new XMLHttpRequest();
-                xhr.timeout = 60000;
-                xhr.open('POST', thumbPresignData.uploadUrl);
-                xhr.onload = () => {
-                  if (xhr.status >= 200 && xhr.status < 300) {
-                    try {
-                      const resJson = JSON.parse(xhr.responseText);
-                      if (resJson.publicUrl || resJson.url) {
-                        thumbUrlToPublish = resJson.publicUrl || resJson.url;
-                      } else if (thumbPresignData.publicUrl) {
-                        thumbUrlToPublish = thumbPresignData.publicUrl;
-                      }
-                    } catch (e) {
-                      if (thumbPresignData.publicUrl) {
-                        thumbUrlToPublish = thumbPresignData.publicUrl;
-                      }
-                    }
-                  }
-                  resolve();
-                };
-                xhr.onerror = () => resolve();
-                xhr.ontimeout = () => resolve();
-
-                const thumbForm = new FormData();
-                thumbForm.append('file', thumbBlobToUpload!, `${shortProjectId}.jpg`);
-                xhr.send(thumbForm);
-              });
-            }
+          const thumbFile = new File([thumbBlobToUpload], `${shortProjectId}_thumb.jpg`, { type: 'image/jpeg' });
+          const uploadedThumb = await api.uploadMedia(thumbFile, 'thumbnails/shorts/opportunity-system');
+          if (uploadedThumb && uploadedThumb.url) {
+            thumbUrlToPublish = uploadedThumb.url;
           }
         } catch (thumbUploadErr) {
-          console.warn('Direct thumbnail upload error:', thumbUploadErr);
+          console.warn('Thumbnail upload notice, continuing with fallback:', thumbUploadErr);
         }
       }
 
