@@ -2531,7 +2531,7 @@ export default function ShortsFormatterStudio() {
             if (presignData.uploadUrl) {
               await new Promise<void>((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
-                xhr.timeout = 180000; // 3 minute fail-safe timeout
+                xhr.timeout = 600000; // 10 minute fail-safe timeout for large 4K/60fps video uploads
                 xhr.open('PUT', presignData.uploadUrl);
                 xhr.setRequestHeader('Content-Type', videoBlobToUpload.type || 'video/mp4');
 
