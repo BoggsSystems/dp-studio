@@ -228,6 +228,7 @@ export default function ProjectWizardModal({
             tiktok: { status: 'DRAFT' },
             x: { status: 'DRAFT' },
           },
+          autoTranscribeOnOpen: true,
           updatedAt: Date.now(),
         };
         localStorage.setItem('digitpop_shorts_formatter_draft_v1', JSON.stringify(initialDraft));

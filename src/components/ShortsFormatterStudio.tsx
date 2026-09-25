@@ -734,6 +734,9 @@ export default function ShortsFormatterStudio() {
           }
         }
 
+        let shouldAutoTranscribe = false;
+        let fileForTranscribe: File | null = null;
+
         // Restore video from IndexedDB or cloud draft
         const storedVideo = await getDraftVideoBlob();
         if (storedVideo && storedVideo.blob && !isCancelled) {
@@ -744,6 +747,7 @@ export default function ShortsFormatterStudio() {
           const objUrl = URL.createObjectURL(file);
           setVideoUrl(objUrl);
           hasRestoredData = true;
+          fileForTranscribe = file;
         } else if (savedDraftJson) {
           const draft = JSON.parse(savedDraftJson);
           if (draft.cloudVideoUrl || (draft.videoUrl && !draft.videoUrl.startsWith('blob:'))) {
@@ -753,8 +757,25 @@ export default function ShortsFormatterStudio() {
           }
         }
 
+        if (savedDraftJson) {
+          try {
+            const draft = JSON.parse(savedDraftJson);
+            if (draft.autoTranscribeOnOpen && !draftWordsFound) {
+              shouldAutoTranscribe = true;
+              // Clear the flag so it only runs once
+              delete draft.autoTranscribeOnOpen;
+              localStorage.setItem('digitpop_shorts_formatter_draft_v1', JSON.stringify(draft));
+            }
+          } catch (e) {}
+        }
+
         if (hasRestoredData && !isCancelled) {
           setIsDraftRestored(true);
+        }
+
+        if (shouldAutoTranscribe && fileForTranscribe && !isCancelled) {
+          // Kick off initial Groq Whisper transcription
+          runTranscription(fileForTranscribe);
         }
       } catch (err) {
         console.warn('Draft restoration error:', err);
