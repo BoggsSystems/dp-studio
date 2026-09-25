@@ -6,7 +6,7 @@ import TimelineScrubber from './components/TimelineScrubber';
 import ProductBasketEditor from './components/ProductBasketEditor';
 import ProductCatalog from './components/ProductCatalog';
 import AiAutopilotPanel from './components/AiAutopilotPanel';
-import ClipStudio from './components/ClipStudio';
+import ShortsFormatterStudio from './components/ShortsFormatterStudio';
 import QuizEditor from './components/QuizEditor';
 import DeployModal from './components/DeployModal';
 import AuthModal from './components/AuthModal';
@@ -573,7 +573,7 @@ function StudioApp() {
             )}
 
             {/* AI VIRAL SHORTS (9:16) TAB */}
-            {activeTab === 'clips' && <ClipStudio projectId={project.id} />}
+            {activeTab === 'clips' && <ShortsFormatterStudio />}
 
             {/* WATCH-TO-EARN QUIZZES TAB */}
             {activeTab === 'quiz' && <QuizEditor />}
