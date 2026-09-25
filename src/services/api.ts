@@ -309,7 +309,7 @@ export const api = {
     }
   },
 
-  // --- High-Speed Chunked Ingress (8MB Slices) with Real-Time Progress ---
+  // --- High-Speed Resilient Parallel Chunked Ingress (4MB Slices, Multi-Worker, Auto-Retry) ---
   async uploadMedia(
     file: File,
     pathPrefix: string = 'vods',
@@ -321,70 +321,116 @@ export const api = {
     const uploadId = `upl_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const contentType = file.type || 'video/mp4';
 
-    const CHUNK_SIZE = 8 * 1024 * 1024; // 8MB per slice
+    const CHUNK_SIZE = 4 * 1024 * 1024; // 4MB per slice for maximum network stability
     const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
     const totalBytes = file.size;
     const totalMb = (totalBytes / (1024 * 1024)).toFixed(1);
 
-    let uploadedBytes = 0;
+    const chunkProgress = new Array(totalChunks).fill(0);
     let finalUrl = `${R2_PUBLIC_DOMAIN}/${targetKey}`;
 
-    for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+    const updateOverallProgress = () => {
+      if (!onProgress) return;
+      const currentTotalLoaded = chunkProgress.reduce((sum, val) => sum + val, 0);
+      const percent = Math.min(99, Math.round((currentTotalLoaded / totalBytes) * 100));
+      const loadedMb = (currentTotalLoaded / (1024 * 1024)).toFixed(1);
+      try {
+        (onProgress as any)({ percent, loadedBytes: currentTotalLoaded, totalBytes, loadedMb, totalMb });
+      } catch {
+        (onProgress as any)(percent);
+      }
+    };
+
+    const uploadSingleChunkWithRetry = async (chunkIndex: number, maxRetries = 3): Promise<void> => {
       const start = chunkIndex * CHUNK_SIZE;
       const end = Math.min(start + CHUNK_SIZE, totalBytes);
       const chunkBlob = file.slice(start, end);
 
-      const formData = new FormData();
-      formData.append('chunk', chunkBlob, `chunk_${chunkIndex}.bin`);
-      formData.append('uploadId', uploadId);
-      formData.append('chunkIndex', String(chunkIndex));
-      formData.append('totalChunks', String(totalChunks));
-      formData.append('key', targetKey);
-      formData.append('contentType', contentType);
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          await new Promise<void>((resolve, reject) => {
+            const formData = new FormData();
+            formData.append('chunk', chunkBlob, `chunk_${chunkIndex}.bin`);
+            formData.append('uploadId', uploadId);
+            formData.append('chunkIndex', String(chunkIndex));
+            formData.append('totalChunks', String(totalChunks));
+            formData.append('key', targetKey);
+            formData.append('contentType', contentType);
 
-      await new Promise<void>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
+            const xhr = new XMLHttpRequest();
+            xhr.timeout = 45000; // 45 second timeout per 4MB slice
 
-        xhr.upload.addEventListener('progress', (e) => {
-          if (e.lengthComputable && onProgress) {
-            const currentTotalLoaded = uploadedBytes + e.loaded;
-            const percent = Math.min(99, Math.round((currentTotalLoaded / totalBytes) * 100));
-            const loadedMb = (currentTotalLoaded / (1024 * 1024)).toFixed(1);
-            try {
-              (onProgress as any)({ percent, loadedBytes: currentTotalLoaded, totalBytes, loadedMb, totalMb });
-            } catch {
-              (onProgress as any)(percent);
-            }
-          }
-        });
-
-        xhr.addEventListener('load', () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            try {
-              const resData = JSON.parse(xhr.responseText);
-              if (resData.url) {
-                finalUrl = resData.url;
+            xhr.upload.addEventListener('progress', (e) => {
+              if (e.lengthComputable) {
+                chunkProgress[chunkIndex] = e.loaded;
+                updateOverallProgress();
               }
-            } catch {}
-            uploadedBytes += chunkBlob.size;
-            resolve();
-          } else {
-            reject(new Error(`Chunk ${chunkIndex + 1}/${totalChunks} upload failed with HTTP ${xhr.status}`));
+            });
+
+            xhr.addEventListener('load', () => {
+              if (xhr.status >= 200 && xhr.status < 300) {
+                try {
+                  const resData = JSON.parse(xhr.responseText);
+                  if (resData.url) {
+                    finalUrl = resData.url;
+                  }
+                } catch {}
+                chunkProgress[chunkIndex] = chunkBlob.size;
+                updateOverallProgress();
+                resolve();
+              } else {
+                reject(new Error(`HTTP ${xhr.status}`));
+              }
+            });
+
+            xhr.addEventListener('error', () => {
+              reject(new Error('Network connection error'));
+            });
+
+            xhr.addEventListener('timeout', () => {
+              reject(new Error('Chunk upload timed out after 45s'));
+            });
+
+            xhr.addEventListener('abort', () => {
+              reject(new Error('Upload aborted'));
+            });
+
+            xhr.open('POST', `${API_BASE_URL}/api/publisher/shorts/upload-chunk`);
+            xhr.send(formData);
+          });
+          return; // Successfully uploaded chunk
+        } catch (err: any) {
+          if (attempt === maxRetries) {
+            throw new Error(`Chunk ${chunkIndex + 1}/${totalChunks} failed after ${maxRetries + 1} attempts: ${err.message}`);
           }
-        });
+          const backoffMs = Math.min(1000 * Math.pow(2, attempt), 4000);
+          console.warn(`[ChunkUploader] Chunk ${chunkIndex + 1}/${totalChunks} retry ${attempt + 1}/${maxRetries} in ${backoffMs}ms...`);
+          chunkProgress[chunkIndex] = 0;
+          updateOverallProgress();
+          await new Promise((r) => setTimeout(r, backoffMs));
+        }
+      }
+    };
 
-        xhr.addEventListener('error', () => {
-          reject(new Error(`Network error uploading chunk ${chunkIndex + 1}/${totalChunks}.`));
-        });
+    // Parallel Multi-Worker Queue (3 concurrent workers)
+    const MAX_CONCURRENT = 3;
+    const chunkIndices = Array.from({ length: totalChunks }, (_, i) => i);
+    let currentIndex = 0;
 
-        xhr.addEventListener('abort', () => {
-          reject(new Error('Upload was cancelled.'));
-        });
+    const worker = async (): Promise<void> => {
+      while (currentIndex < chunkIndices.length) {
+        const indexToUpload = currentIndex++;
+        await uploadSingleChunkWithRetry(indexToUpload);
+      }
+    };
 
-        xhr.open('POST', `${API_BASE_URL}/api/publisher/shorts/upload-chunk`);
-        xhr.send(formData);
-      });
+    const workerPromises: Promise<void>[] = [];
+    const activeWorkers = Math.min(MAX_CONCURRENT, totalChunks);
+    for (let w = 0; w < activeWorkers; w++) {
+      workerPromises.push(worker());
     }
+
+    await Promise.all(workerPromises);
 
     if (onProgress) {
       try {
