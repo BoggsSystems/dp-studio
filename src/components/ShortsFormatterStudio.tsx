@@ -742,11 +742,6 @@ export default function ShortsFormatterStudio() {
           const objUrl = URL.createObjectURL(file);
           setVideoUrl(objUrl);
           hasRestoredData = true;
-
-          // If this is a fresh launch from wizard with no transcript words yet, auto-run transcription
-          if (!draftWordsFound) {
-            runTranscription(file);
-          }
         } else if (savedDraftJson) {
           const draft = JSON.parse(savedDraftJson);
           if (draft.cloudVideoUrl || (draft.videoUrl && !draft.videoUrl.startsWith('blob:'))) {
