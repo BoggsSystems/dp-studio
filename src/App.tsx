@@ -176,7 +176,8 @@ function StudioApp() {
       products: [initialProduct],
     };
 
-    const updatedGroups = [...project.productGroups, newGroup].sort(
+    const currentGroups = project.productGroups || [];
+    const updatedGroups = [...currentGroups, newGroup].sort(
       (a, b) => a.timestampSeconds - b.timestampSeconds
     );
     const updated = { ...project, productGroups: updatedGroups };
@@ -188,7 +189,8 @@ function StudioApp() {
   // Update a product group
   const handleUpdateGroup = (updatedGroup: ProductGroup) => {
     if (!project) return;
-    const updatedGroups = project.productGroups.map((g) => (g.id === updatedGroup.id ? updatedGroup : g));
+    const currentGroups = project.productGroups || [];
+    const updatedGroups = currentGroups.map((g) => (g.id === updatedGroup.id ? updatedGroup : g));
     const updated = { ...project, productGroups: updatedGroups };
     setProject(updated);
     setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
@@ -197,7 +199,8 @@ function StudioApp() {
   // Delete a product group
   const handleDeleteGroup = (groupId: string) => {
     if (!project) return;
-    const filtered = project.productGroups.filter((g) => g.id !== groupId);
+    const currentGroups = project.productGroups || [];
+    const filtered = currentGroups.filter((g) => g.id !== groupId);
     const updated = { ...project, productGroups: filtered };
     setProject(updated);
     setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
@@ -227,7 +230,8 @@ function StudioApp() {
       ],
     };
 
-    const updatedGroups = [...project.productGroups, newGroup].sort((a, b) => a.timestampSeconds - b.timestampSeconds);
+    const currentGroups = project.productGroups || [];
+    const updatedGroups = [...currentGroups, newGroup].sort((a, b) => a.timestampSeconds - b.timestampSeconds);
     const updated = { ...project, productGroups: updatedGroups };
     setProject(updated);
     setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
@@ -387,7 +391,7 @@ function StudioApp() {
   }
 
 
-  const selectedGroup = project.productGroups.find((g) => g.id === selectedGroupId) || null;
+  const selectedGroup = (project.productGroups || []).find((g) => g.id === selectedGroupId) || null;
 
   return (
     <div className="studio-root">
@@ -552,7 +556,7 @@ function StudioApp() {
                     isPlaying={isPlaying}
                     onPlayPause={handlePlayPause}
                     onSeek={handleSeek}
-                    productGroups={project.productGroups}
+                    productGroups={project.productGroups || []}
                     selectedGroupId={selectedGroupId}
                     onSelectGroup={(id) => setSelectedGroupId(id)}
                     onAddPinAtCurrentTime={handleAddPinAtCurrentTime}
@@ -594,7 +598,7 @@ function StudioApp() {
             {activeTab === 'live' && (
               <LivestreamHub
                 onEnterOnAirStudio={(session) => setActiveLiveSession(session)}
-                availableProductGroups={project.productGroups}
+                availableProductGroups={project.productGroups || []}
               />
             )}
 

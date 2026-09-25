@@ -284,15 +284,21 @@ export const api = {
         body: JSON.stringify(project),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return await res.json();
+      const data = await res.json();
+      return {
+        ...data,
+        productGroups: data.productGroups || [],
+        baskets: data.baskets || [],
+      };
     } catch (e) {
       console.warn('Simulating offline project save:', e);
       return {
         ...project,
         id: project.id || `proj_${Date.now()}`,
-        status: 'READY',
+        status: project.status || 'READY',
         isActive: true,
         productGroups: project.productGroups || [],
+        baskets: project.baskets || [],
       } as Project;
     }
   },
