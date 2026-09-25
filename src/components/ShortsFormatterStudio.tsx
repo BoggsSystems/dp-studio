@@ -3000,11 +3000,26 @@ export default function ShortsFormatterStudio() {
             </div>
 
             {/* 1. Kinetic Highlight Color */}
-            <div>
-              <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '8px' }}>
-                Active Word Highlight Glow
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '10px 14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)' }}>
+                  Active Word Highlight Glow
+                </span>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    color: HIGHLIGHT_COLORS[highlightColor]?.hex || '#F59E0B',
+                    background: 'rgba(255,255,255,0.06)',
+                    padding: '2px 8px',
+                    borderRadius: '10px',
+                    border: `1px solid ${HIGHLIGHT_COLORS[highlightColor]?.hex || '#F59E0B'}40`,
+                  }}
+                >
+                  {HIGHLIGHT_COLORS[highlightColor]?.label}
+                </span>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 {(Object.keys(HIGHLIGHT_COLORS) as HighlightColor[]).map((colorKey) => {
                   const conf = HIGHLIGHT_COLORS[colorKey];
                   const isSelected = highlightColor === colorKey;
@@ -3012,30 +3027,34 @@ export default function ShortsFormatterStudio() {
                     <button
                       key={colorKey}
                       onClick={() => setHighlightColor(colorKey)}
+                      title={conf.label}
                       style={{
-                        padding: '10px 6px',
-                        borderRadius: 'var(--radius-sm)',
-                        border: isSelected ? `2px solid ${conf.hex}` : '1px solid var(--border-color)',
-                        background: isSelected ? 'rgba(255,255,255,0.08)' : 'var(--bg-surface)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: '6px',
+                        width: '28px',
+                        height: '28px',
+                        borderRadius: '50%',
+                        border: isSelected ? `2px solid #fff` : '2px solid transparent',
+                        background: conf.hex,
+                        boxShadow: isSelected ? `0 0 12px ${conf.glow}, inset 0 0 4px rgba(0,0,0,0.4)` : '0 1px 3px rgba(0,0,0,0.4)',
+                        transform: isSelected ? 'scale(1.15)' : 'scale(1)',
+                        transition: 'all 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
                         cursor: 'pointer',
+                        padding: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
                       }}
                     >
-                      <span
-                        style={{
-                          width: '18px',
-                          height: '18px',
-                          borderRadius: '50%',
-                          background: conf.hex,
-                          boxShadow: isSelected ? `0 0 10px ${conf.glow}` : 'none',
-                        }}
-                      />
-                      <span style={{ fontSize: '11px', color: isSelected ? '#fff' : 'var(--text-muted)', fontWeight: isSelected ? 700 : 500 }}>
-                        {conf.label.split(' ')[0]}
-                      </span>
+                      {isSelected && (
+                        <span
+                          style={{
+                            width: '8px',
+                            height: '8px',
+                            borderRadius: '50%',
+                            background: '#fff',
+                            boxShadow: '0 1px 2px rgba(0,0,0,0.5)',
+                          }}
+                        />
+                      )}
                     </button>
                   );
                 })}
