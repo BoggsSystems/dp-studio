@@ -539,6 +539,7 @@ async function extractAudioFromVideo(file: File): Promise<Blob> {
 export default function ShortsFormatterStudio() {
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [cloudVideoUrl, setCloudVideoUrl] = useState<string | null>(null);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [transcribeProgress, setTranscribeProgress] = useState<string>('');
   const [transcribeError, setTranscribeError] = useState<string | null>(null);
@@ -725,6 +726,10 @@ export default function ShortsFormatterStudio() {
           if (draft.thumbnailStrokeWidth) setThumbnailStrokeWidth(draft.thumbnailStrokeWidth);
           if (draft.thumbnailUppercase !== undefined) setThumbnailUppercase(draft.thumbnailUppercase);
           if (draft.thumbnailImage) setThumbnailImage(draft.thumbnailImage);
+          if (draft.cloudVideoUrl || (draft.videoUrl && !draft.videoUrl.startsWith('blob:'))) {
+            const remoteUrl = draft.cloudVideoUrl || draft.videoUrl;
+            setCloudVideoUrl(remoteUrl);
+          }
         }
 
         // Restore video from IndexedDB or cloud draft
@@ -741,6 +746,13 @@ export default function ShortsFormatterStudio() {
           // If this is a fresh launch from wizard with no transcript words yet, auto-run transcription
           if (!draftWordsFound) {
             runTranscription(file);
+          }
+        } else if (savedDraftJson) {
+          const draft = JSON.parse(savedDraftJson);
+          if (draft.cloudVideoUrl || (draft.videoUrl && !draft.videoUrl.startsWith('blob:'))) {
+            const remoteUrl = draft.cloudVideoUrl || draft.videoUrl;
+            setVideoUrl(remoteUrl);
+            hasRestoredData = true;
           }
         }
 
@@ -769,8 +781,12 @@ export default function ShortsFormatterStudio() {
 
     const timer = setTimeout(() => {
       try {
+        const persistentCloudUrl = cloudVideoUrl || (videoUrl && !videoUrl.startsWith('blob:') ? videoUrl : undefined);
         const draftData = {
           id: shortProjectId,
+          videoUrl: persistentCloudUrl,
+          cloudVideoUrl: persistentCloudUrl,
+          videoFileName: videoFile?.name || 'short_video.mp4',
           words,
           editableTranscript,
           videoTitle,
@@ -805,11 +821,12 @@ export default function ShortsFormatterStudio() {
         localStorage.setItem('digitpop_shorts_formatter_draft_v1', JSON.stringify(draftData));
 
         // Auto-sync into multi-project shorts library
-        if (words.length > 0 || editableTranscript || thumbnailTitle || videoTitle || videoUrl) {
+        if (words.length > 0 || editableTranscript || thumbnailTitle || videoTitle || videoUrl || cloudVideoUrl) {
           const shortProjectRecord: FormattedShortProject = {
             id: shortProjectId,
             title: videoTitle || thumbnailTitle || (videoFile?.name ? videoFile.name.replace(/\.[^/.]+$/, '') : 'AI Shoppable Short'),
             videoFileName: videoFile?.name || 'short_video.mp4',
+            videoUrl: persistentCloudUrl,
             thumbnailUrl: thumbnailImage || undefined,
             durationSeconds: duration || (words.length ? Math.ceil(words[words.length - 1].end) : 30),
             words,
@@ -1178,6 +1195,7 @@ export default function ShortsFormatterStudio() {
     setVideoFile(file);
     const objectUrl = URL.createObjectURL(file);
     setVideoUrl(objectUrl);
+    setCloudVideoUrl(null);
     setIsPlaying(false);
     setCurrentTime(0);
 
@@ -1201,6 +1219,7 @@ export default function ShortsFormatterStudio() {
     setShortProjectId(newDraftId);
     setVideoFile(null);
     setVideoUrl(null);
+    setCloudVideoUrl(null);
     setWords([]);
     setEditableTranscript('');
     setTranscribeError(null);
@@ -2568,12 +2587,12 @@ export default function ShortsFormatterStudio() {
       }
 
       // 3. Stage 3: Direct Edge Upload to Cloudflare R2 / CDN (Reuse existing cloud video URL if already uploaded)
-      const isCloudVideoUrl = videoUrl && (videoUrl.startsWith('http://') || videoUrl.startsWith('https://')) && !videoUrl.startsWith('blob:');
-      let videoUrlToPublish: string = isCloudVideoUrl ? videoUrl! : 'https://digitpop.opportunity-system.com/videos/opportunity-os-about.mp4';
+      const existingCloudUrl = cloudVideoUrl || (videoUrl && (videoUrl.startsWith('http://') || videoUrl.startsWith('https://')) && !videoUrl.startsWith('blob:') ? videoUrl : null);
+      let videoUrlToPublish: string = existingCloudUrl || 'https://digitpop.opportunity-system.com/videos/opportunity-os-about.mp4';
       let thumbUrlToPublish: string = bakedThumbUrl || 'https://digitpop.opportunity-system.com/thumbnails/opportunity-os-about.jpg';
 
       // 3a. If video was not already uploaded to cloud during ingestion, upload now via resilient chunked pipeline
-      if (!isCloudVideoUrl && videoBlobToUpload) {
+      if (!existingCloudUrl && videoBlobToUpload) {
         try {
           const fileToUpload = videoBlobToUpload instanceof File ? videoBlobToUpload : new File([videoBlobToUpload], `${shortProjectId}.mp4`, { type: 'video/mp4' });
           const uploadedVideo = await api.uploadMedia(fileToUpload, 'videos/shorts/opportunity-system', (prog) => {
@@ -2588,7 +2607,7 @@ export default function ShortsFormatterStudio() {
           });
           if (uploadedVideo && uploadedVideo.url) {
             videoUrlToPublish = uploadedVideo.url;
-            setVideoUrl(uploadedVideo.url);
+            setCloudVideoUrl(uploadedVideo.url);
           }
         } catch (uploadErr: any) {
           console.error('Video upload error during publish:', uploadErr);
@@ -2616,6 +2635,7 @@ export default function ShortsFormatterStudio() {
       const projectPayload: FormattedShortProject = {
         id: shortProjectId,
         title: videoTitle || thumbnailTitle || 'Opportunity OS Short',
+        videoUrl: videoUrlToPublish,
         videoFileName: videoFile?.name || `${shortProjectId}.mp4`,
         thumbnailUrl: thumbUrlToPublish,
         durationSeconds: duration || 56,

@@ -152,6 +152,7 @@ export default function ProjectWizardModal({
           title: effectiveTitle,
           videoFileName: selectedFile?.name || 'short_video.mp4',
           videoUrl: finalVideoUrl,
+          cloudVideoUrl: finalVideoUrl,
           words: [],
           editableTranscript: '',
           highlightColor: 'amber',

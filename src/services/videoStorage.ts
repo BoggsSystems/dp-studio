@@ -543,6 +543,8 @@ export async function loadShortProjectIntoActiveDraft(short: FormattedShortProje
       id: short.id,
       title: short.title,
       videoFileName: short.videoFileName,
+      videoUrl: short.videoUrl,
+      cloudVideoUrl: short.videoUrl,
       words: short.words,
       editableTranscript: short.editableTranscript,
       highlightColor: short.highlightColor,
