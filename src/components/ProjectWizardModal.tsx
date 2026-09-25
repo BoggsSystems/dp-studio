@@ -121,38 +121,80 @@ export default function ProjectWizardModal({
         return;
       }
 
-      // 2. 9:16 VERTICAL SHORT CREATION FLOW
-      if (format === 'SHORT') {
-        let finalVideoUrl = videoUrl;
-        const shortDraftId = `short_${Date.now()}`;
+      // 2. VIDEO EXPERIENCES (9:16 SHORT OR 16:9 VOD)
+      let resolvedVideoUrl = videoUrl;
+      const isShort = format === 'SHORT';
+      const uploadFolder = isShort ? 'videos/shorts/opportunity-system' : 'raw_videos/opportunity-system';
 
-        if (selectedFile) {
-          setUploadStage('Streaming video directly to cloud storage...');
-          const uploadRes = await api.uploadMedia(selectedFile, 'videos/shorts/opportunity-system', (prog) => {
-            const pct = typeof prog === 'number' ? prog : prog.percent;
-            const lMb = typeof prog === 'number' ? (selectedFile.size * (pct / 100) / (1024 * 1024)).toFixed(1) : prog.loadedMb;
-            const tMb = typeof prog === 'number' ? (selectedFile.size / (1024 * 1024)).toFixed(1) : prog.totalMb;
-            setUploadPercent(pct);
-            setLoadedMb(lMb);
-            setTotalMb(tMb);
-            setUploadStage(`Uploading video to cloud: ${lMb} MB / ${tMb} MB (${pct}%)`);
-          });
+      if (selectedFile) {
+        setUploadStage(`Streaming ${isShort ? '9:16 Short' : '16:9 VOD'} to cloud storage...`);
+        const uploadRes = await api.uploadMedia(selectedFile, uploadFolder, (prog) => {
+          const pct = typeof prog === 'number' ? prog : prog.percent;
+          const lMb = typeof prog === 'number' ? (selectedFile.size * (pct / 100) / (1024 * 1024)).toFixed(1) : prog.loadedMb;
+          const tMb = typeof prog === 'number' ? (selectedFile.size / (1024 * 1024)).toFixed(1) : prog.totalMb;
+          setUploadPercent(pct);
+          setLoadedMb(lMb);
+          setTotalMb(tMb);
+          setUploadStage(`Uploading video to cloud: ${lMb} MB / ${tMb} MB (${pct}%)`);
+        });
 
-          if (uploadRes && uploadRes.url) {
-            finalVideoUrl = uploadRes.url;
-          }
-
-          // Save local backup blob for instant offline editing
-          await saveDraftVideoBlob(selectedFile, selectedFile.name);
+        if (uploadRes && uploadRes.url) {
+          resolvedVideoUrl = uploadRes.url;
         }
 
-        setUploadStage('Initializing AI Studio workspace...');
+        // Save local backup blob for instant offline editing
+        if (isShort) {
+          await saveDraftVideoBlob(selectedFile, selectedFile.name);
+        }
+      }
+
+      setUploadStage('Registering project in database...');
+      const newProjectPayload: Partial<Project> = {
+        name: effectiveTitle,
+        description: isShort ? 'AI-Native Shoppable Short Video' : '',
+        category: isShort ? 'Shorts' : 'Technology & SaaS',
+        channel: 'about',
+        mediaType: format,
+        thumbnailBadge: isShort ? '⚡ 9:16 Short' : '🎬 16:9 VOD',
+        masterVodUrl: resolvedVideoUrl || (isShort ? '' : 'https://pub-2af6e082fcb44c58add86361dad9d14b.r2.dev/raw_videos/opportunity_os_showcase.mp4'),
+        hlsManifestUrl: (!isShort && resolvedVideoUrl?.endsWith('.m3u8')) ? resolvedVideoUrl : undefined,
+        status: 'READY',
+        isActive: true,
+        productGroups: [],
+        baskets: [],
+        metadata: isShort ? {
+          creatorSlug: 'opportunity-system',
+          channel: 'about',
+          highlightColor: 'amber',
+          fontSize: 22,
+          verticalPosition: 78,
+          wordPacing: 'POP_TWO_WORDS',
+          autoEmojis: true,
+          uppercase: true,
+          layoutMode: 'FIT_BLUR',
+          showShoppableDrawer: true,
+          showQrCode: true,
+          qrPlacement: 'TOP_RIGHT',
+          thumbnailTitle: effectiveTitle,
+          thumbnailStyle: 'VIRAL_WHITE',
+          thumbnailFontSize: 54,
+          thumbnailPosition: 45,
+          thumbnailBadge: '⚡ MUST WATCH',
+          thumbnailStrokeWidth: 14,
+        } : undefined,
+      };
+
+      const created = await api.saveProject(newProjectPayload);
+      onProjectCreated(created);
+
+      if (isShort) {
+        // Initialize draft for short studio
         const initialDraft = {
-          id: shortDraftId,
-          title: effectiveTitle,
+          id: created.id,
+          title: created.name,
           videoFileName: selectedFile?.name || 'short_video.mp4',
-          videoUrl: finalVideoUrl,
-          cloudVideoUrl: finalVideoUrl,
+          videoUrl: created.masterVodUrl,
+          cloudVideoUrl: created.masterVodUrl,
           words: [],
           editableTranscript: '',
           highlightColor: 'amber',
@@ -167,62 +209,23 @@ export default function ProjectWizardModal({
           qrPlacement: 'TOP_RIGHT',
           qrCustomUrl: '',
           selectedProductId: null,
-          thumbnailTitle: effectiveTitle,
+          thumbnailTitle: created.name,
           thumbnailStyle: 'VIRAL_WHITE',
           thumbnailFontSize: 54,
           thumbnailPosition: 45,
           thumbnailBadge: '⚡ MUST WATCH',
-          status: 'DRAFT',
+          status: 'READY',
           updatedAt: Date.now(),
         };
         localStorage.setItem('digitpop_shorts_formatter_draft_v1', JSON.stringify(initialDraft));
-
-        toast.success(`Short initialized! Launching AI Studio...`, 'Shorts Ready');
+        toast.success(`Short project "${created.name}" created! Opening Shorts Studio...`, 'Shorts Ready');
         if (onOpenShortStudio) {
-          onOpenShortStudio(shortDraftId);
+          onOpenShortStudio(created.id);
         }
-        handleReset();
-        return;
+      } else {
+        toast.success(`Project "${created.name}" created! Opening Timeline Studio...`, 'VOD Ready');
       }
 
-      // 3. 16:9 INTERACTIVE VOD CREATION FLOW
-      let resolvedVodUrl = videoUrl;
-
-      if (selectedFile) {
-        setUploadStage('Streaming 16:9 VOD master to cloud storage...');
-        const uploadRes = await api.uploadMedia(selectedFile, 'raw_videos/opportunity-system', (prog) => {
-          const pct = typeof prog === 'number' ? prog : prog.percent;
-          const lMb = typeof prog === 'number' ? (selectedFile.size * (pct / 100) / (1024 * 1024)).toFixed(1) : prog.loadedMb;
-          const tMb = typeof prog === 'number' ? (selectedFile.size / (1024 * 1024)).toFixed(1) : prog.totalMb;
-          setUploadPercent(pct);
-          setLoadedMb(lMb);
-          setTotalMb(tMb);
-          setUploadStage(`Uploading master VOD: ${lMb} MB / ${tMb} MB (${pct}%)`);
-        });
-
-        if (uploadRes && uploadRes.url) {
-          resolvedVodUrl = uploadRes.url;
-        }
-      }
-
-      setUploadStage('Registering interactive project in database...');
-      const newProjectPayload: Partial<Project> = {
-        name: effectiveTitle,
-        description: '',
-        category: 'Technology & SaaS',
-        channel: 'about',
-        mediaType: 'VOD',
-        masterVodUrl: resolvedVodUrl || 'https://pub-2af6e082fcb44c58add86361dad9d14b.r2.dev/raw_videos/opportunity_os_showcase.mp4',
-        hlsManifestUrl: resolvedVodUrl?.endsWith('.m3u8') ? resolvedVodUrl : undefined,
-        status: 'READY',
-        isActive: true,
-        productGroups: [],
-        baskets: [],
-      };
-
-      const created = await api.saveProject(newProjectPayload);
-      onProjectCreated(created);
-      toast.success(`Project "${created.name}" created! Opening Timeline Studio...`, 'VOD Ready');
       handleReset();
     } catch (err: any) {
       setError(err.message || 'Failed to create experience');
