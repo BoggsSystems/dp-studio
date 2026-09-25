@@ -670,6 +670,8 @@ export default function ShortsFormatterStudio() {
   // Persistence and Auto-Recovery State
   const [shortProjectId, setShortProjectId] = useState<string>(() => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `draft-${Date.now()}`));
   const [isDraftRestored, setIsDraftRestored] = useState<boolean>(false);
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'saved' | 'saving' | 'idle'>('saved');
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [savedProductId, setSavedProductId] = useState<string | null>(null);
   const isMountedRef = useRef<boolean>(false);
 
@@ -774,6 +776,8 @@ export default function ShortsFormatterStudio() {
   useEffect(() => {
     if (!isMountedRef.current) return;
 
+    setAutoSaveStatus('saving');
+
     const timer = setTimeout(() => {
       try {
         const persistentCloudUrl = cloudVideoUrl || (videoUrl && !videoUrl.startsWith('blob:') ? videoUrl : undefined);
@@ -857,8 +861,11 @@ export default function ShortsFormatterStudio() {
           };
           saveShortProject(shortProjectRecord);
         }
+        setAutoSaveStatus('saved');
+        setLastSavedAt(new Date());
       } catch (e) {
         console.warn('Draft auto-save warning:', e);
+        setAutoSaveStatus('saved');
       }
     }, 400);
 
@@ -2793,22 +2800,43 @@ export default function ShortsFormatterStudio() {
                 <span className="badge badge--emerald" style={{ fontSize: '11px', textTransform: 'uppercase' }}>
                   Groq Large-v3 Turbo
                 </span>
-                {isDraftRestored && (
+                {autoSaveStatus === 'saving' ? (
                   <span
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
-                      gap: '4px',
+                      gap: '5px',
                       fontSize: '11px',
-                      color: '#10B981',
-                      background: 'rgba(16, 185, 129, 0.1)',
-                      border: '1px solid rgba(16, 185, 129, 0.3)',
+                      fontWeight: 600,
+                      color: '#F59E0B',
+                      background: 'rgba(245, 158, 11, 0.12)',
+                      border: '1px solid rgba(245, 158, 11, 0.3)',
                       padding: '2px 8px',
                       borderRadius: '12px',
                     }}
                   >
-                    <Check size={12} /> Auto-Saved
+                    <RefreshCw size={11} className="animate-spin" /> Saving...
                   </span>
+                ) : (
+                  (isDraftRestored || lastSavedAt) && (
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        color: '#10B981',
+                        background: 'rgba(16, 185, 129, 0.1)',
+                        border: '1px solid rgba(16, 185, 129, 0.3)',
+                        padding: '2px 8px',
+                        borderRadius: '12px',
+                      }}
+                      title={lastSavedAt ? `Auto-saved at ${lastSavedAt.toLocaleTimeString()}` : 'All changes auto-saved'}
+                    >
+                      <Check size={12} /> Auto-Saved
+                    </span>
+                  )
                 )}
               </div>
               <div style={{ color: 'var(--text-secondary)', fontSize: '13px', marginTop: '4px' }}>
