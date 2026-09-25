@@ -549,6 +549,11 @@ export default function ShortsFormatterStudio() {
 
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [includedProductIds, setIncludedProductIds] = useState<string[]>([]);
+  const [carouselProductIds, setCarouselProductIds] = useState<string[]>([]);
+  const [carouselRotationSpeed, setCarouselRotationSpeed] = useState<number>(8); // 0 = static, 5 = fast, 8 = balanced, 12 = relaxed
+  const [activeCarouselIndex, setActiveCarouselIndex] = useState<number>(0);
+  const [isFullCatalogModalOpen, setIsFullCatalogModalOpen] = useState<boolean>(false);
 
   // Playback state
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -716,7 +721,18 @@ export default function ShortsFormatterStudio() {
           if (draft.showQrCode !== undefined) setShowQrCode(draft.showQrCode);
           if (draft.qrPlacement) setQrPlacement(draft.qrPlacement);
           if (draft.qrCustomUrl) setQrCustomUrl(draft.qrCustomUrl);
-          if (draft.selectedProductId) setSavedProductId(draft.selectedProductId);
+          if (draft.selectedProductId || draft.productId) {
+            setSavedProductId(draft.selectedProductId || draft.productId);
+          }
+          if (Array.isArray(draft.includedProductIds)) {
+            setIncludedProductIds(draft.includedProductIds);
+          }
+          if (Array.isArray(draft.carouselProductIds)) {
+            setCarouselProductIds(draft.carouselProductIds);
+          }
+          if (typeof draft.carouselRotationSpeed === 'number') {
+            setCarouselRotationSpeed(draft.carouselRotationSpeed);
+          }
           if (draft.videoTitle) setVideoTitle(draft.videoTitle);
           if (draft.videoDescription) setVideoDescription(draft.videoDescription);
           if (draft.pinnedCommentText) setPinnedCommentText(draft.pinnedCommentText);
@@ -826,6 +842,9 @@ export default function ShortsFormatterStudio() {
           selectedProductId: selectedProduct?.id || savedProductId || null,
           productTitle: selectedProduct?.title,
           productPrice: selectedProduct?.price,
+          includedProductIds,
+          carouselProductIds,
+          carouselRotationSpeed,
           thumbnailTitle,
           thumbnailStyle,
           thumbnailFontSize,
@@ -868,6 +887,9 @@ export default function ShortsFormatterStudio() {
             productId: selectedProduct?.id || savedProductId || undefined,
             productTitle: selectedProduct?.title,
             productPrice: selectedProduct?.price,
+            includedProductIds,
+            carouselProductIds,
+            carouselRotationSpeed,
             thumbnailTitle,
             thumbnailStyle,
             thumbnailFontSize,
@@ -910,6 +932,9 @@ export default function ShortsFormatterStudio() {
     qrCustomUrl,
     selectedProduct,
     savedProductId,
+    includedProductIds,
+    carouselProductIds,
+    carouselRotationSpeed,
     thumbnailTitle,
     thumbnailStyle,
     thumbnailFontSize,
@@ -1004,6 +1029,35 @@ export default function ShortsFormatterStudio() {
     };
   }, []);
 
+  // Determine the effective list of products to cycle in the carousel
+  const activeCarouselProducts = useMemo<Product[]>(() => {
+    if (!products || products.length === 0) return [];
+    if (carouselProductIds.length > 0) {
+      const filtered = products.filter((p) => carouselProductIds.includes(p.id));
+      if (filtered.length > 0) return filtered;
+    }
+    if (selectedProduct) return [selectedProduct];
+    return products.slice(0, 1);
+  }, [products, carouselProductIds, selectedProduct]);
+
+  // Auto-rotating timer for Hero Carousel
+  useEffect(() => {
+    if (carouselRotationSpeed <= 0 || activeCarouselProducts.length <= 1) return;
+
+    const interval = setInterval(() => {
+      setActiveCarouselIndex((prev) => (prev + 1) % activeCarouselProducts.length);
+    }, carouselRotationSpeed * 1000);
+
+    return () => clearInterval(interval);
+  }, [carouselRotationSpeed, activeCarouselProducts.length]);
+
+  // Current featured product on screen
+  const currentHeroProduct = useMemo<Product | null>(() => {
+    if (activeCarouselProducts.length === 0) return selectedProduct || products[0] || null;
+    const safeIndex = activeCarouselIndex % activeCarouselProducts.length;
+    return activeCarouselProducts[safeIndex] || activeCarouselProducts[0] || null;
+  }, [activeCarouselProducts, activeCarouselIndex, selectedProduct, products]);
+
   // Synchronize selectedProduct whenever products list or savedProductId updates
   useEffect(() => {
     if (!products || products.length === 0) return;
@@ -1014,15 +1068,16 @@ export default function ShortsFormatterStudio() {
         return;
       }
     }
+    // Only fallback if no explicit saved selection exists
     setSelectedProduct((prev) => {
       if (prev && products.some((p) => p.id === prev.id)) return prev;
       return products[0];
     });
   }, [products, savedProductId]);
 
-  // Generate QR code data URL dynamically
+  // Generate QR code data URL dynamically (synced to currentHeroProduct)
   useEffect(() => {
-    const targetUrl = selectedProduct?.externalUrl || qrCustomUrl || 'https://opportunity-system.com';
+    const targetUrl = currentHeroProduct?.externalUrl || selectedProduct?.externalUrl || qrCustomUrl || 'https://opportunity-system.com';
     QRCode.toDataURL(targetUrl, {
       width: 320,
       margin: 1,
@@ -1037,7 +1092,7 @@ export default function ShortsFormatterStudio() {
       .catch((err) => {
         console.error('QR code generation error:', err);
       });
-  }, [selectedProduct, qrCustomUrl]);
+  }, [currentHeroProduct, selectedProduct, qrCustomUrl]);
 
   // Transcription trigger function
   const runTranscription = async (fileToProcess: File) => {
@@ -1193,9 +1248,47 @@ export default function ShortsFormatterStudio() {
     }
   };
 
+  // Two-Tier Shoppable Product Handlers:
+  // Toggle inclusion in full video catalog (Tier 2: Tap-to-reveal)
+  const toggleIncludedProduct = (product: Product, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setIncludedProductIds((prev) => {
+      const exists = prev.includes(product.id);
+      const updated = exists ? prev.filter((id) => id !== product.id) : [...prev, product.id];
+      // If removed, also remove from carousel if present
+      if (exists) {
+        setCarouselProductIds((cPrev) => cPrev.filter((id) => id !== product.id));
+      }
+      return updated;
+    });
+  };
+
+  // Toggle inclusion in auto-rotating hero bar (Tier 1: Lower-Third Carousel)
+  const toggleCarouselProduct = (product: Product, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setCarouselProductIds((prev) => {
+      const exists = prev.includes(product.id);
+      const updated = exists ? prev.filter((id) => id !== product.id) : [...prev, product.id];
+      // Ensure product is also marked as included in the catalog
+      if (!exists) {
+        setIncludedProductIds((iPrev) => (iPrev.includes(product.id) ? iPrev : [...iPrev, product.id]));
+      }
+      return updated;
+    });
+    // Set as primary active if not already
+    setSelectedProduct(product);
+    setSavedProductId(product.id);
+    if (product.externalUrl) {
+      setQrCustomUrl(product.externalUrl);
+    }
+  };
+
   const handleSelectProduct = (product: Product) => {
     setSelectedProduct(product);
     setSavedProductId(product.id);
+    // Ensure selected product is in both included and carousel sets
+    setIncludedProductIds((prev) => (prev.includes(product.id) ? prev : [...prev, product.id]));
+    setCarouselProductIds((prev) => (prev.includes(product.id) ? prev : [...prev, product.id]));
     if (product.externalUrl) {
       setQrCustomUrl(product.externalUrl);
     }
@@ -3225,46 +3318,149 @@ export default function ShortsFormatterStudio() {
               </div>
             )}
 
-            {/* 5. Shoppable Product Selector */}
+            {/* 5. Two-Tier Shoppable Product Configuration (Hero Carousel + Full Tap-to-Reveal Tray) */}
             {showShoppableDrawer && (
-              <div style={{ marginTop: '8px', padding: '14px', borderRadius: 'var(--radius-sm)', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border-color)' }}>
-                <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--accent-amber)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <ShoppingBag size={14} />
-                  <span>Pinned Shoppable Product (1-Click Checkout)</span>
+              <div style={{ marginTop: '8px', padding: '16px', borderRadius: 'var(--radius-md)', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <ShoppingBag size={16} color="var(--accent-amber)" />
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: '700', color: '#fff' }}>
+                        Shoppable Products & Rotating Hero Carousel
+                      </div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                        Tier 1: Rotating hero bar | Tier 2: Full interactive collection tray on tap
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Carousel Speed Control Buttons */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.04)', padding: '3px 6px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600, marginRight: '4px' }}>
+                      Rotation:
+                    </span>
+                    {[
+                      { speed: 5, label: '⚡ 5s' },
+                      { speed: 8, label: '⏱️ 8s' },
+                      { speed: 12, label: '⏳ 12s' },
+                      { speed: 0, label: '🔒 Static' },
+                    ].map((s) => {
+                      const isActive = carouselRotationSpeed === s.speed;
+                      return (
+                        <button
+                          key={s.speed}
+                          type="button"
+                          onClick={() => setCarouselRotationSpeed(s.speed)}
+                          style={{
+                            padding: '3px 8px',
+                            fontSize: '11px',
+                            fontWeight: isActive ? 700 : 500,
+                            borderRadius: '5px',
+                            border: isActive ? '1px solid var(--accent-amber)' : '1px solid transparent',
+                            background: isActive ? 'rgba(255, 184, 0, 0.2)' : 'transparent',
+                            color: isActive ? 'var(--accent-amber)' : 'var(--text-muted)',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {s.label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-                <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '4px' }}>
+
+                {/* Product Tiles Grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '10px' }}>
                   {products.map((p) => {
-                    const isSelected = selectedProduct?.id === p.id;
+                    const isPrimary = currentHeroProduct?.id === p.id || selectedProduct?.id === p.id;
+                    const isCarousel = carouselProductIds.includes(p.id) || (!carouselProductIds.length && isPrimary);
+                    const isIncluded = includedProductIds.includes(p.id) || isCarousel || isPrimary;
+
                     return (
                       <div
                         key={p.id}
                         onClick={() => handleSelectProduct(p)}
                         style={{
-                          minWidth: '220px',
-                          padding: '8px 12px',
+                          padding: '10px 12px',
                           borderRadius: 'var(--radius-sm)',
-                          border: isSelected ? '2px solid var(--accent-amber)' : '1px solid var(--border-color)',
-                          background: isSelected ? 'rgba(255, 184, 0, 0.1)' : 'var(--bg-card)',
+                          border: isPrimary
+                            ? '2px solid var(--accent-amber)'
+                            : isCarousel
+                            ? '1px solid #38BDF8'
+                            : isIncluded
+                            ? '1px solid rgba(16, 185, 129, 0.6)'
+                            : '1px solid var(--border-color)',
+                          background: isPrimary
+                            ? 'rgba(255, 184, 0, 0.08)'
+                            : isCarousel
+                            ? 'rgba(56, 189, 248, 0.06)'
+                            : 'var(--bg-card)',
                           display: 'flex',
-                          alignItems: 'center',
-                          gap: '10px',
+                          flexDirection: 'column',
+                          gap: '8px',
                           cursor: 'pointer',
+                          transition: 'all 0.15s ease',
                         }}
                       >
-                        {p.imageUrl && (
-                          <img
-                            src={p.imageUrl}
-                            alt={p.title}
-                            style={{ width: '36px', height: '36px', borderRadius: '4px', objectFit: 'cover' }}
-                          />
-                        )}
-                        <div style={{ overflow: 'hidden' }}>
-                          <div style={{ fontSize: '12px', fontWeight: '700', color: '#fff', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                            {p.title}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          {p.imageUrl && (
+                            <img
+                              src={p.imageUrl}
+                              alt={p.title}
+                              style={{ width: '40px', height: '40px', borderRadius: '6px', objectFit: 'cover', flexShrink: 0 }}
+                            />
+                          )}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: '12px', fontWeight: '700', color: '#fff', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                              {p.title}
+                            </div>
+                            <div style={{ fontSize: '11px', color: 'var(--accent-emerald)', fontWeight: '700' }}>
+                              ${p.price.toFixed(2)}
+                            </div>
                           </div>
-                          <div style={{ fontSize: '11px', color: 'var(--accent-emerald)', fontWeight: '700' }}>
-                            ${p.price.toFixed(2)}
-                          </div>
+                        </div>
+
+                        {/* Tier Toggles on Product Card */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '6px', marginTop: '2px' }}>
+                          <button
+                            type="button"
+                            onClick={(e) => toggleCarouselProduct(p, e)}
+                            style={{
+                              padding: '2px 8px',
+                              fontSize: '10px',
+                              fontWeight: 700,
+                              borderRadius: '4px',
+                              border: isCarousel ? '1px solid #38BDF8' : '1px solid var(--border-color)',
+                              background: isCarousel ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255,255,255,0.03)',
+                              color: isCarousel ? '#38BDF8' : 'var(--text-muted)',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                            }}
+                          >
+                            <span>{isCarousel ? '⭐ In Carousel' : '+ Add to Carousel'}</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={(e) => toggleIncludedProduct(p, e)}
+                            style={{
+                              padding: '2px 8px',
+                              fontSize: '10px',
+                              fontWeight: 600,
+                              borderRadius: '4px',
+                              border: isIncluded ? '1px solid #10B981' : '1px solid var(--border-color)',
+                              background: isIncluded ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255,255,255,0.03)',
+                              color: isIncluded ? '#10B981' : 'var(--text-muted)',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                            }}
+                          >
+                            <span>{isIncluded ? '✓ In Full Catalog' : '+ Full Tray'}</span>
+                          </button>
                         </div>
                       </div>
                     );
@@ -5358,60 +5554,205 @@ export default function ShortsFormatterStudio() {
                 </div>
               )}
 
-              {/* Shoppable Lower-Third Drawer Preview */}
-              {showShoppableDrawer && selectedProduct && (
+              {/* Shoppable Lower-Third Rotating Hero Drawer & Tap-to-Reveal Tray */}
+              {showShoppableDrawer && (currentHeroProduct || selectedProduct) && (
                 <div
                   style={{
                     position: 'absolute',
                     bottom: '16px',
                     left: '12px',
                     right: '12px',
-                    background: 'rgba(15, 23, 42, 0.85)',
+                    background: 'rgba(15, 23, 42, 0.9)',
                     backdropFilter: 'blur(16px)',
                     borderRadius: '16px',
-                    border: '1px solid rgba(255, 184, 0, 0.4)',
+                    border: '1px solid rgba(255, 184, 0, 0.5)',
                     padding: '10px 12px',
                     zIndex: 50,
-                    boxShadow: '0 10px 25px rgba(0,0,0,0.6)',
+                    boxShadow: '0 10px 25px rgba(0,0,0,0.7), 0 0 15px rgba(255,184,0,0.15)',
                     display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
+                    flexDirection: 'column',
+                    gap: '6px',
+                    cursor: 'pointer',
+                    transition: 'all 0.25s ease',
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsFullCatalogModalOpen(true);
+                  }}
+                  title="Click to open full shoppable catalog sheet"
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    {(currentHeroProduct || selectedProduct)?.imageUrl && (
+                      <img
+                        src={(currentHeroProduct || selectedProduct)!.imageUrl}
+                        alt={(currentHeroProduct || selectedProduct)!.title}
+                        style={{ width: '42px', height: '42px', borderRadius: '8px', objectFit: 'cover', flexShrink: 0 }}
+                      />
+                    )}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px' }}>
+                        <div style={{ fontSize: '10px', color: 'var(--accent-amber)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <span>⚡ Featured In Clip</span>
+                          {activeCarouselProducts.length > 1 && (
+                            <span style={{ color: '#38BDF8', fontSize: '9px', fontWeight: 700 }}>
+                              ({activeCarouselIndex + 1}/{activeCarouselProducts.length})
+                            </span>
+                          )}
+                        </div>
+                        <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>Tap for all ›</span>
+                      </div>
+                      <div style={{ fontSize: '12px', fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                        {(currentHeroProduct || selectedProduct)!.title}
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#10b981', fontWeight: 700 }}>
+                        ${(currentHeroProduct || selectedProduct)!.price.toFixed(2)}
+                      </div>
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if ((currentHeroProduct || selectedProduct)?.externalUrl) {
+                          window.open((currentHeroProduct || selectedProduct)!.externalUrl, '_blank');
+                        }
+                      }}
+                      style={{
+                        background: 'linear-gradient(135deg, #FFB800, #F59E0B)',
+                        color: '#000',
+                        border: 'none',
+                        borderRadius: '20px',
+                        padding: '6px 10px',
+                        fontSize: '11px',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      1-Click Buy
+                    </button>
+                  </div>
+
+                  {/* Carousel Pagination Dots */}
+                  {activeCarouselProducts.length > 1 && (
+                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '5px', paddingTop: '2px' }}>
+                      {activeCarouselProducts.map((p, idx) => {
+                        const isDotActive = idx === (activeCarouselIndex % activeCarouselProducts.length);
+                        return (
+                          <span
+                            key={p.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveCarouselIndex(idx);
+                            }}
+                            style={{
+                              width: isDotActive ? '16px' : '6px',
+                              height: '5px',
+                              borderRadius: '4px',
+                              background: isDotActive ? 'var(--accent-amber)' : 'rgba(255,255,255,0.25)',
+                              transition: 'all 0.25s ease',
+                              cursor: 'pointer',
+                            }}
+                          />
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Full Video Shoppable Catalog Modal Sheet (Tier 2: Interactive on tap) */}
+              {isFullCatalogModalOpen && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    background: 'rgba(10, 15, 29, 0.95)',
+                    backdropFilter: 'blur(20px)',
+                    zIndex: 90,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    padding: '24px 16px',
+                    animation: 'fadeIn 0.2s ease-out',
                   }}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  {selectedProduct.imageUrl && (
-                    <img
-                      src={selectedProduct.imageUrl}
-                      alt={selectedProduct.title}
-                      style={{ width: '42px', height: '42px', borderRadius: '8px', objectFit: 'cover' }}
-                    />
-                  )}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: '10px', color: 'var(--accent-amber)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                      ⚡ Featured In Clip
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', marginBottom: '14px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <ShoppingBag size={18} color="var(--accent-amber)" />
+                      <div>
+                        <div style={{ fontSize: '14px', fontWeight: 800, color: '#fff' }}>Products In This Video</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Tap any item to view details or checkout</div>
+                      </div>
                     </div>
-                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                      {selectedProduct.title}
-                    </div>
-                    <div style={{ fontSize: '11px', color: '#10b981', fontWeight: 700 }}>
-                      ${selectedProduct.price.toFixed(2)}
-                    </div>
+                    <button
+                      onClick={() => setIsFullCatalogModalOpen(false)}
+                      style={{
+                        background: 'rgba(255,255,255,0.1)',
+                        border: 'none',
+                        color: '#fff',
+                        borderRadius: '50%',
+                        width: '28px',
+                        height: '28px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '14px',
+                      }}
+                    >
+                      ✕
+                    </button>
                   </div>
-                  <button
-                    style={{
-                      background: 'linear-gradient(135deg, #FFB800, #F59E0B)',
-                      color: '#000',
-                      border: 'none',
-                      borderRadius: '20px',
-                      padding: '6px 10px',
-                      fontSize: '11px',
-                      fontWeight: 800,
-                      cursor: 'pointer',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    1-Click Buy
-                  </button>
+
+                  <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {products
+                      .filter((p) => includedProductIds.length === 0 || includedProductIds.includes(p.id) || carouselProductIds.includes(p.id))
+                      .map((prod) => (
+                        <div
+                          key={prod.id}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px',
+                            padding: '10px 12px',
+                            borderRadius: '12px',
+                            background: 'rgba(255,255,255,0.04)',
+                            border: '1px solid rgba(255,255,255,0.08)',
+                          }}
+                        >
+                          {prod.imageUrl && (
+                            <img
+                              src={prod.imageUrl}
+                              alt={prod.title}
+                              style={{ width: '48px', height: '48px', borderRadius: '8px', objectFit: 'cover' }}
+                            />
+                          )}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: '12px', fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                              {prod.title}
+                            </div>
+                            <div style={{ fontSize: '12px', color: 'var(--accent-emerald)', fontWeight: 800, marginTop: '2px' }}>
+                              ${prod.price.toFixed(2)}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => prod.externalUrl && window.open(prod.externalUrl, '_blank')}
+                            style={{
+                              background: 'linear-gradient(135deg, #FFB800, #F59E0B)',
+                              color: '#000',
+                              border: 'none',
+                              borderRadius: '20px',
+                              padding: '6px 12px',
+                              fontSize: '11px',
+                              fontWeight: 800,
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            Buy
+                          </button>
+                        </div>
+                      ))}
+                  </div>
                 </div>
               )}
             </div>

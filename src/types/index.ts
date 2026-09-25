@@ -195,6 +195,9 @@ export interface FormattedShortProject {
   productId?: string;
   productTitle?: string;
   productPrice?: number;
+  includedProductIds?: string[];
+  carouselProductIds?: string[];
+  carouselRotationSpeed?: number;
   videoTitle?: string;
   videoDescription?: string;
   pinnedCommentText?: string;
@@ -208,7 +211,7 @@ export interface FormattedShortProject {
   publishedYouTubeUrl?: string;
   publishedAt?: string;
   status: 'DRAFT' | 'PUBLISHED';
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 

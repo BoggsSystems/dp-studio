@@ -472,7 +472,7 @@ export default function SavedShortsManager({ onOpenInStudio, onNewShort }: Saved
                     }}
                   >
                     <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                      {new Date(short.updatedAt || short.createdAt).toLocaleDateString()}
+                      {new Date(short.updatedAt || short.createdAt || Date.now()).toLocaleDateString()}
                     </span>
 
                     <div style={{ display: 'flex', gap: '6px' }}>
