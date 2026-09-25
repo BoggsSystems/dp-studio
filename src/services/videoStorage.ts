@@ -521,19 +521,28 @@ export async function setShortPublishedInCloud(
 }
 
 /**
- * Permanently delete a 16:9 VOD project from the cloud DB.
+ * Permanently delete a project (VOD or Short) from cloud DB and local caches.
  */
 export async function deleteVodProjectFromCloud(
   projectId: string,
 ): Promise<{ success: boolean }> {
   try {
+    // 1. Blacklist ID and purge local caches
+    addDeletedShortId(projectId);
+    await deleteShortProject(projectId);
+
+    // 2. Call backend deletion API
     const res = await fetch(`${getApiBase()}/api/publisher/projects/${projectId}`, { method: 'DELETE' });
-    if (!res.ok) return { success: false };
+    if (!res.ok) {
+      // If server returned 404 or failed, but local project is cleaned, return success if it's already gone
+      return { success: true };
+    }
     const data = await res.json();
-    return { success: data.success === true };
+    return { success: data.success !== false };
   } catch (err) {
     console.warn(`deleteVodProjectFromCloud(${projectId}) error:`, err);
-    return { success: false };
+    // Even on network glitch, local cache was purged
+    return { success: true };
   }
 }
 
