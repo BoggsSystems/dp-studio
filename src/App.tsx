@@ -18,7 +18,8 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import AuthPortal from './components/AuthPortal';
 import ToastContainer from './components/ToastContainer';
 import { toast } from './services/toast';
-import { Project, ProductGroup, AiTagDetection, Campaign, StreamSession, Product } from './types';
+import { Project, ProductGroup, AiTagDetection, Campaign, StreamSession, Product, FormattedShortProject } from './types';
+import { loadShortProjectIntoActiveDraft } from './services/videoStorage';
 import { api } from './services/api';
 import TermsOfService from './components/legal/TermsOfService';
 import PrivacyPolicy from './components/legal/PrivacyPolicy';
@@ -417,14 +418,50 @@ function StudioApp() {
               <ProjectList
                 projects={projects}
                 availableProducts={catalogProducts}
-                onSelectProject={(selected) => {
+                onSelectProject={async (selected) => {
                   setProject(selected);
-                  setActiveTab('vod');
+                  const isShort =
+                    selected.mediaType === 'SHORT' ||
+                    (selected.masterVodUrl ? selected.masterVodUrl.includes('/shorts/') || selected.masterVodUrl.includes('_SHORT') : false) ||
+                    selected.channel === 'shorts';
+                  if (isShort) {
+                    const shortObj: FormattedShortProject = {
+                      id: selected.id,
+                      title: selected.name,
+                      videoUrl: selected.masterVodUrl,
+                      thumbnailUrl: selected.thumbnailUrl,
+                      durationSeconds: selected.durationSeconds || 60,
+                      words: (selected.metadata as any)?.words || [],
+                      editableTranscript: (selected.metadata as any)?.editableTranscript || '',
+                      highlightColor: (selected.metadata as any)?.highlightColor || 'amber',
+                      fontSize: (selected.metadata as any)?.fontSize || 22,
+                      verticalPosition: (selected.metadata as any)?.verticalPosition || 78,
+                      wordPacing: (selected.metadata as any)?.wordPacing || 'POP_TWO_WORDS',
+                      autoEmojis: (selected.metadata as any)?.autoEmojis ?? true,
+                      uppercase: (selected.metadata as any)?.uppercase ?? true,
+                      layoutMode: (selected.metadata as any)?.layoutMode || 'FIT_BLUR',
+                      showShoppableDrawer: true,
+                      showQrCode: true,
+                      qrPlacement: 'TOP_RIGHT',
+                      qrCustomUrl: '',
+                      status: selected.status === 'READY' ? 'PUBLISHED' : 'DRAFT',
+                      createdAt: selected.createdAt || new Date().toISOString(),
+                      updatedAt: new Date().toISOString(),
+                    };
+                    await loadShortProjectIntoActiveDraft(shortObj).catch(() => {});
+                    setActiveTab('clips');
+                  } else {
+                    setActiveTab('vod');
+                  }
                 }}
                 onProjectCreated={(newProj) => {
                   setProjects([newProj, ...projects]);
                   setProject(newProj);
-                  setActiveTab('vod');
+                  const isShort =
+                    newProj.mediaType === 'SHORT' ||
+                    (newProj.masterVodUrl ? newProj.masterVodUrl.includes('/shorts/') || newProj.masterVodUrl.includes('_SHORT') : false) ||
+                    newProj.channel === 'shorts';
+                  setActiveTab(isShort ? 'clips' : 'vod');
                 }}
                 onOpenShort={() => {
                   setActiveTab('clips');

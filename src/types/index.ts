@@ -87,7 +87,9 @@ export interface Project {
   isActive: boolean;
   productGroups: ProductGroup[];
   baskets?: ProductBasket[];
+  metadata?: any;
   createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface StreamSession {

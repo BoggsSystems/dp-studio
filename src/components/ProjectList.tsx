@@ -113,7 +113,52 @@ export default function ProjectList({
     setDeletingVodId(null);
   };
 
-  const totalCount = projects.length + savedShorts.length;
+  const isShortProject = (proj: Project): boolean => {
+    return (
+      proj.mediaType === 'SHORT' ||
+      (proj.masterVodUrl ? proj.masterVodUrl.includes('/shorts/') || proj.masterVodUrl.includes('_SHORT') : false) ||
+      proj.channel === 'shorts'
+    );
+  };
+
+  const vodProjects = localProjects.filter((p) => !isShortProject(p));
+  const cloudShortProjects = localProjects.filter((p) => isShortProject(p));
+
+  const unifiedShorts: FormattedShortProject[] = [
+    ...savedShorts,
+    ...cloudShortProjects
+      .filter(
+        (cp) =>
+          !savedShorts.some(
+            (s) => s.id === cp.id || (s.videoUrl && cp.masterVodUrl && s.videoUrl === cp.masterVodUrl),
+          ),
+      )
+      .map((cp) => ({
+        id: cp.id,
+        title: cp.name,
+        videoUrl: cp.masterVodUrl,
+        thumbnailUrl: cp.thumbnailUrl,
+        durationSeconds: cp.durationSeconds || 60,
+        words: (cp.metadata as any)?.words || [],
+        editableTranscript: (cp.metadata as any)?.editableTranscript || '',
+        highlightColor: (cp.metadata as any)?.highlightColor || 'amber',
+        fontSize: (cp.metadata as any)?.fontSize || 22,
+        verticalPosition: (cp.metadata as any)?.verticalPosition || 78,
+        wordPacing: (cp.metadata as any)?.wordPacing || 'POP_TWO_WORDS',
+        autoEmojis: (cp.metadata as any)?.autoEmojis ?? true,
+        uppercase: (cp.metadata as any)?.uppercase ?? true,
+        layoutMode: (cp.metadata as any)?.layoutMode || 'FIT_BLUR',
+        showShoppableDrawer: true,
+        showQrCode: true,
+        qrPlacement: 'TOP_RIGHT',
+        qrCustomUrl: '',
+        status: cp.status === 'READY' ? ('PUBLISHED' as const) : ('DRAFT' as const),
+        createdAt: cp.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      })),
+  ];
+
+  const totalCount = vodProjects.length + unifiedShorts.length;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -150,7 +195,7 @@ export default function ProjectList({
                 className={`btn ${categoryFilter === 'VOD' ? 'btn--primary' : 'btn--ghost'}`}
                 style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 600 }}
               >
-                🎬 16:9 VODs ({projects.length})
+                🎬 16:9 VODs ({vodProjects.length})
               </button>
               <button
                 type="button"
@@ -158,7 +203,7 @@ export default function ProjectList({
                 className={`btn ${categoryFilter === 'SHORTS' ? 'btn--primary' : 'btn--ghost'}`}
                 style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 600 }}
               >
-                ⚡ 9:16 Shorts ({savedShorts.length})
+                ⚡ 9:16 Shorts ({unifiedShorts.length})
               </button>
             </div>
 
@@ -184,7 +229,7 @@ export default function ProjectList({
         >
           {/* 1. Render 16:9 VOD Projects */}
           {categoryFilter !== 'SHORTS' &&
-            localProjects.map((proj) => {
+            vodProjects.map((proj) => {
               const pinCount = proj.productGroups?.length || 0;
               const basketCount = proj.baskets?.length || 0;
               const thumbSrc = getResolvedThumbnailUrl(proj.thumbnailUrl);
@@ -340,7 +385,7 @@ export default function ProjectList({
 
           {/* 2. Render 9:16 Shorts Projects */}
           {categoryFilter !== 'VOD' &&
-            savedShorts.map((short) => {
+            unifiedShorts.map((short) => {
               const isPublished = short.status === 'PUBLISHED' || !!short.publishedYouTubeUrl;
 
               return (
