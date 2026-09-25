@@ -83,7 +83,7 @@ export interface Project {
   hlsManifestUrl?: string;
   thumbnailUrl?: string;
   durationSeconds?: number;
-  status: 'PROCESSING' | 'READY' | 'FAILED';
+  status: 'DRAFT' | 'PROCESSING' | 'READY' | 'FAILED';
   isActive: boolean;
   productGroups: ProductGroup[];
   baskets?: ProductBasket[];

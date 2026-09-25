@@ -158,13 +158,20 @@ export default function ProjectWizardModal({
         thumbnailBadge: isShort ? '⚡ 9:16 Short' : '🎬 16:9 VOD',
         masterVodUrl: resolvedVideoUrl || (isShort ? '' : 'https://pub-2af6e082fcb44c58add86361dad9d14b.r2.dev/raw_videos/opportunity_os_showcase.mp4'),
         hlsManifestUrl: (!isShort && resolvedVideoUrl?.endsWith('.m3u8')) ? resolvedVideoUrl : undefined,
-        status: 'READY',
+        status: isShort ? 'DRAFT' : 'READY',
         isActive: true,
         productGroups: [],
         baskets: [],
         metadata: isShort ? {
           creatorSlug: 'opportunity-system',
           channel: 'about',
+          distributions: {
+            aboutPage: { status: 'DRAFT' },
+            youtube: { status: 'DRAFT' },
+            tiktok: { status: 'DRAFT' },
+            x: { status: 'DRAFT' },
+          },
+          isPublishedToAbout: false,
           highlightColor: 'amber',
           fontSize: 22,
           verticalPosition: 78,
@@ -214,7 +221,13 @@ export default function ProjectWizardModal({
           thumbnailFontSize: 54,
           thumbnailPosition: 45,
           thumbnailBadge: '⚡ MUST WATCH',
-          status: 'READY',
+          status: 'DRAFT',
+          distributions: {
+            aboutPage: { status: 'DRAFT' },
+            youtube: { status: 'DRAFT' },
+            tiktok: { status: 'DRAFT' },
+            x: { status: 'DRAFT' },
+          },
           updatedAt: Date.now(),
         };
         localStorage.setItem('digitpop_shorts_formatter_draft_v1', JSON.stringify(initialDraft));
