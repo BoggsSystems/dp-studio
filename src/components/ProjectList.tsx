@@ -122,43 +122,8 @@ export default function ProjectList({
   };
 
   const vodProjects = localProjects.filter((p) => !isShortProject(p));
-  const cloudShortProjects = localProjects.filter((p) => isShortProject(p));
-
-  const unifiedShorts: FormattedShortProject[] = [
-    ...savedShorts,
-    ...cloudShortProjects
-      .filter(
-        (cp) =>
-          !savedShorts.some(
-            (s) => s.id === cp.id || (s.videoUrl && cp.masterVodUrl && s.videoUrl === cp.masterVodUrl),
-          ),
-      )
-      .map((cp) => ({
-        id: cp.id,
-        title: cp.name,
-        videoUrl: cp.masterVodUrl,
-        thumbnailUrl: cp.thumbnailUrl,
-        durationSeconds: cp.durationSeconds || 60,
-        words: (cp.metadata as any)?.words || [],
-        editableTranscript: (cp.metadata as any)?.editableTranscript || '',
-        highlightColor: (cp.metadata as any)?.highlightColor || 'amber',
-        fontSize: (cp.metadata as any)?.fontSize || 22,
-        verticalPosition: (cp.metadata as any)?.verticalPosition || 78,
-        wordPacing: (cp.metadata as any)?.wordPacing || 'POP_TWO_WORDS',
-        autoEmojis: (cp.metadata as any)?.autoEmojis ?? true,
-        uppercase: (cp.metadata as any)?.uppercase ?? true,
-        layoutMode: (cp.metadata as any)?.layoutMode || 'FIT_BLUR',
-        showShoppableDrawer: true,
-        showQrCode: true,
-        qrPlacement: 'TOP_RIGHT',
-        qrCustomUrl: '',
-        status: cp.status === 'READY' ? ('PUBLISHED' as const) : ('DRAFT' as const),
-        createdAt: cp.createdAt || new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      })),
-  ];
-
-  const totalCount = vodProjects.length + unifiedShorts.length;
+  const shortProjects = localProjects.filter((p) => isShortProject(p));
+  const totalCount = localProjects.length;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -203,7 +168,7 @@ export default function ProjectList({
                 className={`btn ${categoryFilter === 'SHORTS' ? 'btn--primary' : 'btn--ghost'}`}
                 style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 600 }}
               >
-                ⚡ 9:16 Shorts ({unifiedShorts.length})
+                ⚡ 9:16 Shorts ({shortProjects.length})
               </button>
             </div>
 
@@ -227,9 +192,14 @@ export default function ProjectList({
             marginTop: '16px',
           }}
         >
-          {/* 1. Render 16:9 VOD Projects */}
-          {categoryFilter !== 'SHORTS' &&
-            vodProjects.map((proj) => {
+          {localProjects
+            .filter((proj) => {
+              if (categoryFilter === 'VOD') return !isShortProject(proj);
+              if (categoryFilter === 'SHORTS') return isShortProject(proj);
+              return true;
+            })
+            .map((proj) => {
+              const isShort = isShortProject(proj);
               const pinCount = proj.productGroups?.length || 0;
               const basketCount = proj.baskets?.length || 0;
               const thumbSrc = getResolvedThumbnailUrl(proj.thumbnailUrl);
@@ -279,25 +249,46 @@ export default function ProjectList({
                           color: 'var(--text-muted)',
                         }}
                       >
-                        <Play size={32} color="var(--accent-teal)" />
-                        <span style={{ fontSize: '12px' }}>Interactive Video Stream</span>
+                        {isShort ? <Smartphone size={36} color="var(--accent-teal)" /> : <Play size={32} color="var(--accent-teal)" />}
+                        <span style={{ fontSize: '12px' }}>{isShort ? '9:16 Short Video' : 'Interactive Video Stream'}</span>
                       </div>
                     )}
 
+                    {/* Media Type Badge */}
                     <div
                       style={{
                         position: 'absolute',
                         top: '10px',
                         left: '10px',
-                        background: 'rgba(0,0,0,0.75)',
+                        background: isShort
+                          ? 'linear-gradient(135deg, #6366F1 0%, #3B82F6 100%)'
+                          : 'rgba(0,0,0,0.75)',
+                        boxShadow: isShort ? '0 2px 8px rgba(99, 102, 241, 0.4)' : undefined,
                         padding: '2px 8px',
                         borderRadius: '4px',
                         fontSize: '11px',
-                        fontWeight: 600,
-                        color: 'var(--accent-teal)',
+                        fontWeight: 700,
+                        color: isShort ? '#fff' : 'var(--accent-teal)',
                       }}
                     >
-                      🎬 16:9 VOD
+                      {isShort ? '⚡ 9:16 Short' : '🎬 16:9 VOD'}
+                    </div>
+
+                    {/* Status Badge */}
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: '10px',
+                        right: '10px',
+                        background: proj.status === 'READY' ? 'rgba(16, 185, 129, 0.9)' : 'rgba(255, 184, 0, 0.9)',
+                        padding: '2px 8px',
+                        borderRadius: '12px',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        color: '#000',
+                      }}
+                    >
+                      {proj.status === 'READY' ? 'Published' : 'Draft'}
                     </div>
                   </div>
 
@@ -329,7 +320,7 @@ export default function ProjectList({
                           overflow: 'hidden',
                         }}
                       >
-                        {proj.description || 'Interactive shoppable video project.'}
+                        {proj.description || (isShort ? '9:16 Shoppable Short Video.' : 'Interactive shoppable video project.')}
                       </p>
                     </div>
 
@@ -365,7 +356,7 @@ export default function ProjectList({
                         onClick={() => onSelectProject(proj)}
                       >
                         <Edit3 size={12} />
-                        <span>Edit Project</span>
+                        <span>{isShort ? 'Open in Shorts Studio' : 'Edit Project'}</span>
                       </button>
 
                       <button
@@ -374,146 +365,6 @@ export default function ProjectList({
                         style={{ padding: '6px 10px', fontSize: '12px', color: 'var(--text-muted)' }}
                         onClick={(e) => handleDeleteVod(e, proj.id)}
                         title="Delete Project"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-
-          {/* 2. Render 9:16 Shorts Projects */}
-          {categoryFilter !== 'VOD' &&
-            unifiedShorts.map((short) => {
-              const isPublished = short.status === 'PUBLISHED' || !!short.publishedYouTubeUrl;
-
-              return (
-                <div
-                  key={short.id}
-                  style={{
-                    background: 'var(--bg-canvas)',
-                    border: '1px solid var(--border-subtle)',
-                    borderRadius: 'var(--radius-md)',
-                    overflow: 'hidden',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    transition: 'all var(--transition-fast)',
-                  }}
-                >
-                  <div
-                    style={{
-                      height: '180px',
-                      position: 'relative',
-                      background: '#0a0f1d',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                    }}
-                    onClick={() => handleOpenShortInStudio(short)}
-                  >
-                    {short.thumbnailUrl ? (
-                      <img
-                        src={short.thumbnailUrl}
-                        alt={short.title}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      />
-                    ) : (
-                      <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-                        <Smartphone size={36} color="var(--accent-teal)" />
-                        <div style={{ fontSize: '11px', marginTop: '6px' }}>9:16 Short Video</div>
-                      </div>
-                    )}
-
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: '10px',
-                        left: '10px',
-                        background: 'linear-gradient(135deg, #6366F1 0%, #3B82F6 100%)',
-                        boxShadow: '0 2px 8px rgba(99, 102, 241, 0.4)',
-                        padding: '2px 8px',
-                        borderRadius: '4px',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        color: '#fff',
-                      }}
-                    >
-                      ⚡ 9:16 Short
-                    </div>
-
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: '10px',
-                        right: '10px',
-                        background: isPublished ? 'rgba(16, 185, 129, 0.9)' : 'rgba(255, 184, 0, 0.9)',
-                        padding: '2px 8px',
-                        borderRadius: '12px',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        color: '#000',
-                      }}
-                    >
-                      {isPublished ? 'Published' : 'Draft'}
-                    </div>
-                  </div>
-
-                  <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', flex: 1 }}>
-                    <div>
-                      <div style={{ fontSize: '14px', fontWeight: 700, color: '#fff' }}>{short.thumbnailTitle || short.title}</div>
-                      {short.productTitle && (
-                        <div style={{ fontSize: '11px', color: 'var(--accent-amber)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <ShoppingBag size={11} /> <span>{short.productTitle}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {short.publishedYouTubeUrl && (
-                      <a
-                        href={short.publishedYouTubeUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        style={{ fontSize: '11px', color: 'var(--accent-teal)', display: 'flex', alignItems: 'center', gap: '4px', textDecoration: 'none', fontWeight: 600 }}
-                      >
-                        <ExternalLink size={12} /> View on YouTube Shorts
-                      </a>
-                    )}
-
-                    <div style={{ marginTop: 'auto', paddingTop: '12px', borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: '8px' }}>
-                      <button
-                        type="button"
-                        className="btn btn-primary"
-                        style={{ flex: 1, padding: '6px 10px', fontSize: '12px' }}
-                        onClick={() => handleOpenShortInStudio(short)}
-                      >
-                        <Edit3 size={12} />
-                        <span>Open in Shorts Studio</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        className="btn btn-secondary"
-                        style={{
-                          padding: '6px 10px',
-                          fontSize: '12px',
-                          color: isPublished ? 'var(--accent-amber)' : 'var(--accent-emerald)',
-                          opacity: togglingPublishId === short.id ? 0.6 : 1,
-                        }}
-                        onClick={(e) => handleTogglePublish(e, short)}
-                        title={isPublished ? 'Unpublish (hide from About page)' : 'Publish (show on About page)'}
-                        disabled={togglingPublishId === short.id}
-                      >
-                        {isPublished ? <CheckCircle2 size={13} /> : <CheckCircle size={13} />}
-                      </button>
-
-                      <button
-                        type="button"
-                        className="btn btn-secondary"
-                        style={{ padding: '6px 10px', fontSize: '12px', color: 'var(--text-muted)' }}
-                        onClick={(e) => handleDeleteShort(e, short.id)}
-                        title="Delete Short Project"
                       >
                         <Trash2 size={13} />
                       </button>
