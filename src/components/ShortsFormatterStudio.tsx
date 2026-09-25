@@ -41,6 +41,11 @@ import {
   ZoomOut,
   ChevronDown,
   ChevronUp,
+  GripVertical,
+  Plus,
+  ChevronLeft,
+  ChevronRight,
+  Search,
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { api } from '../services/api';
@@ -554,6 +559,10 @@ export default function ShortsFormatterStudio() {
   const [carouselRotationSpeed, setCarouselRotationSpeed] = useState<number>(8); // 0 = static, 5 = fast, 8 = balanced, 12 = relaxed
   const [activeCarouselIndex, setActiveCarouselIndex] = useState<number>(0);
   const [isFullCatalogModalOpen, setIsFullCatalogModalOpen] = useState<boolean>(false);
+  const [isProductManagerOpen, setIsProductManagerOpen] = useState<boolean>(false);
+  const [productSearchQuery, setProductSearchQuery] = useState<string>('');
+  const [draggedCarouselIndex, setDraggedCarouselIndex] = useState<number | null>(null);
+  const [dragOverCarouselIndex, setDragOverCarouselIndex] = useState<number | null>(null);
 
   // Playback state
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -1029,12 +1038,14 @@ export default function ShortsFormatterStudio() {
     };
   }, []);
 
-  // Determine the effective list of products to cycle in the carousel
+  // Determine the effective list of products to cycle in the carousel (preserving custom drag order)
   const activeCarouselProducts = useMemo<Product[]>(() => {
     if (!products || products.length === 0) return [];
     if (carouselProductIds.length > 0) {
-      const filtered = products.filter((p) => carouselProductIds.includes(p.id));
-      if (filtered.length > 0) return filtered;
+      const ordered = carouselProductIds
+        .map((id) => products.find((p) => p.id === id))
+        .filter((p): p is Product => Boolean(p));
+      if (ordered.length > 0) return ordered;
     }
     if (selectedProduct) return [selectedProduct];
     return products.slice(0, 1);
@@ -1293,6 +1304,60 @@ export default function ShortsFormatterStudio() {
       setQrCustomUrl(product.externalUrl);
     }
     generateAiMetadata(undefined, product);
+  };
+
+  // Reordering and Drag-and-Drop handlers for Hero Carousel
+  const handleMoveCarouselItem = (index: number, direction: 'left' | 'right', e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const targetIndex = direction === 'left' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= carouselProductIds.length) return;
+    setCarouselProductIds((prev) => {
+      const copy = [...prev];
+      const [item] = copy.splice(index, 1);
+      copy.splice(targetIndex, 0, item);
+      return copy;
+    });
+  };
+
+  const handleRemoveFromCarousel = (productId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setCarouselProductIds((prev) => prev.filter((id) => id !== productId));
+  };
+
+  const handleCarouselDragStart = (index: number, e: React.DragEvent) => {
+    setDraggedCarouselIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(index));
+  };
+
+  const handleCarouselDragOver = (index: number, e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverCarouselIndex !== index) {
+      setDragOverCarouselIndex(index);
+    }
+  };
+
+  const handleCarouselDragEnd = () => {
+    setDraggedCarouselIndex(null);
+    setDragOverCarouselIndex(null);
+  };
+
+  const handleCarouselDrop = (dropIndex: number, e: React.DragEvent) => {
+    e.preventDefault();
+    if (draggedCarouselIndex === null || draggedCarouselIndex === dropIndex) {
+      setDraggedCarouselIndex(null);
+      setDragOverCarouselIndex(null);
+      return;
+    }
+    setCarouselProductIds((prev) => {
+      const copy = [...prev];
+      const [movedItem] = copy.splice(draggedCarouselIndex, 1);
+      copy.splice(dropIndex, 0, movedItem);
+      return copy;
+    });
+    setDraggedCarouselIndex(null);
+    setDragOverCarouselIndex(null);
   };
 
   // Handle Video File Selection
@@ -3325,146 +3390,458 @@ export default function ShortsFormatterStudio() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <ShoppingBag size={16} color="var(--accent-amber)" />
                     <div>
-                      <div style={{ fontSize: '13px', fontWeight: '700', color: '#fff' }}>
-                        Shoppable Products & Rotating Hero Carousel
+                      <div style={{ fontSize: '13px', fontWeight: '700', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span>Shoppable Hero Carousel</span>
+                        <span style={{ fontSize: '10px', background: 'rgba(255,184,0,0.15)', color: 'var(--accent-amber)', padding: '2px 8px', borderRadius: '12px', border: '1px solid rgba(255,184,0,0.3)' }}>
+                          {activeCarouselProducts.length} Rotating {activeCarouselProducts.length === 1 ? 'Product' : 'Products'}
+                        </span>
                       </div>
                       <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                        Tier 1: Rotating hero bar | Tier 2: Full interactive collection tray on tap
+                        Tier 1: Drag & drop to reorder rotating hero cards | Tier 2: Tap to reveal full catalog
                       </div>
                     </div>
                   </div>
 
-                  {/* Carousel Speed Control Buttons */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.04)', padding: '3px 6px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                    <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600, marginRight: '4px' }}>
-                      Rotation:
-                    </span>
-                    {[
-                      { speed: 5, label: '⚡ 5s' },
-                      { speed: 8, label: '⏱️ 8s' },
-                      { speed: 12, label: '⏳ 12s' },
-                      { speed: 0, label: '🔒 Static' },
-                    ].map((s) => {
-                      const isActive = carouselRotationSpeed === s.speed;
-                      return (
-                        <button
-                          key={s.speed}
-                          type="button"
-                          onClick={() => setCarouselRotationSpeed(s.speed)}
-                          style={{
-                            padding: '3px 8px',
-                            fontSize: '11px',
-                            fontWeight: isActive ? 700 : 500,
-                            borderRadius: '5px',
-                            border: isActive ? '1px solid var(--accent-amber)' : '1px solid transparent',
-                            background: isActive ? 'rgba(255, 184, 0, 0.2)' : 'transparent',
-                            color: isActive ? 'var(--accent-amber)' : 'var(--text-muted)',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          {s.label}
-                        </button>
-                      );
-                    })}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                    {/* Carousel Speed Control Buttons */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(255,255,255,0.04)', padding: '3px 6px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                      <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600, marginRight: '4px' }}>
+                        Speed:
+                      </span>
+                      {[
+                        { speed: 5, label: '⚡ 5s' },
+                        { speed: 8, label: '⏱️ 8s' },
+                        { speed: 12, label: '⏳ 12s' },
+                        { speed: 0, label: '🔒 Static' },
+                      ].map((s) => {
+                        const isActive = carouselRotationSpeed === s.speed;
+                        return (
+                          <button
+                            key={s.speed}
+                            type="button"
+                            onClick={() => setCarouselRotationSpeed(s.speed)}
+                            style={{
+                              padding: '3px 8px',
+                              fontSize: '11px',
+                              fontWeight: isActive ? 700 : 500,
+                              borderRadius: '5px',
+                              border: isActive ? '1px solid var(--accent-amber)' : '1px solid transparent',
+                              background: isActive ? 'rgba(255, 184, 0, 0.2)' : 'transparent',
+                              color: isActive ? 'var(--accent-amber)' : 'var(--text-muted)',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {s.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Manage / Add Products Button */}
+                    <button
+                      type="button"
+                      onClick={() => setIsProductManagerOpen(true)}
+                      className="btn btn--outline"
+                      style={{
+                        padding: '5px 12px',
+                        fontSize: '11px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        borderRadius: '6px',
+                        borderColor: 'rgba(56, 189, 248, 0.4)',
+                        color: '#38BDF8',
+                        background: 'rgba(56, 189, 248, 0.08)',
+                      }}
+                    >
+                      <Plus size={13} />
+                      <span>Manage Products ({includedProductIds.length || activeCarouselProducts.length}/{products.length})</span>
+                    </button>
                   </div>
                 </div>
 
-                {/* Product Tiles Grid */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '10px' }}>
-                  {products.map((p) => {
-                    const isPrimary = currentHeroProduct?.id === p.id || selectedProduct?.id === p.id;
-                    const isCarousel = carouselProductIds.includes(p.id) || (!carouselProductIds.length && isPrimary);
-                    const isIncluded = includedProductIds.includes(p.id) || isCarousel || isPrimary;
+                {/* 🎠 Active Carousel Sequence Strip (Draggable & Reorderable) */}
+                {activeCarouselProducts.length > 0 ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '10px' }}>
+                    {activeCarouselProducts.map((p, idx) => {
+                      const isPrimary = currentHeroProduct?.id === p.id || selectedProduct?.id === p.id;
+                      const isDragged = draggedCarouselIndex === idx;
+                      const isDragOver = dragOverCarouselIndex === idx;
 
-                    return (
-                      <div
-                        key={p.id}
-                        onClick={() => handleSelectProduct(p)}
-                        style={{
-                          padding: '10px 12px',
-                          borderRadius: 'var(--radius-sm)',
-                          border: isPrimary
-                            ? '2px solid var(--accent-amber)'
-                            : isCarousel
-                            ? '1px solid #38BDF8'
-                            : isIncluded
-                            ? '1px solid rgba(16, 185, 129, 0.6)'
-                            : '1px solid var(--border-color)',
-                          background: isPrimary
-                            ? 'rgba(255, 184, 0, 0.08)'
-                            : isCarousel
-                            ? 'rgba(56, 189, 248, 0.06)'
-                            : 'var(--bg-card)',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '8px',
-                          cursor: 'pointer',
-                          transition: 'all 0.15s ease',
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          {p.imageUrl && (
-                            <img
-                              src={p.imageUrl}
-                              alt={p.title}
-                              style={{ width: '40px', height: '40px', borderRadius: '6px', objectFit: 'cover', flexShrink: 0 }}
-                            />
-                          )}
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: '12px', fontWeight: '700', color: '#fff', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                              {p.title}
+                      return (
+                        <div
+                          key={p.id}
+                          draggable
+                          onDragStart={(e) => handleCarouselDragStart(idx, e)}
+                          onDragOver={(e) => handleCarouselDragOver(idx, e)}
+                          onDragEnd={handleCarouselDragEnd}
+                          onDrop={(e) => handleCarouselDrop(idx, e)}
+                          onClick={() => handleSelectProduct(p)}
+                          style={{
+                            padding: '10px 12px',
+                            borderRadius: 'var(--radius-sm)',
+                            border: isDragOver
+                              ? '2px dashed #38BDF8'
+                              : isPrimary
+                              ? '2px solid var(--accent-amber)'
+                              : '1px solid rgba(255,255,255,0.12)',
+                            background: isDragOver
+                              ? 'rgba(56, 189, 248, 0.15)'
+                              : isPrimary
+                              ? 'rgba(255, 184, 0, 0.08)'
+                              : 'var(--bg-card)',
+                            opacity: isDragged ? 0.35 : 1,
+                            transform: isDragOver ? 'scale(1.02)' : 'none',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '8px',
+                            cursor: 'grab',
+                            transition: 'all 0.15s ease',
+                            boxShadow: isPrimary ? '0 0 12px rgba(255,184,0,0.15)' : 'none',
+                          }}
+                        >
+                          {/* Card Header: Drag Grip + Sequence Number (#1, #2) + Move Arrows + Remove */}
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <GripVertical size={14} color="var(--text-muted)" style={{ cursor: 'grab' }} />
+                              <span
+                                style={{
+                                  fontSize: '10px',
+                                  fontWeight: 800,
+                                  color: '#000',
+                                  background: 'var(--accent-amber)',
+                                  padding: '1px 6px',
+                                  borderRadius: '10px',
+                                }}
+                              >
+                                #{idx + 1}
+                              </span>
+                              <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 600 }}>
+                                {idx === 0 ? 'Starts First' : `Step ${idx + 1}`}
+                              </span>
                             </div>
-                            <div style={{ fontSize: '11px', color: 'var(--accent-emerald)', fontWeight: '700' }}>
-                              ${p.price.toFixed(2)}
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              {/* Move Left */}
+                              <button
+                                type="button"
+                                disabled={idx === 0}
+                                onClick={(e) => handleMoveCarouselItem(idx, 'left', e)}
+                                title="Move Left / Earlier"
+                                style={{
+                                  background: 'rgba(255,255,255,0.06)',
+                                  border: 'none',
+                                  borderRadius: '4px',
+                                  padding: '3px',
+                                  color: idx === 0 ? 'rgba(255,255,255,0.15)' : '#fff',
+                                  cursor: idx === 0 ? 'default' : 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                }}
+                              >
+                                <ChevronLeft size={13} />
+                              </button>
+
+                              {/* Move Right */}
+                              <button
+                                type="button"
+                                disabled={idx === activeCarouselProducts.length - 1}
+                                onClick={(e) => handleMoveCarouselItem(idx, 'right', e)}
+                                title="Move Right / Later"
+                                style={{
+                                  background: 'rgba(255,255,255,0.06)',
+                                  border: 'none',
+                                  borderRadius: '4px',
+                                  padding: '3px',
+                                  color: idx === activeCarouselProducts.length - 1 ? 'rgba(255,255,255,0.15)' : '#fff',
+                                  cursor: idx === activeCarouselProducts.length - 1 ? 'default' : 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                }}
+                              >
+                                <ChevronRight size={13} />
+                              </button>
+
+                              {/* Remove from Carousel */}
+                              <button
+                                type="button"
+                                onClick={(e) => handleRemoveFromCarousel(p.id, e)}
+                                title="Remove from Carousel"
+                                style={{
+                                  background: 'rgba(239, 68, 68, 0.15)',
+                                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                                  borderRadius: '4px',
+                                  padding: '3px 5px',
+                                  color: '#EF4444',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  marginLeft: '4px',
+                                }}
+                              >
+                                <X size={12} />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Product Info */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            {p.imageUrl && (
+                              <img
+                                src={p.imageUrl}
+                                alt={p.title}
+                                style={{ width: '42px', height: '42px', borderRadius: '6px', objectFit: 'cover', flexShrink: 0 }}
+                              />
+                            )}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: '12px', fontWeight: '700', color: '#fff', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                                {p.title}
+                              </div>
+                              <div style={{ fontSize: '11px', color: 'var(--accent-emerald)', fontWeight: '700' }}>
+                                ${p.price.toFixed(2)}
+                              </div>
                             </div>
                           </div>
                         </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      padding: '24px 16px',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px dashed rgba(255,255,255,0.15)',
+                      background: 'rgba(255,255,255,0.02)',
+                      textAlign: 'center',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '8px',
+                    }}
+                  >
+                    <ShoppingBag size={24} color="var(--text-muted)" />
+                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                      No products added to the rotating hero carousel yet.
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsProductManagerOpen(true)}
+                      className="btn btn--primary"
+                      style={{ padding: '6px 14px', fontSize: '11px', marginTop: '4px' }}
+                    >
+                      <Plus size={13} style={{ marginRight: '4px' }} />
+                      Choose Products for Carousel
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
 
-                        {/* Tier Toggles on Product Card */}
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '6px', marginTop: '2px' }}>
-                          <button
-                            type="button"
-                            onClick={(e) => toggleCarouselProduct(p, e)}
-                            style={{
-                              padding: '2px 8px',
-                              fontSize: '10px',
-                              fontWeight: 700,
-                              borderRadius: '4px',
-                              border: isCarousel ? '1px solid #38BDF8' : '1px solid var(--border-color)',
-                              background: isCarousel ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255,255,255,0.03)',
-                              color: isCarousel ? '#38BDF8' : 'var(--text-muted)',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                            }}
-                          >
-                            <span>{isCarousel ? '⭐ In Carousel' : '+ Add to Carousel'}</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={(e) => toggleIncludedProduct(p, e)}
-                            style={{
-                              padding: '2px 8px',
-                              fontSize: '10px',
-                              fontWeight: 600,
-                              borderRadius: '4px',
-                              border: isIncluded ? '1px solid #10B981' : '1px solid var(--border-color)',
-                              background: isIncluded ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255,255,255,0.03)',
-                              color: isIncluded ? '#10B981' : 'var(--text-muted)',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                            }}
-                          >
-                            <span>{isIncluded ? '✓ In Full Catalog' : '+ Full Tray'}</span>
-                          </button>
+            {/* 📦 Full Product Catalog Manager Modal (Eliminates main-screen clutter) */}
+            {isProductManagerOpen && (
+              <div
+                style={{
+                  position: 'fixed',
+                  inset: 0,
+                  background: 'rgba(0, 0, 0, 0.75)',
+                  backdropFilter: 'blur(10px)',
+                  zIndex: 9999,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '20px',
+                  animation: 'fadeIn 0.15s ease-out',
+                }}
+                onClick={() => setIsProductManagerOpen(false)}
+              >
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    background: '#0e1526',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '16px',
+                    width: '100%',
+                    maxWidth: '820px',
+                    maxHeight: '85vh',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    boxShadow: '0 20px 50px rgba(0,0,0,0.6)',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {/* Modal Header */}
+                  <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ background: 'rgba(255, 184, 0, 0.15)', padding: '8px', borderRadius: '10px', display: 'flex' }}>
+                        <ShoppingBag size={20} color="var(--accent-amber)" />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '16px', fontWeight: 800, color: '#fff' }}>
+                          Manage Video Shoppable Products
+                        </div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                          Star (⭐) items to rotate them in the Hero Carousel. Check items to include in the tap-to-reveal full collection tray.
                         </div>
                       </div>
-                    );
-                  })}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setIsProductManagerOpen(false)}
+                      style={{
+                        background: 'rgba(255,255,255,0.06)',
+                        border: 'none',
+                        borderRadius: '50%',
+                        width: '32px',
+                        height: '32px',
+                        color: '#fff',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+
+                  {/* Search Bar Filter */}
+                  <div style={{ padding: '12px 24px', background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                      <Search size={15} color="var(--text-muted)" style={{ position: 'absolute', left: '12px' }} />
+                      <input
+                        type="text"
+                        placeholder="Search products by title..."
+                        value={productSearchQuery}
+                        onChange={(e) => setProductSearchQuery(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px 8px 36px',
+                          borderRadius: '8px',
+                          border: '1px solid var(--border-color)',
+                          background: 'rgba(0,0,0,0.3)',
+                          color: '#fff',
+                          fontSize: '12px',
+                          outline: 'none',
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Modal Body - Product Cards */}
+                  <div style={{ padding: '20px 24px', flex: 1, overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '12px' }}>
+                    {products
+                      .filter((p) => !productSearchQuery.trim() || p.title.toLowerCase().includes(productSearchQuery.toLowerCase()))
+                      .map((p) => {
+                        const isCarousel = carouselProductIds.includes(p.id);
+                        const isIncluded = includedProductIds.includes(p.id) || isCarousel;
+                        const isPrimary = currentHeroProduct?.id === p.id;
+
+                        return (
+                          <div
+                            key={p.id}
+                            style={{
+                              padding: '12px',
+                              borderRadius: '10px',
+                              border: isCarousel
+                                ? '1px solid #38BDF8'
+                                : isIncluded
+                                ? '1px solid rgba(16, 185, 129, 0.6)'
+                                : '1px solid rgba(255,255,255,0.08)',
+                              background: isCarousel
+                                ? 'rgba(56, 189, 248, 0.08)'
+                                : isIncluded
+                                ? 'rgba(16, 185, 129, 0.05)'
+                                : 'rgba(255,255,255,0.03)',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '10px',
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              {p.imageUrl && (
+                                <img
+                                  src={p.imageUrl}
+                                  alt={p.title}
+                                  style={{ width: '44px', height: '44px', borderRadius: '8px', objectFit: 'cover', flexShrink: 0 }}
+                                />
+                              )}
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: '12px', fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                                  {p.title}
+                                </div>
+                                <div style={{ fontSize: '11px', color: 'var(--accent-emerald)', fontWeight: 700 }}>
+                                  ${p.price.toFixed(2)}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Dual Toggles */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '8px' }}>
+                              <button
+                                type="button"
+                                onClick={(e) => toggleCarouselProduct(p, e)}
+                                style={{
+                                  padding: '5px 10px',
+                                  fontSize: '11px',
+                                  fontWeight: 700,
+                                  borderRadius: '6px',
+                                  border: isCarousel ? '1px solid #38BDF8' : '1px solid rgba(255,255,255,0.12)',
+                                  background: isCarousel ? 'rgba(56, 189, 248, 0.25)' : 'rgba(255,255,255,0.04)',
+                                  color: isCarousel ? '#38BDF8' : 'var(--text-muted)',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '6px',
+                                  transition: 'all 0.15s ease',
+                                }}
+                              >
+                                <span>{isCarousel ? '⭐ In Hero Carousel' : '+ Add to Carousel'}</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={(e) => toggleIncludedProduct(p, e)}
+                                style={{
+                                  padding: '5px 10px',
+                                  fontSize: '11px',
+                                  fontWeight: 600,
+                                  borderRadius: '6px',
+                                  border: isIncluded ? '1px solid #10B981' : '1px solid rgba(255,255,255,0.12)',
+                                  background: isIncluded ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255,255,255,0.04)',
+                                  color: isIncluded ? '#10B981' : 'var(--text-muted)',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '6px',
+                                  transition: 'all 0.15s ease',
+                                }}
+                              >
+                                <span>{isIncluded ? '✓ In Full Collection Tray' : '+ Include in Full Tray'}</span>
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+
+                  {/* Modal Footer */}
+                  <div style={{ padding: '14px 24px', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.2)' }}>
+                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                      <strong style={{ color: '#38BDF8' }}>{carouselProductIds.length}</strong> in Rotating Carousel • <strong style={{ color: '#10B981' }}>{includedProductIds.length || products.length}</strong> in Full Catalog
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsProductManagerOpen(false)}
+                      className="btn btn--primary"
+                      style={{ padding: '6px 20px', fontSize: '12px', fontWeight: 700 }}
+                    >
+                      Done
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
