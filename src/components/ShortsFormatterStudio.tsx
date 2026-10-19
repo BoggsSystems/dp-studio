@@ -912,6 +912,22 @@ export default function ShortsFormatterStudio() {
             updatedAt: new Date().toISOString(),
           };
           saveShortProject(shortProjectRecord);
+
+          // If project exists in DB and title is meaningful, keep Project.name in sync
+          if (
+            shortProjectId &&
+            shortProjectId !== 'short_active_draft' &&
+            !shortProjectId.startsWith('draft-') &&
+            shortProjectRecord.title &&
+            shortProjectRecord.title !== 'AI Shoppable Short' &&
+            shortProjectRecord.title !== 'AI SHOPPABLE SHORT'
+          ) {
+            api.saveProject({
+              id: shortProjectId,
+              name: shortProjectRecord.title,
+              description: videoDescription?.slice(0, 240) || shortProjectRecord.title,
+            }).catch(() => {});
+          }
         }
         setAutoSaveStatus('saved');
         setLastSavedAt(new Date());
@@ -1254,6 +1270,13 @@ export default function ShortsFormatterStudio() {
       setThumbnailTitle(hook);
       setVideoDescription(desc);
       setPinnedCommentText(pinnedSnippet);
+
+      // Sync AI-generated title to PostgreSQL project record
+      if (shortProjectId && shortProjectId !== 'short_active_draft' && !shortProjectId.startsWith('draft-')) {
+        api.saveProject({ id: shortProjectId, name: hook, description: desc.slice(0, 240) }).catch((err) => {
+          console.warn('Failed to sync AI title to project record:', err);
+        });
+      }
     } finally {
       setTimeout(() => setIsAiGeneratingMeta(false), 300);
     }
@@ -1369,9 +1392,22 @@ export default function ShortsFormatterStudio() {
     setVideoTitle(baseName);
     setThumbnailTitle(baseName);
 
-    // Allocate canonical backend project UUID immediately
-    const allocatedId = await createCloudShortProject(baseName);
-    setShortProjectId(allocatedId);
+    // Reuse existing canonical project ID from wizard or draft if already allocated
+    let targetProjectId = shortProjectId;
+    const hasValidExistingProject =
+      targetProjectId &&
+      targetProjectId !== 'short_active_draft' &&
+      !targetProjectId.startsWith('draft-');
+
+    if (!hasValidExistingProject) {
+      targetProjectId = await createCloudShortProject(baseName);
+      setShortProjectId(targetProjectId);
+    } else {
+      // Sync the derived title to the existing project in the database
+      api.saveProject({ id: targetProjectId, name: baseName }).catch((err) => {
+        console.warn('Failed to sync initial short title to project:', err);
+      });
+    }
 
     setVideoFile(file);
     const objectUrl = URL.createObjectURL(file);

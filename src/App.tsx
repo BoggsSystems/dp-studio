@@ -113,6 +113,17 @@ function StudioApp() {
     });
   }, [user]);
 
+  // Refresh projects catalog whenever switching back to the 'projects' tab
+  useEffect(() => {
+    if (user && activeTab === 'projects') {
+      api.getProjects().then((projs) => {
+        setProjects(projs);
+      }).catch((err) => {
+        console.warn('Projects catalog background refresh error:', err);
+      });
+    }
+  }, [activeTab, user]);
+
 
   // Sync video element time
   const handleTimeUpdate = () => {

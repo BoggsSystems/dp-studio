@@ -2,6 +2,7 @@
  * Persistent IndexedDB Video & Draft Cache
  * Enables instant recovery of large video files (500MB+) and editing sessions across page reloads.
  */
+import { api } from './api';
 
 const DB_NAME = 'digitpop_studio_db';
 const DB_VERSION = 1;
@@ -213,6 +214,47 @@ export async function saveShortDraftToCloud(
       }
     }
 
+    // Direct presigned upload for thumbnail if blob or base64 data URL is present
+    let thumbToUpload = thumbBlob;
+    if (!thumbToUpload && thumbnailUrl && thumbnailUrl.startsWith('data:image/')) {
+      try {
+        const parts = thumbnailUrl.split(',');
+        const mime = parts[0].match(/:(.*?);/)?.[1] || 'image/jpeg';
+        const bstr = atob(parts[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n);
+        }
+        thumbToUpload = new Blob([u8arr], { type: mime });
+      } catch (e) {
+        console.warn('Failed to parse thumbnail data URL:', e);
+      }
+    }
+
+    if (thumbToUpload) {
+      try {
+        const presignRes = await fetch(
+          `${apiBase}/api/publisher/shorts/presigned-url?shortId=${encodeURIComponent(short.id)}&fileType=thumbnail&creatorSlug=opportunity-system&contentType=image/jpeg`
+        );
+        if (presignRes.ok) {
+          const presignData = await presignRes.json();
+          if (presignData.uploadUrl) {
+            const putRes = await fetch(presignData.uploadUrl, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'image/jpeg' },
+              body: thumbToUpload,
+            });
+            if (putRes.ok && presignData.publicUrl) {
+              thumbnailUrl = presignData.publicUrl;
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Presigned draft thumbnail upload error:', e);
+      }
+    }
+
     const payload = {
       ...short,
       videoUrl,
@@ -226,6 +268,18 @@ export async function saveShortDraftToCloud(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
+
+    // Also sync canonical Project name and thumbnailUrl in PostgreSQL database
+    if (short.id && !short.id.startsWith('draft-') && short.id !== 'short_active_draft') {
+      api.saveProject({
+        id: short.id,
+        ...(short.title && short.title !== 'AI Shoppable Short' && short.title !== 'AI SHOPPABLE SHORT' ? { name: short.title } : {}),
+        ...(thumbnailUrl && !thumbnailUrl.startsWith('data:') ? { thumbnailUrl } : {}),
+        ...(videoUrl && !videoUrl.startsWith('blob:') ? { masterVodUrl: videoUrl } : {}),
+      }).catch((projErr) => {
+        console.warn('Project PostgreSQL sync notice:', projErr);
+      });
+    }
 
     if (resp.ok) {
       const data = await resp.json();
