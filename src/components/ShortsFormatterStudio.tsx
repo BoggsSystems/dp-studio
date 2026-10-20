@@ -1452,10 +1452,12 @@ export default function ShortsFormatterStudio() {
   // Explicitly Save Short to Library
   const handleManualSaveShort = async () => {
     if (!videoUrl && !videoFile) return;
+    const persistentCloudUrl = cloudVideoUrl || (videoUrl && !videoUrl.startsWith('blob:') ? videoUrl : undefined);
     const shortProject: FormattedShortProject = {
       id: shortProjectId,
       title: videoTitle || thumbnailTitle || (videoFile?.name ? videoFile.name.replace(/\.[^/.]+$/, '') : 'AI Shoppable Short'),
       videoFileName: videoFile?.name || 'short_video.mp4',
+      videoUrl: persistentCloudUrl,
       thumbnailUrl: thumbnailImage || undefined,
       durationSeconds: duration || 30,
       words,
@@ -1477,6 +1479,9 @@ export default function ShortsFormatterStudio() {
       productId: selectedProduct?.id || savedProductId || undefined,
       productTitle: selectedProduct?.title,
       productPrice: selectedProduct?.price,
+      includedProductIds,
+      carouselProductIds,
+      carouselRotationSpeed,
       thumbnailTitle,
       thumbnailStyle,
       thumbnailFontSize,
@@ -1489,6 +1494,50 @@ export default function ShortsFormatterStudio() {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
+
+    // Immediately sync to active local draft so navigating away retains state without waiting for debounce
+    const activeDraft = {
+      id: shortProjectId,
+      videoUrl: persistentCloudUrl,
+      cloudVideoUrl: persistentCloudUrl,
+      videoFileName: videoFile?.name || 'short_video.mp4',
+      words,
+      editableTranscript,
+      videoTitle,
+      videoDescription,
+      pinnedCommentText,
+      highlightColor,
+      fontSize,
+      verticalPosition,
+      wordPacing,
+      autoEmojis,
+      uppercase,
+      layoutMode,
+      showShoppableDrawer,
+      showQrCode,
+      qrPlacement,
+      qrCustomUrl,
+      selectedProductId: selectedProduct?.id || savedProductId || null,
+      productTitle: selectedProduct?.title,
+      productPrice: selectedProduct?.price,
+      includedProductIds,
+      carouselProductIds,
+      carouselRotationSpeed,
+      thumbnailTitle,
+      thumbnailStyle,
+      thumbnailFontSize,
+      thumbnailPosition,
+      thumbnailBadge,
+      thumbnailStrokeWidth,
+      thumbnailUppercase,
+      thumbnailImage,
+      publishedYouTubeUrl,
+      status: publishedYouTubeUrl ? 'PUBLISHED' : 'DRAFT',
+      updatedAt: Date.now(),
+    };
+    try {
+      localStorage.setItem('digitpop_shorts_formatter_draft_v1', JSON.stringify(activeDraft));
+    } catch (e) {}
 
     await saveShortProject(shortProject, videoFile || undefined);
     setSaveSuccessMsg('💾 Saved to Shorts Library!');

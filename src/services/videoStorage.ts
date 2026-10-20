@@ -329,13 +329,19 @@ export async function fetchCloudLibraryShorts(creatorSlug: string = 'opportunity
         showQrCode: meta.showQrCode ?? true,
         qrPlacement: meta.qrPlacement || 'TOP_RIGHT',
         qrCustomUrl: meta.qrCustomUrl,
-        productId: meta.productId,
+        productId: meta.productId || meta.selectedProductId,
         productTitle: meta.productTitle,
         productPrice: meta.productPrice,
+        includedProductIds: Array.isArray(meta.includedProductIds) ? meta.includedProductIds : [],
+        carouselProductIds: Array.isArray(meta.carouselProductIds) ? meta.carouselProductIds : [],
+        carouselRotationSpeed: typeof meta.carouselRotationSpeed === 'number' ? meta.carouselRotationSpeed : 8,
+        videoTitle: meta.videoTitle || s.title,
+        videoDescription: meta.videoDescription || '',
+        pinnedCommentText: meta.pinnedCommentText || '',
         thumbnailTitle: meta.thumbnailTitle || s.title,
         thumbnailStyle: meta.thumbnailStyle || 'VIRAL_WHITE',
         thumbnailFontSize: meta.thumbnailFontSize || 54,
-        thumbnailPosition: meta.thumbnailPosition || 45,
+        thumbnailPosition: meta.thumbnailPosition !== undefined ? meta.thumbnailPosition : 45,
         thumbnailBadge: s.thumbnailBadge || meta.thumbnailBadge || (s.status === 'READY' ? '⚡ READY' : '⚡ DRAFT'),
         thumbnailStrokeWidth: meta.thumbnailStrokeWidth || 14,
         thumbnailUppercase: meta.thumbnailUppercase ?? true,
@@ -621,22 +627,45 @@ export async function loadShortProjectIntoActiveDraft(short: FormattedShortProje
       showQrCode: short.showQrCode,
       qrPlacement: short.qrPlacement,
       qrCustomUrl: short.qrCustomUrl,
-      selectedProductId: short.productId || null,
-      productTitle: short.productTitle,
-      productPrice: short.productPrice,
-      videoTitle: short.videoTitle || short.thumbnailTitle || short.title,
-      videoDescription: short.videoDescription || '',
-      pinnedCommentText: short.pinnedCommentText || '',
-      thumbnailTitle: short.thumbnailTitle || short.title,
-      thumbnailStyle: short.thumbnailStyle || 'VIRAL_WHITE',
-      thumbnailFontSize: short.thumbnailFontSize || 54,
-      thumbnailPosition: short.thumbnailPosition || 45,
-      thumbnailBadge: short.thumbnailBadge || '⚡ MUST WATCH',
-      thumbnailStrokeWidth: short.thumbnailStrokeWidth || 14,
-      thumbnailUppercase: short.thumbnailUppercase ?? true,
-      thumbnailImage: short.thumbnailUrl || null,
-      publishedYouTubeUrl: short.publishedYouTubeUrl,
-      publishedAt: short.publishedAt,
+      selectedProductId: short.productId || (short as any).selectedProductId || (short as any).metadata?.productId || null,
+      productTitle: short.productTitle || (short as any).metadata?.productTitle,
+      productPrice: short.productPrice || (short as any).metadata?.productPrice,
+      includedProductIds: Array.isArray(short.includedProductIds)
+        ? short.includedProductIds
+        : Array.isArray((short as any).metadata?.includedProductIds)
+          ? (short as any).metadata.includedProductIds
+          : [],
+      carouselProductIds: Array.isArray(short.carouselProductIds)
+        ? short.carouselProductIds
+        : Array.isArray((short as any).metadata?.carouselProductIds)
+          ? (short as any).metadata.carouselProductIds
+          : [],
+      carouselRotationSpeed: typeof short.carouselRotationSpeed === 'number'
+        ? short.carouselRotationSpeed
+        : typeof (short as any).metadata?.carouselRotationSpeed === 'number'
+          ? (short as any).metadata.carouselRotationSpeed
+          : 8,
+      videoTitle: short.videoTitle || short.thumbnailTitle || (short as any).metadata?.videoTitle || short.title,
+      videoDescription: short.videoDescription || (short as any).metadata?.videoDescription || '',
+      pinnedCommentText: short.pinnedCommentText || (short as any).metadata?.pinnedCommentText || '',
+      thumbnailTitle: short.thumbnailTitle || (short as any).metadata?.thumbnailTitle || short.title,
+      thumbnailStyle: short.thumbnailStyle || (short as any).metadata?.thumbnailStyle || 'VIRAL_WHITE',
+      thumbnailFontSize: short.thumbnailFontSize !== undefined
+        ? short.thumbnailFontSize
+        : ((short as any).metadata?.thumbnailFontSize !== undefined ? (short as any).metadata.thumbnailFontSize : 54),
+      thumbnailPosition: short.thumbnailPosition !== undefined
+        ? short.thumbnailPosition
+        : ((short as any).metadata?.thumbnailPosition !== undefined ? (short as any).metadata.thumbnailPosition : 45),
+      thumbnailBadge: short.thumbnailBadge || (short as any).metadata?.thumbnailBadge || '⚡ MUST WATCH',
+      thumbnailStrokeWidth: short.thumbnailStrokeWidth !== undefined
+        ? short.thumbnailStrokeWidth
+        : ((short as any).metadata?.thumbnailStrokeWidth !== undefined ? (short as any).metadata.thumbnailStrokeWidth : 14),
+      thumbnailUppercase: short.thumbnailUppercase !== undefined
+        ? short.thumbnailUppercase
+        : ((short as any).metadata?.thumbnailUppercase !== undefined ? (short as any).metadata.thumbnailUppercase : true),
+      thumbnailImage: short.thumbnailUrl || (short as any).thumbnailImage || null,
+      publishedYouTubeUrl: short.publishedYouTubeUrl || (short as any).metadata?.publishedYouTubeUrl,
+      publishedAt: short.publishedAt || (short as any).metadata?.publishedAt,
       status: short.status,
       createdAt: short.createdAt,
       updatedAt: Date.now(),
