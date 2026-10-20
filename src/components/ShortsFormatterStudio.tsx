@@ -1455,7 +1455,7 @@ export default function ShortsFormatterStudio() {
     const persistentCloudUrl = cloudVideoUrl || (videoUrl && !videoUrl.startsWith('blob:') ? videoUrl : undefined);
     const shortProject: FormattedShortProject = {
       id: shortProjectId,
-      title: videoTitle || thumbnailTitle || (videoFile?.name ? videoFile.name.replace(/\.[^/.]+$/, '') : 'AI Shoppable Short'),
+      title: thumbnailTitle || videoTitle || (videoFile?.name ? videoFile.name.replace(/\.[^/.]+$/, '') : 'AI Shoppable Short'),
       videoFileName: videoFile?.name || 'short_video.mp4',
       videoUrl: persistentCloudUrl,
       thumbnailUrl: thumbnailImage || undefined,
@@ -1482,7 +1482,7 @@ export default function ShortsFormatterStudio() {
       includedProductIds,
       carouselProductIds,
       carouselRotationSpeed,
-      thumbnailTitle,
+      thumbnailTitle: thumbnailTitle || videoTitle,
       thumbnailStyle,
       thumbnailFontSize,
       thumbnailPosition,
@@ -2900,7 +2900,7 @@ export default function ShortsFormatterStudio() {
       // 4. Save to local IndexedDB for instant offline recall
       const projectPayload: FormattedShortProject = {
         id: shortProjectId,
-        title: videoTitle || thumbnailTitle || 'Opportunity OS Short',
+        title: thumbnailTitle || videoTitle || 'Opportunity OS Short',
         videoUrl: videoUrlToPublish,
         videoFileName: videoFile?.name || `${shortProjectId}.mp4`,
         thumbnailUrl: thumbUrlToPublish,
@@ -2921,7 +2921,7 @@ export default function ShortsFormatterStudio() {
         productId: selectedProduct?.id || savedProductId || undefined,
         productTitle: selectedProduct?.title || 'AI-Native Software Engineering',
         productPrice: selectedProduct?.price || 9.99,
-        thumbnailTitle: videoTitle || thumbnailTitle,
+        thumbnailTitle: thumbnailTitle || videoTitle,
         thumbnailStyle,
         thumbnailFontSize,
         thumbnailPosition,
@@ -4605,7 +4605,10 @@ export default function ShortsFormatterStudio() {
                   <input
                     type="text"
                     value={thumbnailTitle}
-                    onChange={(e) => setThumbnailTitle(e.target.value)}
+                    onChange={(e) => {
+                      setThumbnailTitle(e.target.value);
+                      setVideoTitle(e.target.value);
+                    }}
                     placeholder="Enter bold hook headline (e.g. DID YOU DO YOUR 20 MINUTES?)"
                     style={{
                       width: '100%',
