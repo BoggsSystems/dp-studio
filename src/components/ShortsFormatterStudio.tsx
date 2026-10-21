@@ -2461,14 +2461,132 @@ export default function ShortsFormatterStudio() {
         }
       };
 
-      // Heartbeat timer ensures frames are continuously rendered even if tab is unfocused / backgrounded
+      // Heartbeat timer ensures watchdog termination; does not duplicate renderFrame
       heartbeatInterval = setInterval(() => {
-        if (!isRenderingStopped && !video.paused && !video.ended) {
-          renderFrame();
+        if (!isRenderingStopped && (video.ended || (video.duration && video.currentTime >= video.duration - 0.1))) {
+          stopRecording();
         }
-      }, 33);
+      }, 200);
 
       loop();
+    });
+  };
+
+  // Helper to render static overlays (QR code badge and shoppable drawer) into a single 1080x1920 transparent PNG
+  const renderStaticOverlayBlob = async (): Promise<Blob | undefined> => {
+    if (!showQrCode && (!showShoppableDrawer || !selectedProduct)) {
+      return undefined;
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = 1080;
+    canvas.height = 1920;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return undefined;
+    ctx.clearRect(0, 0, 1080, 1920);
+
+    // 1. QR Code Badge
+    if (showQrCode && qrDataUrl) {
+      try {
+        const qrImg = new Image();
+        qrImg.src = qrDataUrl;
+        await new Promise((res) => {
+          if (qrImg.complete) res(true);
+          else {
+            qrImg.onload = () => res(true);
+            qrImg.onerror = () => res(false);
+          }
+        });
+
+        const qrX = qrPlacement === 'TOP_RIGHT' ? 1080 - 220 - 40 : qrPlacement === 'TOP_LEFT' ? 40 : 1080 - 220 - 40;
+        const qrY = qrPlacement === 'BOTTOM_RIGHT' ? 1920 - 380 : 70;
+        const w = 220;
+        const h = 270;
+        const r = 24;
+
+        ctx.save();
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+        ctx.strokeStyle = getHighlightColorConfig(highlightColor).hex;
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        if (typeof (ctx as any).roundRect === 'function') {
+          (ctx as any).roundRect(qrX, qrY, w, h, r);
+        } else {
+          ctx.rect(qrX, qrY, w, h);
+        }
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#FFFFFF';
+        ctx.beginPath();
+        if (typeof (ctx as any).roundRect === 'function') {
+          (ctx as any).roundRect(qrX + 20, qrY + 20, 180, 180, 12);
+        } else {
+          ctx.rect(qrX + 20, qrY + 20, 180, 180);
+        }
+        ctx.fill();
+
+        ctx.drawImage(qrImg, qrX + 24, qrY + 24, 172, 172);
+
+        ctx.font = '900 20px Inter, sans-serif';
+        ctx.fillStyle = getHighlightColorConfig(highlightColor).hex;
+        ctx.textAlign = 'center';
+        ctx.fillText('⚡ SCAN TO BUY', qrX + w / 2, qrY + 234);
+
+        if (selectedProduct) {
+          ctx.font = '700 16px Inter, sans-serif';
+          ctx.fillStyle = '#10B981';
+          ctx.fillText(`$${selectedProduct.price.toFixed(2)}`, qrX + w / 2, qrY + 256);
+        }
+        ctx.restore();
+      } catch (e) {
+        console.warn('QR overlay render error:', e);
+      }
+    }
+
+    // 2. Shoppable Product Drawer
+    if (showShoppableDrawer && selectedProduct) {
+      const drawerY = 1920 - 200;
+      const dx = 40;
+      const dw = 1000;
+      const dh = 140;
+      const dr = 24;
+
+      ctx.save();
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+      ctx.strokeStyle = 'rgba(255, 184, 0, 0.6)';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      if (typeof (ctx as any).roundRect === 'function') {
+        (ctx as any).roundRect(dx, drawerY, dw, dh, dr);
+      } else {
+        ctx.rect(dx, drawerY, dw, dh);
+      }
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.font = '800 20px Inter, sans-serif';
+      ctx.fillStyle = '#FFB800';
+      ctx.textAlign = 'left';
+      ctx.fillText('⚡ FEATURED IN CLIP', dx + 30, drawerY + 45);
+
+      ctx.font = '700 28px Inter, sans-serif';
+      ctx.fillStyle = '#FFFFFF';
+      const maxTitleLen = 42;
+      const titleText =
+        selectedProduct.title.length > maxTitleLen
+          ? selectedProduct.title.slice(0, maxTitleLen) + '...'
+          : selectedProduct.title;
+      ctx.fillText(titleText, dx + 30, drawerY + 90);
+
+      ctx.font = '800 28px Inter, sans-serif';
+      ctx.fillStyle = '#10B981';
+      ctx.textAlign = 'right';
+      ctx.fillText(`$${selectedProduct.price.toFixed(2)}`, dx + dw - 30, drawerY + 80);
+      ctx.restore();
+    }
+
+    return new Promise<Blob | undefined>((res) => {
+      canvas.toBlob((b) => res(b || undefined), 'image/png');
     });
   };
 
@@ -2476,31 +2594,18 @@ export default function ShortsFormatterStudio() {
     if (!videoRef.current && !videoFile && !videoUrl) return;
     setIsPublishingYouTube(true);
     setPublishYouTubeStage('RENDERING');
-    setPublishYouTubePercent(0);
+    setPublishYouTubePercent(10);
     setPublishYouTubeLoadedMb('0');
     setPublishYouTubeTotalMb('0');
     setPublishYouTubeError(null);
     setPublishedYouTubeUrl(null);
 
     try {
-      // 1. Bake video canvas with kinetic subtitles, layout framing, and overlays
-      let videoBlobToUpload: Blob;
-      if (videoRef.current && videoUrl) {
-        setPublishYouTubeStage('RENDERING');
-        videoBlobToUpload = await renderFormattedVideoBlob((renderPercent) => {
-          // Baking phase is 0% to 40%
-          setPublishYouTubePercent(Math.round(renderPercent * 0.4));
-        });
-      } else if (videoFile) {
-        videoBlobToUpload = videoFile;
-      } else {
-        const response = await fetch(videoUrl!);
-        videoBlobToUpload = await response.blob();
-      }
+      // 1. Prepare static overlay (QR and/or product drawer)
+      const overlayBlob = await renderStaticOverlayBlob();
 
       // 2. Prepare high-CTR thumbnail blob (9:16)
-      setPublishYouTubeStage('INITIALIZING');
-      setPublishYouTubePercent(45);
+      setPublishYouTubePercent(25);
       let thumbnailBlob: Blob | undefined;
       try {
         const generatedThumb = await renderThumbnailBlob('9:16');
@@ -2517,32 +2622,35 @@ export default function ShortsFormatterStudio() {
       const fullDesc = videoDescription || `${editableTranscript.slice(0, 300)}...\n\n👉 Grab the Blueprint & Opportunity OS: https://opportunity-system.com/about\n⚡ Featured Product: ${selectedProduct?.title || 'Opportunity OS'}\n\n#Shorts #Programming #SoftwareEngineering #AI #TechCareers #OpportunityOS`;
       const fullTitle = videoTitle ? (videoTitle.toLowerCase().includes('#shorts') ? videoTitle : `${videoTitle} #Shorts`) : (thumbnailTitle ? `${thumbnailTitle} #Shorts` : 'AI-Native Short #Shorts');
 
-      // 3. Stream direct to Google YouTube Resumable Cloud Session
-      const result = await api.publishYouTubeShort(
+      setPublishYouTubeStage('RENDERING');
+      setPublishYouTubePercent(40);
+
+      // 3. Deterministic Server-Side Render (FFmpeg CFR 30fps + kinetic subtitles) and YouTube Publish
+      const result = await api.renderAndPublishYouTubeShort(
         {
-          videoBlob: videoBlobToUpload,
+          sourceVideoUrl: videoUrl || undefined,
+          sourceVideoBlob: !videoUrl && videoFile ? videoFile : undefined,
+          overlayBlob,
           thumbnailBlob,
+          words,
+          highlightColor,
+          fontSize,
+          verticalPosition,
+          wordPacing,
+          uppercase,
+          layoutMode: layoutMode === 'COVER_CROP' ? 'COVER_CROP' : 'FIT_BLUR',
           title: fullTitle,
           description: fullDesc,
           tags: ['Shorts', 'Coding', 'SoftwareEngineering', 'AI', 'OpportunityOS'],
           privacy: 'public',
         },
         (progress) => {
-          if (progress.stage === 'INITIALIZING') {
-            setPublishYouTubeStage('INITIALIZING');
-            setPublishYouTubePercent(48);
+          if (progress.stage === 'RENDERING_SERVER') {
+            setPublishYouTubeStage('RENDERING');
+            setPublishYouTubePercent(progress.percent);
           } else if (progress.stage === 'UPLOADING') {
             setPublishYouTubeStage('UPLOADING');
-            // Upload phase scaled from 50% to 90%
-            const uploadScaled = 50 + Math.round((progress.percent / 100) * 40);
-            setPublishYouTubePercent(uploadScaled);
-            if (progress.loadedBytes && progress.totalBytes) {
-              setPublishYouTubeLoadedMb((progress.loadedBytes / (1024 * 1024)).toFixed(1));
-              setPublishYouTubeTotalMb((progress.totalBytes / (1024 * 1024)).toFixed(1));
-            }
-          } else if (progress.stage === 'SETTING_THUMBNAIL') {
-            setPublishYouTubeStage('SETTING_THUMBNAIL');
-            setPublishYouTubePercent(95);
+            setPublishYouTubePercent(progress.percent);
           }
         }
       );
@@ -2599,7 +2707,7 @@ export default function ShortsFormatterStudio() {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
-        await saveShortProject(shortRecord, videoBlobToUpload);
+        await saveShortProject(shortRecord, videoFile || undefined);
       } catch (e) {}
     } catch (err: any) {
       console.error('Direct YouTube publish failed:', err);
@@ -5129,11 +5237,11 @@ export default function ShortsFormatterStudio() {
                               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px' }}>
                                 <span style={{ color: 'var(--accent-teal)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
                                   <RefreshCw size={13} className="spin" />
-                                  {publishYouTubeStage === 'RENDERING' && `🎨 [1/4] Baking 1080x1920 Short with Kinetic Subtitles...`}
-                                  {publishYouTubeStage === 'INITIALIZING' && '⚡ [2/4] Initializing YouTube Session...'}
-                                  {publishYouTubeStage === 'UPLOADING' && `🚀 [3/4] Streaming to YouTube: ${publishYouTubePercent}% (${publishYouTubeLoadedMb} MB / ${publishYouTubeTotalMb} MB)`}
-                                  {publishYouTubeStage === 'SETTING_THUMBNAIL' && '🎨 [4/4] Attaching Custom High-CTR Thumbnail...'}
-                                  {publishYouTubeStage === 'DONE' && '🎉 Finalizing Live Short...'}
+                                  {publishYouTubeStage === 'RENDERING' && `🎨 [1/2] Server FFmpeg 1080x1920 Short Render (CFR 30fps)...`}
+                                  {publishYouTubeStage === 'INITIALIZING' && '⚡ Initializing YouTube Session...'}
+                                  {publishYouTubeStage === 'UPLOADING' && `🚀 [2/2] Streaming to YouTube Shorts API...`}
+                                  {publishYouTubeStage === 'SETTING_THUMBNAIL' && '🎨 Attaching Custom Thumbnail...'}
+                                  {publishYouTubeStage === 'DONE' && '🎉 Live on YouTube Shorts!'}
                                 </span>
                                 <span style={{ color: '#fff', fontWeight: 700, fontSize: '13px' }}>
                                   {publishYouTubePercent}%

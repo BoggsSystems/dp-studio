@@ -607,6 +607,73 @@ export const api = {
     }
   },
 
+  async renderAndPublishYouTubeShort(
+    payload: {
+      sourceVideoBlob?: Blob;
+      sourceVideoUrl?: string;
+      overlayBlob?: Blob;
+      thumbnailBlob?: Blob;
+      words?: Array<{ word: string; start: number; end: number; confidence?: number }>;
+      highlightColor?: string;
+      fontSize?: number;
+      verticalPosition?: number;
+      wordPacing?: string;
+      uppercase?: boolean;
+      layoutMode?: 'FIT_BLUR' | 'COVER_CROP';
+      title: string;
+      description: string;
+      tags?: string[];
+      privacy?: 'public' | 'unlisted' | 'private';
+    },
+    onProgress?: (info: { stage: 'RENDERING_SERVER' | 'UPLOADING' | 'DONE'; percent: number; message?: string }) => void
+  ): Promise<{ success: boolean; videoId: string; url: string; title: string }> {
+    if (onProgress) onProgress({ stage: 'RENDERING_SERVER', percent: 20, message: 'Initiating server-side render...' });
+
+    const formData = new FormData();
+    if (payload.sourceVideoBlob) {
+      formData.append('video', payload.sourceVideoBlob, 'source_video.mp4');
+    }
+    if (payload.sourceVideoUrl) {
+      formData.append('sourceVideoUrl', payload.sourceVideoUrl);
+    }
+    if (payload.overlayBlob) {
+      formData.append('overlay', payload.overlayBlob, 'overlay.png');
+    }
+    if (payload.thumbnailBlob) {
+      formData.append('thumbnail', payload.thumbnailBlob, 'thumbnail.jpg');
+    }
+    if (payload.words && payload.words.length > 0) {
+      formData.append('words', JSON.stringify(payload.words));
+    }
+    if (payload.highlightColor) formData.append('highlightColor', payload.highlightColor);
+    if (payload.fontSize) formData.append('fontSize', String(payload.fontSize));
+    if (payload.verticalPosition !== undefined) formData.append('verticalPosition', String(payload.verticalPosition));
+    if (payload.wordPacing) formData.append('wordPacing', payload.wordPacing);
+    if (payload.uppercase !== undefined) formData.append('uppercase', String(payload.uppercase));
+    if (payload.layoutMode) formData.append('layoutMode', payload.layoutMode);
+    formData.append('title', payload.title);
+    formData.append('description', payload.description);
+    if (payload.tags && payload.tags.length > 0) {
+      formData.append('tags', JSON.stringify(payload.tags));
+    }
+    formData.append('privacy', payload.privacy || 'public');
+
+    if (onProgress) onProgress({ stage: 'RENDERING_SERVER', percent: 50, message: 'FFmpeg encoding with CFR 30fps and burning kinetic subtitles...' });
+
+    const response = await fetch(`${API_BASE_URL}/api/social/publish/youtube-rendered`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ message: 'Server render and YouTube upload failed' }));
+      throw new Error(err.message || `Render and upload failed with status ${response.status}`);
+    }
+
+    if (onProgress) onProgress({ stage: 'DONE', percent: 100, message: 'Published successfully to YouTube!' });
+    return await response.json();
+  },
+
   async publishYouTubeShort(
     payload: {
       videoBlob: Blob;
