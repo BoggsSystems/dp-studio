@@ -2625,22 +2625,56 @@ export default function ShortsFormatterStudio() {
       const fullDesc = videoDescription || `${editableTranscript.slice(0, 300)}...\n\n👉 Grab the Blueprint & Opportunity OS: https://opportunity-system.com/about\n⚡ Featured Product: ${selectedProduct?.title || 'Opportunity OS'}\n\n#Shorts #Programming #SoftwareEngineering #AI #TechCareers #OpportunityOS`;
       const fullTitle = videoTitle ? (videoTitle.toLowerCase().includes('#shorts') ? videoTitle : `${videoTitle} #Shorts`) : (thumbnailTitle ? `${thumbnailTitle} #Shorts` : 'AI-Native Short #Shorts');
 
-      // 3. Resolve video source: send actual video file/blob if local or blob URL, send URL if remote HTTP(S)
-      let uploadVideoBlob: Blob | undefined = videoFile || undefined;
+      // 3. Resolve video source: prioritize remote URL or chunked upload if > 80MB to bypass Cloudflare 100MB body limit
+      let uploadVideoBlob: Blob | undefined = undefined;
       let remoteVideoUrl: string | undefined = undefined;
 
       if (videoUrl && (videoUrl.startsWith('http://') || videoUrl.startsWith('https://'))) {
+        // High-velocity path: Prioritize existing remote URL (only transfers ~10KB metadata)
         remoteVideoUrl = videoUrl;
-      } else if (videoUrl && videoUrl.startsWith('blob:') && !uploadVideoBlob) {
+      } else if (videoFile && videoFile.size > 80 * 1024 * 1024) {
+        // High-reliability chunked upload: Slices video into 4MB chunks to bypass Cloudflare 100MB limit
+        setPublishYouTubeMessage('Uploading large video via chunked stream...');
+        const uploaded = await api.uploadMedia(
+          videoFile,
+          'shorts/renders',
+          (p: any) => {
+            const pct = typeof p === 'number' ? p : p.percent;
+            const loaded = typeof p === 'number' ? '' : ` (${p.loadedMb}MB / ${p.totalMb}MB)`;
+            setPublishYouTubePercent(Math.min(25, Math.round(pct * 0.25)));
+            setPublishYouTubeMessage(`Uploading video chunks: ${pct}%${loaded}...`);
+          }
+        );
+        remoteVideoUrl = uploaded.url;
+      } else if (videoFile) {
+        uploadVideoBlob = videoFile;
+      } else if (videoUrl && videoUrl.startsWith('blob:')) {
         try {
           const blobRes = await fetch(videoUrl);
-          uploadVideoBlob = await blobRes.blob();
+          const fetchedBlob = await blobRes.blob();
+          if (fetchedBlob.size > 80 * 1024 * 1024) {
+            setPublishYouTubeMessage('Uploading large video via chunked stream...');
+            const fileFromBlob = new File([fetchedBlob], 'source_video.mp4', { type: fetchedBlob.type || 'video/mp4' });
+            const uploaded = await api.uploadMedia(
+              fileFromBlob,
+              'shorts/renders',
+              (p: any) => {
+                const pct = typeof p === 'number' ? p : p.percent;
+                const loaded = typeof p === 'number' ? '' : ` (${p.loadedMb}MB / ${p.totalMb}MB)`;
+                setPublishYouTubePercent(Math.min(25, Math.round(pct * 0.25)));
+                setPublishYouTubeMessage(`Uploading video chunks: ${pct}%${loaded}...`);
+              }
+            );
+            remoteVideoUrl = uploaded.url;
+          } else {
+            uploadVideoBlob = fetchedBlob;
+          }
         } catch (e) {
           console.warn('Failed to fetch blob URL locally:', e);
         }
       }
 
-      setPublishYouTubeMessage('Uploading video to render server...');
+      setPublishYouTubeMessage('Processing video on render server...');
 
       // 4. Deterministic Server-Side Render (FFmpeg CFR 30fps + kinetic subtitles) and YouTube Publish
       const result = await api.renderAndPublishYouTubeShort(

@@ -452,6 +452,14 @@ export const api = {
     };
   },
 
+  async uploadVideoChunks(
+    file: File,
+    pathPrefix: string = 'vods',
+    onProgress?: (progress: { percent: number; loadedBytes: number; totalBytes: number; loadedMb: string; totalMb: string } | number) => void
+  ): Promise<{ url: string; key: string }> {
+    return this.uploadMedia(file, pathPrefix, onProgress);
+  },
+
   // --- AI Autopilot Scanner ---
   async scanVideoWithAi(videoUrl: string): Promise<AiTagDetection[]> {
     try {
@@ -630,11 +638,10 @@ export const api = {
     if (onProgress) onProgress({ stage: 'RENDERING_SERVER', percent: 20, message: 'Initiating server-side render...' });
 
     const formData = new FormData();
-    if (payload.sourceVideoBlob) {
-      formData.append('video', payload.sourceVideoBlob, 'source_video.mp4');
-    }
     if (payload.sourceVideoUrl) {
       formData.append('sourceVideoUrl', payload.sourceVideoUrl);
+    } else if (payload.sourceVideoBlob) {
+      formData.append('video', payload.sourceVideoBlob, 'source_video.mp4');
     }
     if (payload.overlayBlob) {
       formData.append('overlay', payload.overlayBlob, 'overlay.png');
