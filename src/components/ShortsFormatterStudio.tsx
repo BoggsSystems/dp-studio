@@ -46,6 +46,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Search,
+  Youtube,
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { api } from '../services/api';
@@ -590,6 +591,15 @@ export default function ShortsFormatterStudio() {
   const [qrCustomUrl, setQrCustomUrl] = useState<string>('https://opportunity-system.com');
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
 
+  // YouTube Shorts Dedicated Overlays (Baked 1080x1920 MP4 Pixels)
+  const [youtubeBurnQr, setYoutubeBurnQr] = useState<boolean>(true);
+  const [youtubeQrTarget, setYoutubeQrTarget] = useState<'OPPORTUNITY_OS' | 'PRODUCT' | 'CUSTOM'>('OPPORTUNITY_OS');
+  const [youtubeQrPlacement, setYoutubeQrPlacement] = useState<QrPlacement>('TOP_RIGHT');
+  const [youtubeCustomQrUrl, setYoutubeCustomQrUrl] = useState<string>('https://opportunity-system.com/about');
+  const [youtubeQrDataUrl, setYoutubeQrDataUrl] = useState<string>('');
+  const [youtubeBurnDrawer, setYoutubeBurnDrawer] = useState<boolean>(false);
+  const [youtubeSelectedProductId, setYoutubeSelectedProductId] = useState<string | null>(null);
+
   // AI Title & Description Studio State
   const [videoTitle, setVideoTitle] = useState<string>('');
   const [videoDescription, setVideoDescription] = useState<string>('');
@@ -731,6 +741,12 @@ export default function ShortsFormatterStudio() {
           if (draft.showQrCode !== undefined) setShowQrCode(draft.showQrCode);
           if (draft.qrPlacement) setQrPlacement(draft.qrPlacement);
           if (draft.qrCustomUrl) setQrCustomUrl(draft.qrCustomUrl);
+          if (draft.youtubeBurnQr !== undefined) setYoutubeBurnQr(draft.youtubeBurnQr);
+          if (draft.youtubeQrTarget) setYoutubeQrTarget(draft.youtubeQrTarget);
+          if (draft.youtubeQrPlacement) setYoutubeQrPlacement(draft.youtubeQrPlacement);
+          if (draft.youtubeCustomQrUrl) setYoutubeCustomQrUrl(draft.youtubeCustomQrUrl);
+          if (draft.youtubeBurnDrawer !== undefined) setYoutubeBurnDrawer(draft.youtubeBurnDrawer);
+          if (draft.youtubeSelectedProductId !== undefined) setYoutubeSelectedProductId(draft.youtubeSelectedProductId);
           if (draft.selectedProductId || draft.productId) {
             setSavedProductId(draft.selectedProductId || draft.productId);
           }
@@ -849,6 +865,12 @@ export default function ShortsFormatterStudio() {
           showQrCode,
           qrPlacement,
           qrCustomUrl,
+          youtubeBurnQr,
+          youtubeQrTarget,
+          youtubeQrPlacement,
+          youtubeCustomQrUrl,
+          youtubeBurnDrawer,
+          youtubeSelectedProductId,
           selectedProductId: selectedProduct?.id || savedProductId || null,
           productTitle: selectedProduct?.title,
           productPrice: selectedProduct?.price,
@@ -894,6 +916,12 @@ export default function ShortsFormatterStudio() {
             showQrCode,
             qrPlacement,
             qrCustomUrl,
+            youtubeBurnQr,
+            youtubeQrTarget,
+            youtubeQrPlacement,
+            youtubeCustomQrUrl,
+            youtubeBurnDrawer,
+            youtubeSelectedProductId,
             productId: selectedProduct?.id || savedProductId || undefined,
             productTitle: selectedProduct?.title,
             productPrice: selectedProduct?.price,
@@ -956,6 +984,12 @@ export default function ShortsFormatterStudio() {
     showQrCode,
     qrPlacement,
     qrCustomUrl,
+    youtubeBurnQr,
+    youtubeQrTarget,
+    youtubeQrPlacement,
+    youtubeCustomQrUrl,
+    youtubeBurnDrawer,
+    youtubeSelectedProductId,
     selectedProduct,
     savedProductId,
     includedProductIds,
@@ -1121,6 +1155,36 @@ export default function ShortsFormatterStudio() {
         console.error('QR code generation error:', err);
       });
   }, [currentHeroProduct, selectedProduct, qrCustomUrl]);
+
+  // Generate YouTube Shorts dedicated QR Code data URL dynamically
+  useEffect(() => {
+    let targetUrl = 'https://opportunity-system.com/about';
+    if (youtubeQrTarget === 'OPPORTUNITY_OS') {
+      targetUrl = 'https://opportunity-system.com/about';
+    } else if (youtubeQrTarget === 'PRODUCT') {
+      const ytProd = youtubeSelectedProductId
+        ? products.find((p) => p.id === youtubeSelectedProductId) || selectedProduct
+        : selectedProduct;
+      targetUrl = ytProd?.externalUrl || 'https://opportunity-system.com/about';
+    } else if (youtubeQrTarget === 'CUSTOM') {
+      targetUrl = youtubeCustomQrUrl || 'https://opportunity-system.com/about';
+    }
+
+    QRCode.toDataURL(targetUrl, {
+      width: 320,
+      margin: 1,
+      color: {
+        dark: '#000000',
+        light: '#FFFFFF',
+      },
+    })
+      .then((url) => {
+        setYoutubeQrDataUrl(url);
+      })
+      .catch((err) => {
+        console.error('YouTube QR code generation error:', err);
+      });
+  }, [youtubeQrTarget, youtubeSelectedProductId, selectedProduct, youtubeCustomQrUrl, products]);
 
   // Transcription trigger function
   const runTranscription = async (fileToProcess: File) => {
@@ -2147,9 +2211,10 @@ export default function ShortsFormatterStudio() {
 
       // Pre-load QR image for canvas drawing if enabled
       let qrImg: HTMLImageElement | null = null;
-      if (showQrCode && qrDataUrl) {
+      const effectiveQrUrl = youtubeBurnQr ? youtubeQrDataUrl : (showQrCode ? qrDataUrl : '');
+      if (effectiveQrUrl) {
         qrImg = new Image();
-        qrImg.src = qrDataUrl;
+        qrImg.src = effectiveQrUrl;
         await new Promise((res) => {
           if (qrImg!.complete) res(true);
           else {
@@ -2360,9 +2425,10 @@ export default function ShortsFormatterStudio() {
         }
 
         // 3. QR Code Badge
-        if (showQrCode && qrImg && qrImg.complete) {
-          const qrX = qrPlacement === 'TOP_RIGHT' ? 1080 - 220 - 40 : qrPlacement === 'TOP_LEFT' ? 40 : 1080 - 220 - 40;
-          const qrY = qrPlacement === 'BOTTOM_RIGHT' ? 1920 - 380 : 70;
+        if ((youtubeBurnQr || showQrCode) && qrImg && qrImg.complete) {
+          const placement = youtubeBurnQr ? youtubeQrPlacement : qrPlacement;
+          const qrX = placement === 'TOP_RIGHT' ? 1080 - 220 - 40 : placement === 'TOP_LEFT' ? 40 : 1080 - 220 - 40;
+          const qrY = placement === 'BOTTOM_RIGHT' ? 1920 - 380 : 70;
           const w = 220;
           const h = 270;
           const r = 24;
@@ -2394,9 +2460,22 @@ export default function ShortsFormatterStudio() {
           ctx.font = '900 20px Inter, sans-serif';
           ctx.fillStyle = getHighlightColorConfig(highlightColor).hex;
           ctx.textAlign = 'center';
-          ctx.fillText('⚡ SCAN TO BUY', qrX + w / 2, qrY + 234);
+          const badgeText = (youtubeBurnQr && youtubeQrTarget === 'OPPORTUNITY_OS') ? '⚡ BLUEPRINT' : '⚡ SCAN TO BUY';
+          ctx.fillText(badgeText, qrX + w / 2, qrY + 234);
 
-          if (selectedProduct) {
+          const ytProd = youtubeSelectedProductId
+            ? products.find((p) => p.id === youtubeSelectedProductId) || selectedProduct
+            : selectedProduct;
+
+          if (youtubeBurnQr && youtubeQrTarget === 'PRODUCT' && ytProd) {
+            ctx.font = '700 16px Inter, sans-serif';
+            ctx.fillStyle = '#10B981';
+            ctx.fillText(`$${ytProd.price.toFixed(2)}`, qrX + w / 2, qrY + 256);
+          } else if (youtubeBurnQr && youtubeQrTarget === 'OPPORTUNITY_OS') {
+            ctx.font = '600 12px Inter, sans-serif';
+            ctx.fillStyle = '#94A3B8';
+            ctx.fillText('opportunity-system.com', qrX + w / 2, qrY + 254);
+          } else if (selectedProduct) {
             ctx.font = '700 16px Inter, sans-serif';
             ctx.fillStyle = '#10B981';
             ctx.fillText(`$${selectedProduct.price.toFixed(2)}`, qrX + w / 2, qrY + 256);
@@ -2404,8 +2483,11 @@ export default function ShortsFormatterStudio() {
           ctx.restore();
         }
 
-        // 4. Shoppable Product Drawer
-        if (showShoppableDrawer && selectedProduct) {
+        // 4. Shoppable Product Drawer (only if explicitly enabled for video burning)
+        const effectiveYtProduct = youtubeSelectedProductId
+          ? products.find((p) => p.id === youtubeSelectedProductId) || selectedProduct
+          : selectedProduct;
+        if (youtubeBurnDrawer && effectiveYtProduct) {
           const drawerY = 1920 - 200;
           const dx = 40;
           const dw = 1000;
@@ -2434,15 +2516,15 @@ export default function ShortsFormatterStudio() {
           ctx.fillStyle = '#FFFFFF';
           const maxTitleLen = 42;
           const titleText =
-            selectedProduct.title.length > maxTitleLen
-              ? selectedProduct.title.slice(0, maxTitleLen) + '...'
-              : selectedProduct.title;
+            effectiveYtProduct.title.length > maxTitleLen
+              ? effectiveYtProduct.title.slice(0, maxTitleLen) + '...'
+              : effectiveYtProduct.title;
           ctx.fillText(titleText, dx + 30, drawerY + 90);
 
           ctx.font = '800 36px Inter, sans-serif';
           ctx.fillStyle = '#10B981';
           ctx.textAlign = 'right';
-          ctx.fillText(`$${selectedProduct.price.toFixed(2)}`, dx + dw - 40, drawerY + 80);
+          ctx.fillText(`$${effectiveYtProduct.price.toFixed(2)}`, dx + dw - 40, drawerY + 80);
           ctx.restore();
         }
 
@@ -2473,9 +2555,14 @@ export default function ShortsFormatterStudio() {
     });
   };
 
-  // Helper to render static overlays (QR code badge and shoppable drawer) into a single 1080x1920 transparent PNG
+  // Helper to render static overlays for YouTube Shorts into a single 1080x1920 transparent PNG
   const renderStaticOverlayBlob = async (): Promise<Blob | undefined> => {
-    if (!showQrCode && (!showShoppableDrawer || !selectedProduct)) {
+    const ytProduct = youtubeSelectedProductId
+      ? products.find((p) => p.id === youtubeSelectedProductId) || selectedProduct
+      : selectedProduct;
+
+    // If both YouTube QR badge and YouTube product drawer are disabled, return undefined (100% clean video!)
+    if (!youtubeBurnQr && (!youtubeBurnDrawer || !ytProduct)) {
       return undefined;
     }
     const canvas = document.createElement('canvas');
@@ -2485,11 +2572,11 @@ export default function ShortsFormatterStudio() {
     if (!ctx) return undefined;
     ctx.clearRect(0, 0, 1080, 1920);
 
-    // 1. QR Code Badge
-    if (showQrCode && qrDataUrl) {
+    // 1. YouTube QR Code Badge
+    if (youtubeBurnQr && youtubeQrDataUrl) {
       try {
         const qrImg = new Image();
-        qrImg.src = qrDataUrl;
+        qrImg.src = youtubeQrDataUrl;
         await new Promise((res) => {
           if (qrImg.complete) res(true);
           else {
@@ -2498,8 +2585,8 @@ export default function ShortsFormatterStudio() {
           }
         });
 
-        const qrX = qrPlacement === 'TOP_RIGHT' ? 1080 - 220 - 40 : qrPlacement === 'TOP_LEFT' ? 40 : 1080 - 220 - 40;
-        const qrY = qrPlacement === 'BOTTOM_RIGHT' ? 1920 - 380 : 70;
+        const qrX = youtubeQrPlacement === 'TOP_RIGHT' ? 1080 - 220 - 40 : youtubeQrPlacement === 'TOP_LEFT' ? 40 : 1080 - 220 - 40;
+        const qrY = youtubeQrPlacement === 'BOTTOM_RIGHT' ? 1920 - 380 : 70;
         const w = 220;
         const h = 270;
         const r = 24;
@@ -2531,21 +2618,26 @@ export default function ShortsFormatterStudio() {
         ctx.font = '900 20px Inter, sans-serif';
         ctx.fillStyle = getHighlightColorConfig(highlightColor).hex;
         ctx.textAlign = 'center';
-        ctx.fillText('⚡ SCAN TO BUY', qrX + w / 2, qrY + 234);
+        const badgeLabel = youtubeQrTarget === 'OPPORTUNITY_OS' ? '⚡ BLUEPRINT' : '⚡ SCAN TO BUY';
+        ctx.fillText(badgeLabel, qrX + w / 2, qrY + 234);
 
-        if (selectedProduct) {
+        if (youtubeQrTarget === 'PRODUCT' && ytProduct) {
           ctx.font = '700 16px Inter, sans-serif';
           ctx.fillStyle = '#10B981';
-          ctx.fillText(`$${selectedProduct.price.toFixed(2)}`, qrX + w / 2, qrY + 256);
+          ctx.fillText(`$${ytProduct.price.toFixed(2)}`, qrX + w / 2, qrY + 256);
+        } else {
+          ctx.font = '600 12px Inter, sans-serif';
+          ctx.fillStyle = '#94A3B8';
+          ctx.fillText('opportunity-system.com', qrX + w / 2, qrY + 254);
         }
         ctx.restore();
       } catch (e) {
-        console.warn('QR overlay render error:', e);
+        console.warn('YouTube QR overlay render error:', e);
       }
     }
 
-    // 2. Shoppable Product Drawer
-    if (showShoppableDrawer && selectedProduct) {
+    // 2. YouTube Baked Lower-Third Drawer (ONLY if explicitly enabled)
+    if (youtubeBurnDrawer && ytProduct) {
       const drawerY = 1920 - 200;
       const dx = 40;
       const dw = 1000;
@@ -2574,15 +2666,15 @@ export default function ShortsFormatterStudio() {
       ctx.fillStyle = '#FFFFFF';
       const maxTitleLen = 42;
       const titleText =
-        selectedProduct.title.length > maxTitleLen
-          ? selectedProduct.title.slice(0, maxTitleLen) + '...'
-          : selectedProduct.title;
+        ytProduct.title.length > maxTitleLen
+          ? ytProduct.title.slice(0, maxTitleLen) + '...'
+          : ytProduct.title;
       ctx.fillText(titleText, dx + 30, drawerY + 90);
 
       ctx.font = '800 28px Inter, sans-serif';
       ctx.fillStyle = '#10B981';
       ctx.textAlign = 'right';
-      ctx.fillText(`$${selectedProduct.price.toFixed(2)}`, dx + dw - 30, drawerY + 80);
+      ctx.fillText(`$${ytProduct.price.toFixed(2)}`, dx + dw - 30, drawerY + 80);
       ctx.restore();
     }
 
@@ -2622,7 +2714,11 @@ export default function ShortsFormatterStudio() {
         console.warn('Thumbnail generation warning:', thumbErr);
       }
 
-      const fullDesc = videoDescription || `${editableTranscript.slice(0, 300)}...\n\n👉 Grab the Blueprint & Opportunity OS: https://opportunity-system.com/about\n⚡ Featured Product: ${selectedProduct?.title || 'Opportunity OS'}\n\n#Shorts #Programming #SoftwareEngineering #AI #TechCareers #OpportunityOS`;
+      const ytFeaturedProduct = youtubeSelectedProductId
+        ? products.find((p) => p.id === youtubeSelectedProductId)
+        : (youtubeBurnDrawer ? selectedProduct : null);
+
+      const fullDesc = videoDescription || `${editableTranscript.slice(0, 300)}...\n\n👉 Grab the Blueprint & Opportunity OS: https://opportunity-system.com/about${ytFeaturedProduct ? `\n⚡ Featured Product: ${ytFeaturedProduct.title}` : ''}\n\n#Shorts #Programming #SoftwareEngineering #AI #TechCareers #OpportunityOS`;
       const fullTitle = videoTitle ? (videoTitle.toLowerCase().includes('#shorts') ? videoTitle : `${videoTitle} #Shorts`) : (thumbnailTitle ? `${thumbnailTitle} #Shorts` : 'AI-Native Short #Shorts');
 
       // 3. Resolve video source: prioritize existing cloud video (e.g. published to About page or cloud storage)
@@ -3575,74 +3671,45 @@ export default function ShortsFormatterStudio() {
                 />
                 <span>ALL CAPS (High Impact)</span>
               </label>
+            </div>
+          </div>
+        )}
 
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: '#fff' }}>
+        {/* 🌐 Section 1: DigitPop Shoppable Video Player (Interactive Web Layer) */}
+        {videoUrl && (
+          <div className="surface-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ padding: '8px', borderRadius: '10px', background: 'rgba(56, 189, 248, 0.15)', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+                  <Globe size={18} color="#38BDF8" />
+                </div>
+                <div>
+                  <div style={{ fontSize: '15px', fontWeight: '800', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span>DigitPop Shoppable Player (On-Site & Embeds)</span>
+                    <span style={{ fontSize: '10px', background: 'rgba(56, 189, 248, 0.15)', color: '#38BDF8', padding: '2px 8px', borderRadius: '12px', border: '1px solid rgba(56, 189, 248, 0.3)', fontWeight: 700 }}>
+                      Interactive Web Layer
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    Configures live clickable multi-product carousel, drawer, and 1-Click checkout for your website and Opportunity OS About page.
+                  </div>
+                </div>
+              </div>
+
+              {/* Toggle Web Drawer */}
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: '#fff', background: 'rgba(255,255,255,0.04)', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
                 <input
                   type="checkbox"
                   checked={showShoppableDrawer}
                   onChange={(e) => setShowShoppableDrawer(e.target.checked)}
                 />
-                <span>Attach Shoppable Product Drawer</span>
-              </label>
-
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: '#fff' }}>
-                <input
-                  type="checkbox"
-                  checked={showQrCode}
-                  onChange={(e) => setShowQrCode(e.target.checked)}
-                />
-                <span>Include Shoppable QR Badge (Desktop/TV Shoppers)</span>
+                <span style={{ fontWeight: 600 }}>Enable Interactive Drawer</span>
               </label>
             </div>
 
-            {/* 4b. QR Code Customization Bar */}
-            {showQrCode && (
-              <div style={{ padding: '12px 14px', borderRadius: 'var(--radius-sm)', background: 'rgba(0,0,0,0.35)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--accent-cyan)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <QrCode size={14} />
-                    <span>Shoppable QR Badge (Multi-Device Conversion)</span>
-                  </div>
-                  {qrDataUrl && (
-                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                      Target: {selectedProduct ? selectedProduct.title : 'opportunity-system.com'}
-                    </span>
-                  )}
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '14px', alignItems: 'center' }}>
-                  {qrDataUrl && (
-                    <div style={{ background: '#fff', padding: '4px', borderRadius: '6px', width: 'fit-content', boxShadow: '0 2px 8px rgba(0,0,0,0.5)' }}>
-                      <img src={qrDataUrl} alt="QR Preview" style={{ width: '44px', height: '44px', display: 'block' }} />
-                    </div>
-                  )}
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Overlay Position:</div>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      {[
-                        { key: 'TOP_RIGHT', label: 'Top Right (Recommended)' },
-                        { key: 'BOTTOM_RIGHT', label: 'Bottom Right' },
-                        { key: 'TOP_LEFT', label: 'Top Left' },
-                      ].map((pos) => (
-                        <button
-                          key={pos.key}
-                          onClick={() => setQrPlacement(pos.key as QrPlacement)}
-                          className={`btn ${qrPlacement === pos.key ? 'btn--primary' : 'btn--outline'}`}
-                          style={{ padding: '4px 10px', fontSize: '11px' }}
-                        >
-                          {pos.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* 5. Two-Tier Shoppable Product Configuration (Hero Carousel + Full Tap-to-Reveal Tray) */}
-            {showShoppableDrawer && (
-              <div style={{ marginTop: '8px', padding: '16px', borderRadius: 'var(--radius-md)', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            {/* Shoppable Hero Carousel & Catalog Configuration */}
+            {showShoppableDrawer ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', paddingTop: '10px', borderTop: '1px solid var(--border-color)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <ShoppingBag size={16} color="var(--accent-amber)" />
@@ -3893,6 +3960,10 @@ export default function ShortsFormatterStudio() {
                   </div>
                 )}
               </div>
+            ) : (
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.02)', padding: '12px 14px', borderRadius: '8px', border: '1px dashed rgba(255,255,255,0.1)' }}>
+                ℹ️ Interactive shoppable product drawer is currently disabled for this video on the web player.
+              </div>
             )}
 
             {/* 📦 Full Product Catalog Manager Modal (Eliminates main-screen clutter) */}
@@ -4102,6 +4173,182 @@ export default function ShortsFormatterStudio() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* 📺 Section 2: YouTube Shorts Video Overlays & Merchandising (Baked Pixels) */}
+        {videoUrl && (
+          <div className="surface-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', border: '1px solid rgba(255, 68, 68, 0.3)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ padding: '8px', borderRadius: '10px', background: 'rgba(255, 68, 68, 0.15)', border: '1px solid rgba(255, 68, 68, 0.3)' }}>
+                  <Youtube size={18} color="#FF4444" />
+                </div>
+                <div>
+                  <div style={{ fontSize: '15px', fontWeight: '800', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span>YouTube Shorts Video Overlays & Merchandising</span>
+                    <span style={{ fontSize: '10px', background: 'rgba(255, 68, 68, 0.15)', color: '#FF6B6B', padding: '2px 8px', borderRadius: '12px', border: '1px solid rgba(255, 68, 68, 0.3)', fontWeight: 700 }}>
+                      Baked MP4 Pixels
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    Configures visual badges permanently burned into the 1080×1920 MP4 video file for YouTube.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Sub-Card A: YouTube QR Code Badge */}
+            <div style={{ padding: '14px 16px', borderRadius: 'var(--radius-sm)', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: '#fff', fontWeight: 700 }}>
+                  <input
+                    type="checkbox"
+                    checked={youtubeBurnQr}
+                    onChange={(e) => setYoutubeBurnQr(e.target.checked)}
+                  />
+                  <QrCode size={15} color="var(--accent-cyan)" />
+                  <span>Burn QR Code Badge into YouTube Video</span>
+                </label>
+                {youtubeBurnQr && (
+                  <span style={{ fontSize: '11px', color: '#10B981', fontWeight: 600 }}>
+                    Active on MP4 Render
+                  </span>
+                )}
+              </div>
+
+              {youtubeBurnQr && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '16px', alignItems: 'center', paddingTop: '4px' }}>
+                  {youtubeQrDataUrl && (
+                    <div style={{ background: '#fff', padding: '5px', borderRadius: '8px', width: 'fit-content', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>
+                      <img src={youtubeQrDataUrl} alt="YouTube QR Preview" style={{ width: '64px', height: '64px', display: 'block' }} />
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {/* Destination Selector */}
+                    <div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '4px', fontWeight: 600 }}>
+                        QR Destination Link:
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        {[
+                          { key: 'OPPORTUNITY_OS', label: '🚀 Opportunity OS Blueprint (Recommended)' },
+                          { key: 'PRODUCT', label: '🛍️ Featured Product Link' },
+                          { key: 'CUSTOM', label: '🔗 Custom URL' },
+                        ].map((target) => (
+                          <button
+                            key={target.key}
+                            type="button"
+                            onClick={() => setYoutubeQrTarget(target.key as any)}
+                            className={`btn ${youtubeQrTarget === target.key ? 'btn--primary' : 'btn--outline'}`}
+                            style={{ padding: '4px 10px', fontSize: '11px' }}
+                          >
+                            {target.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Custom URL Input if selected */}
+                    {youtubeQrTarget === 'CUSTOM' && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <input
+                          type="url"
+                          placeholder="https://..."
+                          value={youtubeCustomQrUrl}
+                          onChange={(e) => setYoutubeCustomQrUrl(e.target.value)}
+                          style={{
+                            flex: 1,
+                            padding: '6px 10px',
+                            fontSize: '12px',
+                            background: 'rgba(0,0,0,0.4)',
+                            border: '1px solid var(--border-color)',
+                            borderRadius: '6px',
+                            color: '#fff',
+                          }}
+                        />
+                      </div>
+                    )}
+
+                    {/* Placement Buttons */}
+                    <div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '4px', fontWeight: 600 }}>
+                        Overlay Position:
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        {[
+                          { key: 'TOP_RIGHT', label: 'Top Right (Recommended)' },
+                          { key: 'BOTTOM_RIGHT', label: 'Bottom Right' },
+                          { key: 'TOP_LEFT', label: 'Top Left' },
+                        ].map((pos) => (
+                          <button
+                            key={pos.key}
+                            type="button"
+                            onClick={() => setYoutubeQrPlacement(pos.key as QrPlacement)}
+                            className={`btn ${youtubeQrPlacement === pos.key ? 'btn--primary' : 'btn--outline'}`}
+                            style={{ padding: '4px 10px', fontSize: '11px' }}
+                          >
+                            {pos.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Sub-Card B: YouTube Baked Lower-Third Product Badge */}
+            <div style={{ padding: '14px 16px', borderRadius: 'var(--radius-sm)', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: '#fff', fontWeight: 700 }}>
+                  <input
+                    type="checkbox"
+                    checked={youtubeBurnDrawer}
+                    onChange={(e) => setYoutubeBurnDrawer(e.target.checked)}
+                  />
+                  <ShoppingBag size={15} color="var(--accent-amber)" />
+                  <span>Burn "Featured in Clip" Lower-Third Badge</span>
+                </label>
+                <span style={{ fontSize: '11px', color: youtubeBurnDrawer ? 'var(--accent-amber)' : 'var(--text-muted)', fontWeight: 600 }}>
+                  {youtubeBurnDrawer ? 'Burned into MP4 Bottom' : 'Disabled (Clean Video Mode)'}
+                </span>
+              </div>
+
+              {youtubeBurnDrawer ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', paddingTop: '4px' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                    Choose the exact product to permanently stamp onto your YouTube Short:
+                  </div>
+
+                  <select
+                    value={youtubeSelectedProductId || selectedProduct?.id || ''}
+                    onChange={(e) => setYoutubeSelectedProductId(e.target.value)}
+                    style={{
+                      padding: '8px 12px',
+                      background: 'rgba(0,0,0,0.4)',
+                      border: '1px solid rgba(255, 184, 0, 0.4)',
+                      borderRadius: '8px',
+                      color: '#fff',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {products.map((p) => (
+                      <option key={p.id} value={p.id} style={{ background: '#1E293B', color: '#fff' }}>
+                        {p.title} (${p.price.toFixed(2)})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.03)', padding: '8px 12px', borderRadius: '6px', border: '1px dashed rgba(255,255,255,0.1)' }}>
+                  ✨ <strong>Clean Video Mode:</strong> No static product lower-third drawer will be stamped into your YouTube Short. Only kinetic subtitles and/or QR badge will render.
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -6152,15 +6399,15 @@ export default function ShortsFormatterStudio() {
               )}
 
               {/* QR Code Overlay Badge for Multi-Device & Desktop Conversion */}
-              {showQrCode && qrDataUrl && (
+              {((youtubeBurnQr && youtubeQrDataUrl) || (showQrCode && qrDataUrl)) && (
                 <div
                   style={{
                     position: 'absolute',
-                    ...(qrPlacement === 'TOP_RIGHT'
+                    ...((youtubeBurnQr ? youtubeQrPlacement : qrPlacement) === 'TOP_RIGHT'
                       ? { top: '24px', right: '14px' }
-                      : qrPlacement === 'TOP_LEFT'
+                      : (youtubeBurnQr ? youtubeQrPlacement : qrPlacement) === 'TOP_LEFT'
                       ? { top: '24px', left: '14px' }
-                      : { bottom: showShoppableDrawer && selectedProduct ? '88px' : '20px', right: '14px' }),
+                      : { bottom: (showShoppableDrawer && (currentHeroProduct || selectedProduct)) ? '88px' : '20px', right: '14px' }),
                     background: 'rgba(0, 0, 0, 0.85)',
                     backdropFilter: 'blur(12px)',
                     padding: '6px 8px',
@@ -6178,19 +6425,23 @@ export default function ShortsFormatterStudio() {
                 >
                   <div style={{ background: '#fff', padding: '3px', borderRadius: '6px', display: 'flex' }}>
                     <img
-                      src={qrDataUrl}
-                      alt="Scan to Buy"
+                      src={youtubeBurnQr && youtubeQrDataUrl ? youtubeQrDataUrl : qrDataUrl}
+                      alt="QR Badge"
                       style={{ width: '56px', height: '56px', display: 'block', borderRadius: '3px' }}
                     />
                   </div>
                   <span style={{ fontSize: '8px', fontWeight: 900, color: getHighlightColorConfig(highlightColor).hex, letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-                    ⚡ Scan to Buy
+                    {youtubeBurnQr ? (youtubeQrTarget === 'OPPORTUNITY_OS' ? '⚡ BLUEPRINT' : '⚡ SCAN TO BUY') : '⚡ SCAN TO BUY'}
                   </span>
-                  {selectedProduct && (
+                  {youtubeBurnQr && youtubeQrTarget === 'PRODUCT' && (products.find((p) => p.id === youtubeSelectedProductId) || selectedProduct) ? (
+                    <span style={{ fontSize: '8px', fontWeight: 700, color: '#10b981' }}>
+                      ${(products.find((p) => p.id === youtubeSelectedProductId) || selectedProduct)!.price.toFixed(2)}
+                    </span>
+                  ) : selectedProduct && !youtubeBurnQr ? (
                     <span style={{ fontSize: '8px', fontWeight: 700, color: '#10b981' }}>
                       ${selectedProduct.price.toFixed(2)}
                     </span>
-                  )}
+                  ) : null}
                 </div>
               )}
 

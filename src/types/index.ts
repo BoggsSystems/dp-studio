@@ -192,6 +192,12 @@ export interface FormattedShortProject {
   showQrCode: boolean;
   qrPlacement: string;
   qrCustomUrl: string;
+  youtubeBurnQr?: boolean;
+  youtubeQrTarget?: 'OPPORTUNITY_OS' | 'PRODUCT' | 'CUSTOM';
+  youtubeQrPlacement?: string;
+  youtubeCustomQrUrl?: string;
+  youtubeBurnDrawer?: boolean;
+  youtubeSelectedProductId?: string | null;
   productId?: string;
   productTitle?: string;
   productPrice?: number;
