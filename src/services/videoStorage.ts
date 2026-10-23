@@ -183,11 +183,18 @@ export async function saveShortDraftToCloud(
         : 'https://digitpop.opportunity-system.com')
     ).replace(/\/+$/, '');
 
-    let videoUrl = short.videoUrl;
+    let videoUrl = short.videoUrl || (short as any).cloudVideoUrl;
     let thumbnailUrl = short.thumbnailUrl;
 
-    // Presigned upload if video blob is present AND videoUrl is not already a hosted cloud URL
-    const needsVideoUpload = videoBlob && (!videoUrl || videoUrl.startsWith('blob:') || videoUrl.startsWith('data:'));
+    const isCloudVideoUrl = Boolean(
+      videoUrl &&
+      (videoUrl.startsWith('http://') || videoUrl.startsWith('https://')) &&
+      !videoUrl.startsWith('blob:') &&
+      !videoUrl.startsWith('data:')
+    );
+
+    // Presigned upload ONLY if video blob is present AND video is NOT already hosted on cloud
+    const needsVideoUpload = Boolean(videoBlob && !isCloudVideoUrl);
     if (needsVideoUpload && videoBlob) {
       try {
         const presignRes = await fetch(
@@ -369,8 +376,17 @@ export async function saveShortProject(
     // 0. Remove from deleted blacklist if user explicitly saves or updates it
     removeDeletedShortId(short.id);
 
-    // 1. If video blob provided, store video in IndexedDB under short_video_<id>
-    if (videoBlob) {
+    // Check if the short's video is already hosted on cloud
+    const cloudUrl = short.videoUrl || (short as any).cloudVideoUrl;
+    const isCloudVideoUrl = Boolean(
+      cloudUrl &&
+      (cloudUrl.startsWith('http://') || cloudUrl.startsWith('https://')) &&
+      !cloudUrl.startsWith('blob:') &&
+      !cloudUrl.startsWith('data:')
+    );
+
+    // 1. If video blob provided and NOT already on cloud, store video in IndexedDB under short_video_<id>
+    if (videoBlob && !isCloudVideoUrl) {
       const db = await openDB();
       const tx = db.transaction(STORE_NAME, 'readwrite');
       tx.objectStore(STORE_NAME).put(
@@ -408,9 +424,9 @@ export async function saveShortProject(
     }
     localStorage.setItem(SHORTS_LIBRARY_KEY, JSON.stringify(list));
 
-    // 3. Sync draft to PostgreSQL cloud database
+    // 3. Sync draft to PostgreSQL cloud database (skip videoBlob upload if already hosted)
     try {
-      await saveShortDraftToCloud(short, videoBlob);
+      await saveShortDraftToCloud(short, isCloudVideoUrl ? undefined : videoBlob);
     } catch (cloudErr) {
       console.warn('Cloud draft sync warning:', cloudErr);
     }

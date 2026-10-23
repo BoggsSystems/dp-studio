@@ -775,6 +775,12 @@ export default function ShortsFormatterStudio() {
           if (draft.cloudVideoUrl || (draft.videoUrl && !draft.videoUrl.startsWith('blob:'))) {
             const remoteUrl = draft.cloudVideoUrl || draft.videoUrl;
             setCloudVideoUrl(remoteUrl);
+          } else if (draft.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(draft.id)) {
+            api.getProject(draft.id).then((cloudProj) => {
+              if (cloudProj?.masterVodUrl && !isCancelled) {
+                setCloudVideoUrl(cloudProj.masterVodUrl);
+              }
+            }).catch(() => {});
           }
         }
 
@@ -1624,7 +1630,8 @@ export default function ShortsFormatterStudio() {
       localStorage.setItem('digitpop_shorts_formatter_draft_v1', JSON.stringify(activeDraft));
     } catch (e) {}
 
-    await saveShortProject(shortProject, videoFile || undefined);
+    const blobToUpload = persistentCloudUrl ? undefined : (videoFile || undefined);
+    await saveShortProject(shortProject, blobToUpload);
     setSaveSuccessMsg('💾 Saved to Shorts Library!');
     setTimeout(() => setSaveSuccessMsg(null), 3000);
   };
@@ -2888,7 +2895,8 @@ export default function ShortsFormatterStudio() {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
-        await saveShortProject(shortRecord, videoFile || undefined);
+        const persistentCloudUrl = cloudVideoUrl || (videoUrl && !videoUrl.startsWith('blob:') ? videoUrl : undefined);
+        await saveShortProject(shortRecord, persistentCloudUrl ? undefined : (videoFile || undefined));
       } catch (e) {}
     } catch (err: any) {
       console.error('Direct YouTube publish failed:', err);
