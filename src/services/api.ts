@@ -658,12 +658,26 @@ export const api = {
     }
     formData.append('privacy', payload.privacy || 'public');
 
-    if (onProgress) onProgress({ stage: 'RENDERING_SERVER', percent: 50, message: 'FFmpeg encoding with CFR 30fps and burning kinetic subtitles...' });
+    if (onProgress) onProgress({ stage: 'RENDERING_SERVER', percent: 50, message: 'Server FFmpeg encoding 1080x1920 Short and burning subtitles...' });
 
-    const response = await fetch(`${API_BASE_URL}/api/social/publish/youtube-rendered`, {
-      method: 'POST',
-      body: formData,
-    });
+    // Active visual ticker so the progress bar continuously advances while the server renders
+    let currentPct = 50;
+    const progressTimer = setInterval(() => {
+      if (currentPct < 92 && onProgress) {
+        currentPct += currentPct < 75 ? 4 : 2;
+        onProgress({ stage: 'RENDERING_SERVER', percent: currentPct, message: 'Server FFmpeg encoding and streaming to YouTube...' });
+      }
+    }, 1200);
+
+    let response: Response;
+    try {
+      response = await fetch(`${API_BASE_URL}/api/social/publish/youtube-rendered`, {
+        method: 'POST',
+        body: formData,
+      });
+    } finally {
+      clearInterval(progressTimer);
+    }
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({ message: 'Server render and YouTube upload failed' }));
