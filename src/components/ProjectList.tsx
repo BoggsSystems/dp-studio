@@ -56,10 +56,21 @@ export default function ProjectList({
   const handleOpenShortInStudio = async (short: FormattedShortProject) => {
     try {
       const full = await getShortProject(short.id);
-      await loadShortProjectIntoActiveDraft(short, full?.blob);
-    } catch (e) {}
-    if (onOpenShort) {
-      onOpenShort(short);
+      const effectiveShort = full?.project
+        ? {
+            ...short,
+            ...full.project,
+            youtubeSelectedProductId: full.project.youtubeSelectedProductId || short.youtubeSelectedProductId || null,
+          }
+        : short;
+      await loadShortProjectIntoActiveDraft(effectiveShort, full?.blob);
+      if (onOpenShort) {
+        onOpenShort(effectiveShort);
+      }
+    } catch (e) {
+      if (onOpenShort) {
+        onOpenShort(short);
+      }
     }
   };
 
