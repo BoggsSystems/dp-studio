@@ -775,10 +775,20 @@ export default function ShortsFormatterStudio() {
           if (draft.cloudVideoUrl || (draft.videoUrl && !draft.videoUrl.startsWith('blob:'))) {
             const remoteUrl = draft.cloudVideoUrl || draft.videoUrl;
             setCloudVideoUrl(remoteUrl);
-          } else if (draft.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(draft.id)) {
+          }
+          if (draft.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(draft.id)) {
             api.getProject(draft.id).then((cloudProj) => {
-              if (cloudProj?.masterVodUrl && !isCancelled) {
-                setCloudVideoUrl(cloudProj.masterVodUrl);
+              if (cloudProj && !isCancelled) {
+                if (cloudProj.masterVodUrl && !draft.cloudVideoUrl) {
+                  setCloudVideoUrl(cloudProj.masterVodUrl);
+                }
+                const cloudMeta = (cloudProj.metadata as any) || {};
+                if (cloudMeta.youtubeSelectedProductId && !draft.youtubeSelectedProductId) {
+                  setYoutubeSelectedProductId(cloudMeta.youtubeSelectedProductId);
+                }
+                if (cloudMeta.productId && !draft.selectedProductId && !draft.productId) {
+                  setSavedProductId(cloudMeta.productId);
+                }
               }
             }).catch(() => {});
           }
