@@ -176,10 +176,6 @@ export async function saveShortDraftToCloud(
   thumbBlob?: Blob
 ): Promise<{ success: boolean; shortId?: string; videoUrl?: string; thumbnailUrl?: string }> {
   try {
-    if (short.status === 'PUBLISHED') {
-      return { success: true, shortId: short.id, videoUrl: short.videoUrl, thumbnailUrl: short.thumbnailUrl };
-    }
-
     const apiBase = (
       (import.meta as any).env?.VITE_API_URL ||
       (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
@@ -190,8 +186,9 @@ export async function saveShortDraftToCloud(
     let videoUrl = short.videoUrl;
     let thumbnailUrl = short.thumbnailUrl;
 
-    // Direct presigned upload if video blob is present
-    if (videoBlob) {
+    // Presigned upload if video blob is present AND videoUrl is not already a hosted cloud URL
+    const needsVideoUpload = videoBlob && (!videoUrl || videoUrl.startsWith('blob:') || videoUrl.startsWith('data:'));
+    if (needsVideoUpload && videoBlob) {
       try {
         const presignRes = await fetch(
           `${apiBase}/api/publisher/shorts/presigned-url?shortId=${encodeURIComponent(short.id)}&fileType=video&creatorSlug=opportunity-system`
@@ -411,11 +408,11 @@ export async function saveShortProject(
     }
     localStorage.setItem(SHORTS_LIBRARY_KEY, JSON.stringify(list));
 
-    // 3. Background sync draft to PostgreSQL cloud database (only for non-published drafts)
-    if (short.status !== 'PUBLISHED') {
-      saveShortDraftToCloud(short, videoBlob).catch((cloudErr) => {
-        console.warn('Cloud draft background sync warning:', cloudErr);
-      });
+    // 3. Sync draft to PostgreSQL cloud database
+    try {
+      await saveShortDraftToCloud(short, videoBlob);
+    } catch (cloudErr) {
+      console.warn('Cloud draft sync warning:', cloudErr);
     }
   } catch (err) {
     console.warn('Failed to save short project:', err);
@@ -473,7 +470,18 @@ export function getAllShortProjects(): FormattedShortProject[] {
 export async function getShortProject(id: string): Promise<{ project: FormattedShortProject; blob: Blob | null } | null> {
   try {
     const list = getAllShortProjects();
-    const found = list.find((item) => item.id === id);
+    let found = list.find((item) => item.id === id || item.clientShortId === id);
+    if (!found) {
+      const activeDraftRaw = localStorage.getItem('digitpop_shorts_formatter_draft_v1');
+      if (activeDraftRaw) {
+        try {
+          const draft = JSON.parse(activeDraftRaw);
+          if (draft.id === id || draft.clientShortId === id) {
+            found = draft;
+          }
+        } catch (e) {}
+      }
+    }
     if (!found) return null;
 
     let blob: Blob | null = null;

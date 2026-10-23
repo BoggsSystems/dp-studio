@@ -3391,7 +3391,7 @@ export default function ShortsFormatterStudio() {
                 Transform raw recordings into polished 9:16 Shorts with bouncing animated subtitles, viral hooks, and shoppable 1-click checkout.
               </div>
             </div>
-            {videoFile && (
+            {(videoFile || videoUrl || cloudVideoUrl) && (
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                 {saveSuccessMsg && (
                   <span style={{ fontSize: '12px', color: '#10B981', fontWeight: 600 }}>
@@ -3416,7 +3416,7 @@ export default function ShortsFormatterStudio() {
                 </button>
                 <button
                   onClick={() => videoFile && runTranscription(videoFile)}
-                  disabled={isTranscribing}
+                  disabled={isTranscribing || !videoFile}
                   className="btn btn--primary"
                   style={{ padding: '6px 14px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
                 >

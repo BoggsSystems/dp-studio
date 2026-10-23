@@ -50,7 +50,36 @@ export default function SavedShortsManager({ onOpenInStudio, onNewShort }: Saved
         const cloudClientIds = new Set(cloudList.map((c) => c.clientShortId).filter(Boolean));
         const cloudTitles = new Set(cloudList.map((c) => (c.title || '').trim().toLowerCase()));
 
-        // Keep only local drafts that do NOT exist in the cloud library
+        // Map local items by ID for smart merge
+        const localMap = new Map<string, FormattedShortProject>();
+        for (const local of localList) {
+          if (local?.id) localMap.set(local.id, local);
+          if (local?.clientShortId) localMap.set(local.clientShortId, local);
+        }
+
+        // Merge cloud items with newer local metadata (e.g. recent product selections)
+        const mergedCloud = cloudList.map((cloud) => {
+          const local = localMap.get(cloud.id) || (cloud.clientShortId ? localMap.get(cloud.clientShortId) : undefined);
+          if (local) {
+            return {
+              ...cloud,
+              youtubeSelectedProductId: local.youtubeSelectedProductId !== undefined && local.youtubeSelectedProductId !== null
+                ? local.youtubeSelectedProductId
+                : cloud.youtubeSelectedProductId,
+              youtubeBurnQr: local.youtubeBurnQr !== undefined ? local.youtubeBurnQr : cloud.youtubeBurnQr,
+              youtubeQrTarget: local.youtubeQrTarget || cloud.youtubeQrTarget,
+              youtubeQrPlacement: local.youtubeQrPlacement || cloud.youtubeQrPlacement,
+              youtubeCustomQrUrl: local.youtubeCustomQrUrl || cloud.youtubeCustomQrUrl,
+              youtubeBurnDrawer: local.youtubeBurnDrawer !== undefined ? local.youtubeBurnDrawer : cloud.youtubeBurnDrawer,
+              productId: local.productId || cloud.productId,
+              productTitle: local.productTitle || cloud.productTitle,
+              productPrice: local.productPrice !== undefined ? local.productPrice : cloud.productPrice,
+            };
+          }
+          return cloud;
+        });
+
+        // Keep local drafts that do NOT exist in the cloud library
         const uniqueLocal = localList.filter((local) => {
           if (!local || !local.id) return false;
           if (cloudIds.has(local.id)) return false;
@@ -61,12 +90,7 @@ export default function SavedShortsManager({ onOpenInStudio, onNewShort }: Saved
           return true;
         });
 
-        // Clean up stale local storage so duplicate drafts are permanently eliminated
-        if (uniqueLocal.length !== localList.length) {
-          localStorage.setItem('digitpop_saved_shorts_library_v1', JSON.stringify(uniqueLocal));
-        }
-
-        const merged = [...cloudList, ...uniqueLocal].sort((a, b) => {
+        const merged = [...mergedCloud, ...uniqueLocal].sort((a, b) => {
           const tA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
           const tB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
           return tB - tA;
@@ -100,8 +124,15 @@ export default function SavedShortsManager({ onOpenInStudio, onNewShort }: Saved
     setLoadingId(short.id);
     try {
       const full = await getShortProject(short.id);
-      await loadShortProjectIntoActiveDraft(short, full?.blob);
-      onOpenInStudio(short);
+      const effectiveShort = full?.project
+        ? {
+            ...short,
+            ...full.project,
+            youtubeSelectedProductId: full.project.youtubeSelectedProductId || short.youtubeSelectedProductId || null,
+          }
+        : short;
+      await loadShortProjectIntoActiveDraft(effectiveShort, full?.blob);
+      onOpenInStudio(effectiveShort);
     } catch (e) {
       console.error('Failed to load short into studio:', e);
       onOpenInStudio(short);
