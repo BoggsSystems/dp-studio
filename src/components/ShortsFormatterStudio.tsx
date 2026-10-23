@@ -599,6 +599,8 @@ export default function ShortsFormatterStudio() {
   const [youtubeQrDataUrl, setYoutubeQrDataUrl] = useState<string>('');
   const [youtubeBurnDrawer, setYoutubeBurnDrawer] = useState<boolean>(false);
   const [youtubeSelectedProductId, setYoutubeSelectedProductId] = useState<string | null>(null);
+  const [isYoutubeProductPickerOpen, setIsYoutubeProductPickerOpen] = useState<boolean>(false);
+  const [youtubeProductSearchQuery, setYoutubeProductSearchQuery] = useState<string>('');
 
   // AI Title & Description Studio State
   const [videoTitle, setVideoTitle] = useState<string>('');
@@ -1156,15 +1158,21 @@ export default function ShortsFormatterStudio() {
       });
   }, [currentHeroProduct, selectedProduct, qrCustomUrl]);
 
+  // Active product selected specifically for YouTube Shorts overlays
+  const youtubeProduct = useMemo<Product | null>(() => {
+    if (youtubeSelectedProductId) {
+      return products.find((p) => p.id === youtubeSelectedProductId) || null;
+    }
+    return null;
+  }, [youtubeSelectedProductId, products]);
+
   // Generate YouTube Shorts dedicated QR Code data URL dynamically
   useEffect(() => {
     let targetUrl = 'https://opportunity-system.com/about';
     if (youtubeQrTarget === 'OPPORTUNITY_OS') {
       targetUrl = 'https://opportunity-system.com/about';
     } else if (youtubeQrTarget === 'PRODUCT') {
-      const ytProd = youtubeSelectedProductId
-        ? products.find((p) => p.id === youtubeSelectedProductId) || selectedProduct
-        : selectedProduct;
+      const ytProd = youtubeProduct || selectedProduct;
       targetUrl = ytProd?.externalUrl || 'https://opportunity-system.com/about';
     } else if (youtubeQrTarget === 'CUSTOM') {
       targetUrl = youtubeCustomQrUrl || 'https://opportunity-system.com/about';
@@ -1184,7 +1192,7 @@ export default function ShortsFormatterStudio() {
       .catch((err) => {
         console.error('YouTube QR code generation error:', err);
       });
-  }, [youtubeQrTarget, youtubeSelectedProductId, selectedProduct, youtubeCustomQrUrl, products]);
+  }, [youtubeQrTarget, youtubeProduct, selectedProduct, youtubeCustomQrUrl]);
 
   // Transcription trigger function
   const runTranscription = async (fileToProcess: File) => {
@@ -2557,9 +2565,7 @@ export default function ShortsFormatterStudio() {
 
   // Helper to render static overlays for YouTube Shorts into a single 1080x1920 transparent PNG
   const renderStaticOverlayBlob = async (): Promise<Blob | undefined> => {
-    const ytProduct = youtubeSelectedProductId
-      ? products.find((p) => p.id === youtubeSelectedProductId) || selectedProduct
-      : selectedProduct;
+    const ytProduct = youtubeProduct || selectedProduct;
 
     // If both YouTube QR badge and YouTube product drawer are disabled, return undefined (100% clean video!)
     if (!youtubeBurnQr && (!youtubeBurnDrawer || !ytProduct)) {
@@ -2714,9 +2720,7 @@ export default function ShortsFormatterStudio() {
         console.warn('Thumbnail generation warning:', thumbErr);
       }
 
-      const ytFeaturedProduct = youtubeSelectedProductId
-        ? products.find((p) => p.id === youtubeSelectedProductId)
-        : (youtubeBurnDrawer ? selectedProduct : null);
+      const ytFeaturedProduct = youtubeProduct || (youtubeBurnDrawer ? selectedProduct : null);
 
       const fullDesc = videoDescription || `${editableTranscript.slice(0, 300)}...\n\n👉 Grab the Blueprint & Opportunity OS: https://opportunity-system.com/about${ytFeaturedProduct ? `\n⚡ Featured Product: ${ytFeaturedProduct.title}` : ''}\n\n#Shorts #Programming #SoftwareEngineering #AI #TechCareers #OpportunityOS`;
       const fullTitle = videoTitle ? (videoTitle.toLowerCase().includes('#shorts') ? videoTitle : `${videoTitle} #Shorts`) : (thumbnailTitle ? `${thumbnailTitle} #Shorts` : 'AI-Native Short #Shorts');
@@ -4198,6 +4202,143 @@ export default function ShortsFormatterStudio() {
               </div>
             </div>
 
+            {/* 📦 Dedicated YouTube Featured Product Selector */}
+            <div style={{ padding: '14px 16px', borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <ShoppingBag size={15} color="var(--accent-amber)" />
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: '#fff' }}>
+                    Featured YouTube Product
+                  </span>
+                  <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                    (Drives QR product link, lower-third badge, and video description)
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsYoutubeProductPickerOpen(true)}
+                  className="btn btn--outline"
+                  style={{
+                    padding: '5px 12px',
+                    fontSize: '11px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    borderRadius: '6px',
+                    borderColor: 'rgba(255, 184, 0, 0.4)',
+                    color: 'var(--accent-amber)',
+                    background: 'rgba(255, 184, 0, 0.08)',
+                  }}
+                >
+                  <Plus size={13} />
+                  <span>{youtubeProduct ? 'Change Product from Catalog' : 'Select Product from Catalog'}</span>
+                </button>
+              </div>
+
+              {youtubeProduct ? (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '12px',
+                    padding: '10px 14px',
+                    background: 'rgba(0,0,0,0.3)',
+                    border: '1px solid rgba(255, 184, 0, 0.3)',
+                    borderRadius: '8px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+                    {youtubeProduct.imageUrl && (
+                      <img
+                        src={youtubeProduct.imageUrl}
+                        alt={youtubeProduct.title}
+                        style={{ width: '44px', height: '44px', borderRadius: '8px', objectFit: 'cover', flexShrink: 0 }}
+                      />
+                    )}
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: '13px', fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                        {youtubeProduct.title}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
+                        <span style={{ fontSize: '12px', color: 'var(--accent-emerald)', fontWeight: 800 }}>
+                          ${youtubeProduct.price.toFixed(2)}
+                        </span>
+                        {youtubeProduct.externalUrl && (
+                          <a
+                            href={youtubeProduct.externalUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ fontSize: '11px', color: '#38BDF8', display: 'flex', alignItems: 'center', gap: '3px', textDecoration: 'none' }}
+                          >
+                            <span>Store Link</span>
+                            <ExternalLink size={10} />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setIsYoutubeProductPickerOpen(true)}
+                      className="btn btn--outline"
+                      style={{ padding: '4px 10px', fontSize: '11px' }}
+                    >
+                      Change
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setYoutubeSelectedProductId(null);
+                        if (youtubeQrTarget === 'PRODUCT') setYoutubeQrTarget('OPPORTUNITY_OS');
+                      }}
+                      title="Clear product selection"
+                      style={{
+                        background: 'rgba(255,255,255,0.06)',
+                        border: 'none',
+                        borderRadius: '6px',
+                        padding: '5px 8px',
+                        color: 'var(--text-muted)',
+                        cursor: 'pointer',
+                        fontSize: '11px',
+                      }}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  style={{
+                    padding: '12px 14px',
+                    borderRadius: '8px',
+                    border: '1px dashed rgba(255,255,255,0.12)',
+                    background: 'rgba(255,255,255,0.02)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '10px',
+                  }}
+                >
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                    No product selected from catalog. YouTube QR defaults to Opportunity OS Blueprint.
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsYoutubeProductPickerOpen(true)}
+                    className="btn btn--primary"
+                    style={{ padding: '5px 12px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                  >
+                    <Plus size={13} />
+                    <span>Choose Product</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
             {/* Sub-Card A: YouTube QR Code Badge */}
             <div style={{ padding: '14px 16px', borderRadius: 'var(--radius-sm)', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -4240,7 +4381,12 @@ export default function ShortsFormatterStudio() {
                           <button
                             key={target.key}
                             type="button"
-                            onClick={() => setYoutubeQrTarget(target.key as any)}
+                            onClick={() => {
+                              setYoutubeQrTarget(target.key as any);
+                              if (target.key === 'PRODUCT' && !youtubeProduct) {
+                                setIsYoutubeProductPickerOpen(true);
+                              }
+                            }}
                             className={`btn ${youtubeQrTarget === target.key ? 'btn--primary' : 'btn--outline'}`}
                             style={{ padding: '4px 10px', fontSize: '11px' }}
                           >
@@ -4249,6 +4395,36 @@ export default function ShortsFormatterStudio() {
                         ))}
                       </div>
                     </div>
+
+                    {/* Product Target Preview/Selector */}
+                    {youtubeQrTarget === 'PRODUCT' && (
+                      <div style={{ padding: '8px 12px', borderRadius: '6px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                        {youtubeProduct ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                            {youtubeProduct.imageUrl && (
+                              <img src={youtubeProduct.imageUrl} alt={youtubeProduct.title} style={{ width: '28px', height: '28px', borderRadius: '4px', objectFit: 'cover' }} />
+                            )}
+                            <div style={{ fontSize: '11px', color: '#fff', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                              <span>QR Target: </span>
+                              <strong style={{ color: 'var(--accent-amber)' }}>{youtubeProduct.title}</strong>
+                              <span style={{ color: '#10B981', marginLeft: '6px', fontWeight: 700 }}>(${youtubeProduct.price.toFixed(2)})</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <span style={{ fontSize: '11px', color: 'var(--accent-amber)' }}>
+                            No product chosen yet. Click to select one from your catalog.
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setIsYoutubeProductPickerOpen(true)}
+                          className="btn btn--outline"
+                          style={{ padding: '3px 8px', fontSize: '10px', whiteSpace: 'nowrap' }}
+                        >
+                          {youtubeProduct ? 'Change' : 'Select Product'}
+                        </button>
+                      </div>
+                    )}
 
                     {/* Custom URL Input if selected */}
                     {youtubeQrTarget === 'CUSTOM' && (
@@ -4306,7 +4482,13 @@ export default function ShortsFormatterStudio() {
                   <input
                     type="checkbox"
                     checked={youtubeBurnDrawer}
-                    onChange={(e) => setYoutubeBurnDrawer(e.target.checked)}
+                    onChange={(e) => {
+                      const willBeOn = e.target.checked;
+                      setYoutubeBurnDrawer(willBeOn);
+                      if (willBeOn && !youtubeProduct) {
+                        setIsYoutubeProductPickerOpen(true);
+                      }
+                    }}
                   />
                   <ShoppingBag size={15} color="var(--accent-amber)" />
                   <span>Burn "Featured in Clip" Lower-Third Badge</span>
@@ -4319,29 +4501,49 @@ export default function ShortsFormatterStudio() {
               {youtubeBurnDrawer ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', paddingTop: '4px' }}>
                   <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                    Choose the exact product to permanently stamp onto your YouTube Short:
+                    Product stamped permanently onto the bottom of your YouTube Short:
                   </div>
 
-                  <select
-                    value={youtubeSelectedProductId || selectedProduct?.id || ''}
-                    onChange={(e) => setYoutubeSelectedProductId(e.target.value)}
-                    style={{
-                      padding: '8px 12px',
-                      background: 'rgba(0,0,0,0.4)',
-                      border: '1px solid rgba(255, 184, 0, 0.4)',
-                      borderRadius: '8px',
-                      color: '#fff',
-                      fontSize: '13px',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {products.map((p) => (
-                      <option key={p.id} value={p.id} style={{ background: '#1E293B', color: '#fff' }}>
-                        {p.title} (${p.price.toFixed(2)})
-                      </option>
-                    ))}
-                  </select>
+                  {youtubeProduct ? (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', padding: '10px 12px', borderRadius: '8px', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255, 184, 0, 0.4)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                        {youtubeProduct.imageUrl && (
+                          <img src={youtubeProduct.imageUrl} alt={youtubeProduct.title} style={{ width: '38px', height: '38px', borderRadius: '6px', objectFit: 'cover' }} />
+                        )}
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: '12px', fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                            {youtubeProduct.title}
+                          </div>
+                          <div style={{ fontSize: '11px', color: 'var(--accent-emerald)', fontWeight: 700 }}>
+                            ${youtubeProduct.price.toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setIsYoutubeProductPickerOpen(true)}
+                        className="btn btn--outline"
+                        style={{ padding: '4px 10px', fontSize: '11px', whiteSpace: 'nowrap' }}
+                      >
+                        Change from Catalog
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ padding: '12px', borderRadius: '8px', border: '1px dashed rgba(255,184,0,0.3)', background: 'rgba(255,184,0,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                      <span style={{ fontSize: '12px', color: 'var(--accent-amber)' }}>
+                        No product selected yet for YouTube badge.
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setIsYoutubeProductPickerOpen(true)}
+                        className="btn btn--primary"
+                        style={{ padding: '5px 12px', fontSize: '11px' }}
+                      >
+                        Select from Catalog
+                      </button>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div style={{ fontSize: '11px', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.03)', padding: '8px 12px', borderRadius: '6px', border: '1px dashed rgba(255,255,255,0.1)' }}>
@@ -4349,6 +4551,197 @@ export default function ShortsFormatterStudio() {
                 </div>
               )}
             </div>
+
+            {/* 📦 YouTube Product Picker Modal */}
+            {isYoutubeProductPickerOpen && (
+              <div
+                style={{
+                  position: 'fixed',
+                  inset: 0,
+                  background: 'rgba(0, 0, 0, 0.75)',
+                  backdropFilter: 'blur(10px)',
+                  zIndex: 9999,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '20px',
+                  animation: 'fadeIn 0.15s ease-out',
+                }}
+                onClick={() => setIsYoutubeProductPickerOpen(false)}
+              >
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    background: '#0e1526',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '16px',
+                    width: '100%',
+                    maxWidth: '820px',
+                    maxHeight: '85vh',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    boxShadow: '0 20px 50px rgba(0,0,0,0.6)',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {/* Modal Header */}
+                  <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ background: 'rgba(255, 68, 68, 0.15)', padding: '8px', borderRadius: '10px', display: 'flex' }}>
+                        <Youtube size={20} color="#FF4444" />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '16px', fontWeight: 800, color: '#fff' }}>
+                          Select YouTube Featured Product from Catalog
+                        </div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                          Choose which product to stamp into your YouTube video QR badge, lower-third overlay, and description.
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setIsYoutubeProductPickerOpen(false)}
+                      style={{
+                        background: 'rgba(255,255,255,0.06)',
+                        border: 'none',
+                        borderRadius: '50%',
+                        width: '32px',
+                        height: '32px',
+                        color: '#fff',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+
+                  {/* Search Bar Filter */}
+                  <div style={{ padding: '12px 24px', background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                      <Search size={15} color="var(--text-muted)" style={{ position: 'absolute', left: '12px' }} />
+                      <input
+                        type="text"
+                        placeholder="Search product catalog by title..."
+                        value={youtubeProductSearchQuery}
+                        onChange={(e) => setYoutubeProductSearchQuery(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px 8px 36px',
+                          borderRadius: '8px',
+                          border: '1px solid var(--border-color)',
+                          background: 'rgba(0,0,0,0.3)',
+                          color: '#fff',
+                          fontSize: '12px',
+                          outline: 'none',
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Modal Body - Product Cards */}
+                  <div style={{ padding: '20px 24px', flex: 1, overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '12px' }}>
+                    {products
+                      .filter((p) => !youtubeProductSearchQuery.trim() || p.title.toLowerCase().includes(youtubeProductSearchQuery.toLowerCase()))
+                      .map((p) => {
+                        const isSelected = youtubeSelectedProductId === p.id;
+
+                        return (
+                          <div
+                            key={p.id}
+                            style={{
+                              padding: '12px',
+                              borderRadius: '10px',
+                              border: isSelected
+                                ? '2px solid #FF4444'
+                                : '1px solid rgba(255,255,255,0.08)',
+                              background: isSelected
+                                ? 'rgba(255, 68, 68, 0.12)'
+                                : 'rgba(255,255,255,0.03)',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '10px',
+                              transition: 'all 0.15s ease',
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              {p.imageUrl && (
+                                <img
+                                  src={p.imageUrl}
+                                  alt={p.title}
+                                  style={{ width: '48px', height: '48px', borderRadius: '8px', objectFit: 'cover', flexShrink: 0 }}
+                                />
+                              )}
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: '12px', fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                                  {p.title}
+                                </div>
+                                <div style={{ fontSize: '11px', color: 'var(--accent-emerald)', fontWeight: 700 }}>
+                                  ${p.price.toFixed(2)}
+                                </div>
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setYoutubeSelectedProductId(p.id);
+                                setYoutubeQrTarget('PRODUCT');
+                                setIsYoutubeProductPickerOpen(false);
+                              }}
+                              style={{
+                                padding: '6px 12px',
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                borderRadius: '6px',
+                                border: isSelected ? '1px solid #FF4444' : '1px solid rgba(255,255,255,0.15)',
+                                background: isSelected ? '#FF4444' : 'rgba(255,255,255,0.06)',
+                                color: '#fff',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '6px',
+                                transition: 'all 0.15s ease',
+                              }}
+                            >
+                              <span>{isSelected ? '✓ Active YouTube Product' : 'Select for YouTube'}</span>
+                            </button>
+                          </div>
+                        );
+                      })}
+                  </div>
+
+                  {/* Modal Footer */}
+                  <div style={{ padding: '14px 24px', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.2)' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setYoutubeSelectedProductId(null);
+                        if (youtubeQrTarget === 'PRODUCT') setYoutubeQrTarget('OPPORTUNITY_OS');
+                        setIsYoutubeProductPickerOpen(false);
+                      }}
+                      className="btn btn--outline"
+                      style={{ padding: '6px 14px', fontSize: '12px' }}
+                    >
+                      Clear / No Product (Clean Video)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsYoutubeProductPickerOpen(false)}
+                      className="btn btn--primary"
+                      style={{ padding: '6px 20px', fontSize: '12px', fontWeight: 700 }}
+                    >
+                      Done
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -6433,9 +6826,9 @@ export default function ShortsFormatterStudio() {
                   <span style={{ fontSize: '8px', fontWeight: 900, color: getHighlightColorConfig(highlightColor).hex, letterSpacing: '0.5px', textTransform: 'uppercase' }}>
                     {youtubeBurnQr ? (youtubeQrTarget === 'OPPORTUNITY_OS' ? '⚡ BLUEPRINT' : '⚡ SCAN TO BUY') : '⚡ SCAN TO BUY'}
                   </span>
-                  {youtubeBurnQr && youtubeQrTarget === 'PRODUCT' && (products.find((p) => p.id === youtubeSelectedProductId) || selectedProduct) ? (
+                  {youtubeBurnQr && youtubeQrTarget === 'PRODUCT' && (youtubeProduct || selectedProduct) ? (
                     <span style={{ fontSize: '8px', fontWeight: 700, color: '#10b981' }}>
-                      ${(products.find((p) => p.id === youtubeSelectedProductId) || selectedProduct)!.price.toFixed(2)}
+                      ${(youtubeProduct || selectedProduct)!.price.toFixed(2)}
                     </span>
                   ) : selectedProduct && !youtubeBurnQr ? (
                     <span style={{ fontSize: '8px', fontWeight: 700, color: '#10b981' }}>
