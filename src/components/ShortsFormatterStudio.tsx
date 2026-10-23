@@ -2625,13 +2625,16 @@ export default function ShortsFormatterStudio() {
       const fullDesc = videoDescription || `${editableTranscript.slice(0, 300)}...\n\n👉 Grab the Blueprint & Opportunity OS: https://opportunity-system.com/about\n⚡ Featured Product: ${selectedProduct?.title || 'Opportunity OS'}\n\n#Shorts #Programming #SoftwareEngineering #AI #TechCareers #OpportunityOS`;
       const fullTitle = videoTitle ? (videoTitle.toLowerCase().includes('#shorts') ? videoTitle : `${videoTitle} #Shorts`) : (thumbnailTitle ? `${thumbnailTitle} #Shorts` : 'AI-Native Short #Shorts');
 
-      // 3. Resolve video source: prioritize remote URL or chunked upload if > 80MB to bypass Cloudflare 100MB body limit
+      // 3. Resolve video source: prioritize existing cloud video (e.g. published to About page or cloud storage)
+      const existingCloudVideo = cloudVideoUrl || (videoUrl && (videoUrl.startsWith('http://') || videoUrl.startsWith('https://')) && !videoUrl.startsWith('blob:') ? videoUrl : null);
+
       let uploadVideoBlob: Blob | undefined = undefined;
       let remoteVideoUrl: string | undefined = undefined;
 
-      if (videoUrl && (videoUrl.startsWith('http://') || videoUrl.startsWith('https://'))) {
-        // High-velocity path: Prioritize existing remote URL (only transfers ~10KB metadata)
-        remoteVideoUrl = videoUrl;
+      if (existingCloudVideo) {
+        // High-velocity path: Video already exists on backend/R2! Send only ~10KB metadata.
+        remoteVideoUrl = existingCloudVideo;
+        setPublishYouTubeMessage('Using existing video from backend CDN...');
       } else if (videoFile && videoFile.size > 80 * 1024 * 1024) {
         // High-reliability chunked upload: Slices video into 4MB chunks to bypass Cloudflare 100MB limit
         setPublishYouTubeMessage('Uploading large video via chunked stream...');
@@ -3113,6 +3116,7 @@ export default function ShortsFormatterStudio() {
         if (!thumbUrlToPublish || thumbUrlToPublish.startsWith('blob:') || thumbUrlToPublish.includes('/uploads/cdn/')) {
           thumbUrlToPublish = `https://pub-2af6e082fcb44c58add86361dad9d14b.r2.dev/thumbnails/shorts/opportunity-system/${encodeURIComponent(shortProjectId)}.jpg`;
         }
+        setCloudVideoUrl(videoUrlToPublish);
 
         const resp = await fetch(`${apiBase}/api/publisher/shorts/publish`, {
           method: 'POST',
