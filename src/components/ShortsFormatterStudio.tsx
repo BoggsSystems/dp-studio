@@ -2625,11 +2625,26 @@ export default function ShortsFormatterStudio() {
       setPublishYouTubeStage('RENDERING');
       setPublishYouTubePercent(40);
 
-      // 3. Deterministic Server-Side Render (FFmpeg CFR 30fps + kinetic subtitles) and YouTube Publish
+      // 3. Resolve video source: send actual video file/blob if local or blob URL, send URL if remote HTTP(S)
+      let uploadVideoBlob: Blob | undefined = videoFile || undefined;
+      let remoteVideoUrl: string | undefined = undefined;
+
+      if (videoUrl && (videoUrl.startsWith('http://') || videoUrl.startsWith('https://'))) {
+        remoteVideoUrl = videoUrl;
+      } else if (videoUrl && videoUrl.startsWith('blob:') && !uploadVideoBlob) {
+        try {
+          const blobRes = await fetch(videoUrl);
+          uploadVideoBlob = await blobRes.blob();
+        } catch (e) {
+          console.warn('Failed to fetch blob URL locally:', e);
+        }
+      }
+
+      // 4. Deterministic Server-Side Render (FFmpeg CFR 30fps + kinetic subtitles) and YouTube Publish
       const result = await api.renderAndPublishYouTubeShort(
         {
-          sourceVideoUrl: videoUrl || undefined,
-          sourceVideoBlob: !videoUrl && videoFile ? videoFile : undefined,
+          sourceVideoUrl: remoteVideoUrl,
+          sourceVideoBlob: uploadVideoBlob,
           overlayBlob,
           thumbnailBlob,
           words,
