@@ -625,7 +625,7 @@ export const api = {
       tags?: string[];
       privacy?: 'public' | 'unlisted' | 'private';
     },
-    onProgress?: (info: { stage: 'RENDERING_SERVER' | 'UPLOADING' | 'DONE'; percent: number; message?: string }) => void
+    onProgress?: (info: { stage: 'RENDERING_SERVER' | 'UPLOADING' | 'DONE' | string; percent: number; message?: string }) => void
   ): Promise<{ success: boolean; videoId: string; url: string; title: string }> {
     if (onProgress) onProgress({ stage: 'RENDERING_SERVER', percent: 20, message: 'Initiating server-side render...' });
 
@@ -657,35 +657,103 @@ export const api = {
       formData.append('tags', JSON.stringify(payload.tags));
     }
     formData.append('privacy', payload.privacy || 'public');
+    formData.append('stream', 'true');
 
-    if (onProgress) onProgress({ stage: 'RENDERING_SERVER', percent: 50, message: 'Server FFmpeg encoding 1080x1920 Short and burning subtitles...' });
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${API_BASE_URL}/api/social/publish/youtube-rendered`);
+      xhr.setRequestHeader('Accept', 'text/event-stream, application/json');
 
-    // Active visual ticker so the progress bar continuously advances while the server renders
-    let currentPct = 50;
-    const progressTimer = setInterval(() => {
-      if (currentPct < 92 && onProgress) {
-        currentPct += currentPct < 75 ? 4 : 2;
-        onProgress({ stage: 'RENDERING_SERVER', percent: currentPct, message: 'Server FFmpeg encoding and streaming to YouTube...' });
-      }
-    }, 1200);
+      // 1. Client-to-Server Upload Progress (0% -> 25%)
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable && onProgress) {
+          const rawPct = Math.round((event.loaded / event.total) * 100);
+          const mappedPct = Math.min(25, Math.round((event.loaded / event.total) * 25));
+          const loadedMb = (event.loaded / (1024 * 1024)).toFixed(1);
+          const totalMb = (event.total / (1024 * 1024)).toFixed(1);
+          onProgress({
+            stage: 'UPLOADING',
+            percent: mappedPct,
+            message: `Uploading video to server: ${rawPct}% (${loadedMb} MB / ${totalMb} MB)...`,
+          });
+        }
+      };
 
-    let response: Response;
-    try {
-      response = await fetch(`${API_BASE_URL}/api/social/publish/youtube-rendered`, {
-        method: 'POST',
-        body: formData,
-      });
-    } finally {
-      clearInterval(progressTimer);
-    }
+      // 2. Server-Sent Events / Chunked Streaming Progress (25% -> 100%)
+      let processedIndex = 0;
+      let finalResult: any = null;
 
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({ message: 'Server render and YouTube upload failed' }));
-      throw new Error(err.message || `Render and upload failed with status ${response.status}`);
-    }
+      xhr.onprogress = () => {
+        const chunk = xhr.responseText.substring(processedIndex);
+        processedIndex = xhr.responseText.length;
 
-    if (onProgress) onProgress({ stage: 'DONE', percent: 100, message: 'Published successfully to YouTube!' });
-    return await response.json();
+        const lines = chunk.split('\n');
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith('data:')) {
+            try {
+              const event = JSON.parse(trimmed.slice(5).trim());
+              if (event.stage === 'ERROR') {
+                reject(new Error(event.message || 'Server rendering failed'));
+                return;
+              }
+              if (event.stage === 'DONE') {
+                finalResult = event;
+              }
+              if (onProgress) {
+                onProgress({
+                  stage: event.stage || 'PROCESSING',
+                  percent: event.percent !== undefined ? event.percent : 50,
+                  message: event.message || 'Processing on server...',
+                });
+              }
+            } catch (e) {
+              // Partial JSON line
+            }
+          }
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          if (finalResult) {
+            if (onProgress) onProgress({ stage: 'DONE', percent: 100, message: 'Published successfully to YouTube Shorts!' });
+            resolve(finalResult);
+          } else {
+            try {
+              const parsed = JSON.parse(xhr.responseText);
+              if (onProgress) onProgress({ stage: 'DONE', percent: 100, message: 'Published successfully to YouTube Shorts!' });
+              resolve({
+                success: true,
+                videoId: parsed.videoId || parsed.id || '',
+                url: parsed.url || (parsed.videoId ? `https://youtube.com/shorts/${parsed.videoId}` : ''),
+                title: parsed.title || payload.title,
+              });
+            } catch (e) {
+              resolve({
+                success: true,
+                videoId: '',
+                url: '',
+                title: payload.title,
+              });
+            }
+          }
+        } else {
+          try {
+            const errJson = JSON.parse(xhr.responseText);
+            reject(new Error(errJson.message || `Server error: status ${xhr.status}`));
+          } catch (e) {
+            reject(new Error(`Server error: status ${xhr.status}`));
+          }
+        }
+      };
+
+      xhr.onerror = () => {
+        reject(new Error('Network error while communicating with render server'));
+      };
+
+      xhr.send(formData);
+    });
   },
 
   async publishYouTubeShort(

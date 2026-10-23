@@ -648,6 +648,7 @@ export default function ShortsFormatterStudio() {
   const [publishYouTubeTotalMb, setPublishYouTubeTotalMb] = useState<string>('0');
   const [publishedYouTubeUrl, setPublishedYouTubeUrl] = useState<string | null>(null);
   const [publishYouTubeError, setPublishYouTubeError] = useState<string | null>(null);
+  const [publishYouTubeMessage, setPublishYouTubeMessage] = useState<string>('');
   const [youtubeConnectSuccessMsg, setYoutubeConnectSuccessMsg] = useState<string | null>(null);
 
   // TikTok OAuth & Publishing State
@@ -2594,7 +2595,8 @@ export default function ShortsFormatterStudio() {
     if (!videoRef.current && !videoFile && !videoUrl) return;
     setIsPublishingYouTube(true);
     setPublishYouTubeStage('RENDERING');
-    setPublishYouTubePercent(10);
+    setPublishYouTubePercent(5);
+    setPublishYouTubeMessage('Preparing video upload and assets...');
     setPublishYouTubeLoadedMb('0');
     setPublishYouTubeTotalMb('0');
     setPublishYouTubeError(null);
@@ -2605,7 +2607,8 @@ export default function ShortsFormatterStudio() {
       const overlayBlob = await renderStaticOverlayBlob();
 
       // 2. Prepare high-CTR thumbnail blob (9:16)
-      setPublishYouTubePercent(25);
+      setPublishYouTubePercent(10);
+      setPublishYouTubeMessage('Generating high-CTR 9:16 thumbnail...');
       let thumbnailBlob: Blob | undefined;
       try {
         const generatedThumb = await renderThumbnailBlob('9:16');
@@ -2622,9 +2625,6 @@ export default function ShortsFormatterStudio() {
       const fullDesc = videoDescription || `${editableTranscript.slice(0, 300)}...\n\n👉 Grab the Blueprint & Opportunity OS: https://opportunity-system.com/about\n⚡ Featured Product: ${selectedProduct?.title || 'Opportunity OS'}\n\n#Shorts #Programming #SoftwareEngineering #AI #TechCareers #OpportunityOS`;
       const fullTitle = videoTitle ? (videoTitle.toLowerCase().includes('#shorts') ? videoTitle : `${videoTitle} #Shorts`) : (thumbnailTitle ? `${thumbnailTitle} #Shorts` : 'AI-Native Short #Shorts');
 
-      setPublishYouTubeStage('RENDERING');
-      setPublishYouTubePercent(40);
-
       // 3. Resolve video source: send actual video file/blob if local or blob URL, send URL if remote HTTP(S)
       let uploadVideoBlob: Blob | undefined = videoFile || undefined;
       let remoteVideoUrl: string | undefined = undefined;
@@ -2639,6 +2639,8 @@ export default function ShortsFormatterStudio() {
           console.warn('Failed to fetch blob URL locally:', e);
         }
       }
+
+      setPublishYouTubeMessage('Uploading video to render server...');
 
       // 4. Deterministic Server-Side Render (FFmpeg CFR 30fps + kinetic subtitles) and YouTube Publish
       const result = await api.renderAndPublishYouTubeShort(
@@ -2660,11 +2662,17 @@ export default function ShortsFormatterStudio() {
           privacy: 'public',
         },
         (progress) => {
-          if (progress.stage === 'RENDERING_SERVER') {
+          if (progress.message) {
+            setPublishYouTubeMessage(progress.message);
+          }
+          if ((progress.stage as string) === 'RENDERING_SERVER' || (progress.stage as string) === 'RENDERING') {
             setPublishYouTubeStage('RENDERING');
-            setPublishYouTubePercent(progress.percent);
           } else if (progress.stage === 'UPLOADING') {
             setPublishYouTubeStage('UPLOADING');
+          } else if (progress.stage === 'DONE') {
+            setPublishYouTubeStage('DONE');
+          }
+          if (progress.percent !== undefined) {
             setPublishYouTubePercent(progress.percent);
           }
         }
@@ -5250,13 +5258,16 @@ export default function ShortsFormatterStudio() {
                           isPublishingYouTube ? (
                             <div style={{ padding: '12px', borderRadius: 'var(--radius-sm)', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(59, 130, 246, 0.4)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px' }}>
-                                <span style={{ color: 'var(--accent-teal)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                  <RefreshCw size={13} className="spin" />
-                                  {publishYouTubeStage === 'RENDERING' && `🎨 [1/2] Server FFmpeg 1080x1920 Short Render (CFR 30fps)...`}
-                                  {publishYouTubeStage === 'INITIALIZING' && '⚡ Initializing YouTube Session...'}
-                                  {publishYouTubeStage === 'UPLOADING' && `🚀 [2/2] Streaming to YouTube Shorts API...`}
-                                  {publishYouTubeStage === 'SETTING_THUMBNAIL' && '🎨 Attaching Custom Thumbnail...'}
-                                  {publishYouTubeStage === 'DONE' && '🎉 Live on YouTube Shorts!'}
+                                <span style={{ color: 'var(--accent-teal)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', maxWidth: '85%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  <RefreshCw size={13} className="spin" style={{ flexShrink: 0 }} />
+                                  {publishYouTubeMessage || (
+                                    publishYouTubeStage === 'RENDERING' ? '🎨 Server FFmpeg 1080×1920 Short Render (CFR 30fps)...' :
+                                    publishYouTubeStage === 'INITIALIZING' ? '⚡ Initializing YouTube Session...' :
+                                    publishYouTubeStage === 'UPLOADING' ? '🚀 Streaming to YouTube Shorts API...' :
+                                    publishYouTubeStage === 'SETTING_THUMBNAIL' ? '🎨 Attaching Custom Thumbnail...' :
+                                    publishYouTubeStage === 'DONE' ? '🎉 Live on YouTube Shorts!' :
+                                    'Processing video...'
+                                  )}
                                 </span>
                                 <span style={{ color: '#fff', fontWeight: 700, fontSize: '13px' }}>
                                   {publishYouTubePercent}%
@@ -5275,7 +5286,7 @@ export default function ShortsFormatterStudio() {
                                 />
                               </div>
                               <div style={{ fontSize: '11px', color: 'var(--text-muted)', textAlign: 'center' }}>
-                                Direct Google Cloud Stream • High Velocity • Resumable Protocol
+                                Real-Time Server Stream • Frame-Accurate Encoding • Direct YouTube Ingest
                               </div>
                             </div>
                           ) : (
