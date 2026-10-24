@@ -296,6 +296,16 @@ export async function saveShortDraftToCloud(
           selectedProductId: short.productId,
           carouselProductIds: short.carouselProductIds,
           includedProductIds: short.includedProductIds,
+          transcript: short.words || [],
+          words: short.words || [],
+          editableTranscript: short.editableTranscript || '',
+          videoTitle: short.videoTitle || short.title,
+          videoDescription: short.videoDescription || '',
+          pinnedCommentText: short.pinnedCommentText || '',
+          instagramCaption: short.instagramCaption || '',
+          twitterCaption: short.twitterCaption || '',
+          tiktokCaption: short.tiktokCaption || '',
+          aiSuggestedTitles: short.aiSuggestedTitles || [],
         },
       }).catch((projErr) => {
         console.warn('Project PostgreSQL sync notice:', projErr);
@@ -715,6 +725,10 @@ export async function loadShortProjectIntoActiveDraft(short: FormattedShortProje
       videoTitle: short.videoTitle || short.thumbnailTitle || (short as any).metadata?.videoTitle || short.title,
       videoDescription: short.videoDescription || (short as any).metadata?.videoDescription || '',
       pinnedCommentText: short.pinnedCommentText || (short as any).metadata?.pinnedCommentText || '',
+      instagramCaption: short.instagramCaption || (short as any).metadata?.instagramCaption || (isSameProject ? localDraft.instagramCaption : '') || '',
+      twitterCaption: short.twitterCaption || (short as any).metadata?.twitterCaption || (isSameProject ? localDraft.twitterCaption : '') || '',
+      tiktokCaption: short.tiktokCaption || (short as any).metadata?.tiktokCaption || (isSameProject ? localDraft.tiktokCaption : '') || '',
+      aiSuggestedTitles: short.aiSuggestedTitles || (short as any).metadata?.aiSuggestedTitles || (isSameProject ? localDraft.aiSuggestedTitles : []) || [],
       thumbnailTitle: short.thumbnailTitle || (short as any).metadata?.thumbnailTitle || short.title,
       thumbnailStyle: short.thumbnailStyle || (short as any).metadata?.thumbnailStyle || 'VIRAL_WHITE',
       thumbnailFontSize: short.thumbnailFontSize !== undefined

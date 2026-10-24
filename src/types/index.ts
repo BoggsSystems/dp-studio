@@ -207,6 +207,10 @@ export interface FormattedShortProject {
   videoTitle?: string;
   videoDescription?: string;
   pinnedCommentText?: string;
+  instagramCaption?: string;
+  twitterCaption?: string;
+  tiktokCaption?: string;
+  aiSuggestedTitles?: string[];
   thumbnailTitle?: string;
   thumbnailStyle?: string;
   thumbnailFontSize?: number;
