@@ -797,9 +797,33 @@ export default function ShortsFormatterStudio() {
         let shouldAutoTranscribe = false;
         let fileForTranscribe: File | null = null;
 
-        // Restore video from IndexedDB or cloud draft
-        const storedVideo = await getDraftVideoBlob();
-        if (storedVideo && storedVideo.blob && !isCancelled) {
+        // Determine target project ID and cloud video URL from saved draft
+        let targetProjectId: string | undefined = undefined;
+        let remoteUrl: string | null = null;
+        if (savedDraftJson) {
+          try {
+            const parsedDraft = JSON.parse(savedDraftJson);
+            if (parsedDraft.id) targetProjectId = parsedDraft.id;
+            if (parsedDraft.cloudVideoUrl || (parsedDraft.videoUrl && !parsedDraft.videoUrl.startsWith('blob:'))) {
+              remoteUrl = parsedDraft.cloudVideoUrl || parsedDraft.videoUrl;
+            }
+          } catch (e) {}
+        }
+
+        // Restore video from cloud draft or IndexedDB
+        const storedVideo = await getDraftVideoBlob(targetProjectId);
+
+        if (remoteUrl && !isCancelled) {
+          // Priority 1: If project already has a hosted cloud video, always prioritize that remote URL
+          setVideoUrl(remoteUrl);
+          setCloudVideoUrl(remoteUrl);
+          hasRestoredData = true;
+          // Purge any stale unlinked video blob in IndexedDB from a previous session
+          if (storedVideo && storedVideo.projectId && storedVideo.projectId !== targetProjectId) {
+            clearDraftVideoBlob().catch(() => {});
+          }
+        } else if (storedVideo && storedVideo.blob && !isCancelled) {
+          // Priority 2: Unsaved local video blob for this draft
           const file = new File([storedVideo.blob], storedVideo.name || 'short_video.mp4', {
             type: storedVideo.blob.type || 'video/mp4',
           });
@@ -808,13 +832,6 @@ export default function ShortsFormatterStudio() {
           setVideoUrl(objUrl);
           hasRestoredData = true;
           fileForTranscribe = file;
-        } else if (savedDraftJson) {
-          const draft = JSON.parse(savedDraftJson);
-          if (draft.cloudVideoUrl || (draft.videoUrl && !draft.videoUrl.startsWith('blob:'))) {
-            const remoteUrl = draft.cloudVideoUrl || draft.videoUrl;
-            setVideoUrl(remoteUrl);
-            hasRestoredData = true;
-          }
         }
 
         if (savedDraftJson) {
@@ -1506,7 +1523,7 @@ export default function ShortsFormatterStudio() {
     setCurrentTime(0);
 
     // Save video file to IndexedDB for persistent recovery across page reloads
-    await saveDraftVideoBlob(file, file.name);
+    await saveDraftVideoBlob(file, file.name, shortProjectId);
 
     // Run transcription automatically
     await runTranscription(file);

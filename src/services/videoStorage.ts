@@ -28,7 +28,7 @@ function openDB(): Promise<IDBDatabase> {
   });
 }
 
-export async function saveDraftVideoBlob(blob: Blob, name: string): Promise<void> {
+export async function saveDraftVideoBlob(blob: Blob, name: string, projectId?: string): Promise<void> {
   try {
     const db = await openDB();
     const tx = db.transaction(STORE_NAME, 'readwrite');
@@ -36,6 +36,7 @@ export async function saveDraftVideoBlob(blob: Blob, name: string): Promise<void
       {
         blob,
         name,
+        projectId,
         type: blob.type,
         size: blob.size,
         updatedAt: Date.now(),
@@ -52,7 +53,7 @@ export async function saveDraftVideoBlob(blob: Blob, name: string): Promise<void
   }
 }
 
-export async function getDraftVideoBlob(): Promise<{ blob: Blob; name: string } | null> {
+export async function getDraftVideoBlob(expectedProjectId?: string): Promise<{ blob: Blob; name: string; projectId?: string } | null> {
   try {
     const db = await openDB();
     const tx = db.transaction(STORE_NAME, 'readonly');
@@ -63,7 +64,11 @@ export async function getDraftVideoBlob(): Promise<{ blob: Blob; name: string } 
       request.onsuccess = () => {
         const res = request.result;
         if (res && res.blob) {
-          resolve({ blob: res.blob, name: res.name || 'uploaded_video.mp4' });
+          if (expectedProjectId && res.projectId && res.projectId !== expectedProjectId) {
+            resolve(null);
+            return;
+          }
+          resolve({ blob: res.blob, name: res.name || 'uploaded_video.mp4', projectId: res.projectId });
         } else {
           resolve(null);
         }
@@ -527,10 +532,12 @@ export async function getShortProject(id: string): Promise<{ project: FormattedS
       });
     } catch (e) {}
 
-    // Fallback: If not found under short_video_<id>, check active_short_video
+    // Fallback: If not found under short_video_<id>, check active_short_video ONLY if it matches this project
     if (!blob) {
-      const draftVid = await getDraftVideoBlob();
-      blob = draftVid?.blob || null;
+      const draftVid = await getDraftVideoBlob(id);
+      if (draftVid?.blob && draftVid.projectId === id) {
+        blob = draftVid.blob;
+      }
     }
 
     return { project: found, blob };
@@ -733,7 +740,10 @@ export async function loadShortProjectIntoActiveDraft(short: FormattedShortProje
     localStorage.setItem('digitpop_shorts_formatter_draft_v1', JSON.stringify(draftData));
 
     if (blob) {
-      await saveDraftVideoBlob(blob, short.videoFileName || `${short.title}.mp4`);
+      await saveDraftVideoBlob(blob, short.videoFileName || `${short.title}.mp4`, short.id);
+    } else {
+      // When loading a cloud/library project without an in-memory blob, clear any leftover video blob from previous projects
+      await clearDraftVideoBlob();
     }
   } catch (err) {
     console.warn('Failed to load short project into draft:', err);
