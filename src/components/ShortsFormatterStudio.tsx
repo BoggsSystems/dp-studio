@@ -1293,8 +1293,6 @@ export default function ShortsFormatterStudio() {
         setWords(formattedWords);
         const fullText = formattedWords.map((w) => w.word).join(' ');
         setEditableTranscript(fullText);
-        generateAiTitles(fullText);
-        generateAiCaptions(fullText);
       } else if (res && res.text) {
         const split = res.text.split(/\s+/).filter(Boolean);
         const estDuration = res.duration || duration || 30;
@@ -1307,8 +1305,6 @@ export default function ShortsFormatterStudio() {
         }));
         setWords(formattedWords);
         setEditableTranscript(res.text);
-        generateAiTitles(res.text);
-        generateAiCaptions(res.text);
       } else {
         throw new Error('No words or text returned from Whisper API.');
       }
