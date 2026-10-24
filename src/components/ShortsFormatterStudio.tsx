@@ -1260,23 +1260,29 @@ export default function ShortsFormatterStudio() {
   }, [youtubeQrTarget, youtubeProduct, selectedProduct, youtubeCustomQrUrl]);
 
   // Transcription trigger function
-  const runTranscription = async (fileToProcess: File) => {
+  const runTranscription = async (fileToProcess?: File) => {
     setIsTranscribing(true);
     setTranscribeError(null);
-    setTranscribeProgress('⚡ Extracting lightweight audio track for instant transcription...');
 
     try {
-      // 1. Extract audio in browser to send 500KB instead of 100MB
-      const audioBlob = await extractAudioFromVideo(fileToProcess);
-      setTranscribeProgress('🚀 Transcribing with Groq Whisper Large v3 Turbo (~0.4s)...');
-
-      // 2. Call transcription API
-      const res = await api.transcribeVideo(audioBlob, 'short_audio.wav');
+      let res: any;
+      if (fileToProcess) {
+        setTranscribeProgress('⚡ Extracting lightweight audio track for instant transcription...');
+        // 1. Extract audio in browser to send 500KB instead of 100MB
+        const audioBlob = await extractAudioFromVideo(fileToProcess);
+        setTranscribeProgress('🚀 Transcribing with Groq Whisper Large v3 Turbo (~0.4s)...');
+        res = await api.transcribeVideo(audioBlob, 'short_audio.wav');
+      } else if (videoUrl) {
+        setTranscribeProgress('🚀 Server extracting & transcribing audio with Groq Whisper...');
+        res = await api.transcribeVideoUrl(videoUrl);
+      } else {
+        throw new Error('No video file or URL available for transcription.');
+      }
 
       if (res && res.words && res.words.length > 0) {
-        const formattedWords: WordItem[] = res.words.map((w, idx) => ({
+        const formattedWords: WordItem[] = res.words.map((w: any, idx: number) => ({
           id: `w_${idx}_${Date.now()}`,
-          word: w.word.trim(),
+          word: (w.word || '').trim(),
           start: w.start,
           end: w.end,
         }));
@@ -1289,7 +1295,7 @@ export default function ShortsFormatterStudio() {
         const split = res.text.split(/\s+/).filter(Boolean);
         const estDuration = res.duration || duration || 30;
         const wordTime = estDuration / split.length;
-        const formattedWords: WordItem[] = split.map((word, idx) => ({
+        const formattedWords: WordItem[] = split.map((word: string, idx: number) => ({
           id: `w_${idx}_${Date.now()}`,
           word,
           start: idx * wordTime,
@@ -3537,8 +3543,8 @@ export default function ShortsFormatterStudio() {
                   <Check size={14} /> <span>Save Short</span>
                 </button>
                 <button
-                  onClick={() => videoFile && runTranscription(videoFile)}
-                  disabled={isTranscribing || !videoFile}
+                  onClick={() => runTranscription(videoFile || undefined)}
+                  disabled={isTranscribing || (!videoFile && !videoUrl)}
                   className="btn btn--primary"
                   style={{ padding: '6px 14px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
                 >
@@ -3616,9 +3622,9 @@ export default function ShortsFormatterStudio() {
                 <AlertCircle size={20} color="#ef4444" />
                 <span style={{ fontSize: '13px', color: '#ef4444', fontWeight: 600 }}>{transcribeError}</span>
               </div>
-              {videoFile && (
+              {(videoFile || videoUrl) && (
                 <button
-                  onClick={() => runTranscription(videoFile)}
+                  onClick={() => runTranscription(videoFile || undefined)}
                   className="btn btn--primary"
                   style={{ padding: '6px 12px', fontSize: '12px' }}
                 >
@@ -3637,9 +3643,9 @@ export default function ShortsFormatterStudio() {
                 <Sliders size={16} color="var(--accent-cyan)" />
                 <span>Subtitle & Canvas Customization</span>
               </div>
-              {words.length === 0 && !isTranscribing && videoFile && (
+              {words.length === 0 && !isTranscribing && (videoFile || videoUrl) && (
                 <button
-                  onClick={() => runTranscription(videoFile)}
+                  onClick={() => runTranscription(videoFile || undefined)}
                   className="btn btn--primary"
                   style={{ padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
                 >
@@ -7057,6 +7063,7 @@ export default function ShortsFormatterStudio() {
               {layoutMode === 'FIT_BLUR' && (
                 <video
                   src={videoUrl}
+                  crossOrigin="anonymous"
                   muted
                   style={{
                     position: 'absolute',
@@ -7074,6 +7081,7 @@ export default function ShortsFormatterStudio() {
               <video
                 ref={videoRef}
                 src={videoUrl}
+                crossOrigin="anonymous"
                 playsInline
                 muted={isMuted}
                 onTimeUpdate={handleTimeUpdate}

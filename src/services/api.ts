@@ -570,6 +570,33 @@ export const api = {
     return await groqRes.json();
   },
 
+  // --- AI Transcription from Cloud Video URL (Server-side) ---
+  async transcribeVideoUrl(videoUrl: string): Promise<{
+    text: string;
+    duration: number;
+    language: string;
+    words: Array<{ word: string; start: number; end: number }>;
+    segments?: any[];
+  }> {
+    const targetUrl = `${API_BASE_URL}/api/videos/transcribe-url`;
+    console.log(`🎙️ [dp-studio] Requesting server-side transcription from URL: ${videoUrl}`);
+
+    const res = await fetch(targetUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ videoUrl }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      console.log('✅ [dp-studio] Server URL transcription succeeded:', data);
+      return data;
+    }
+
+    const errJson = await res.json().catch(() => ({}));
+    throw new Error(errJson.message || `Server transcription failed (status ${res.status})`);
+  },
+
   async generateSocialMetadata(payload: {
     title?: string;
     transcript?: string;
