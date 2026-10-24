@@ -612,6 +612,7 @@ export default function ShortsFormatterStudio() {
   const [tiktokCaption, setTiktokCaption] = useState<string>('');
   const [aiSuggestedTitles, setAiSuggestedTitles] = useState<string[]>([]);
   const [isAiGeneratingMeta, setIsAiGeneratingMeta] = useState<boolean>(false);
+  const [isAiGeneratingTitles, setIsAiGeneratingTitles] = useState<boolean>(false);
 
   // High-CTR Thumbnail Studio State
   const [thumbnailImage, setThumbnailImage] = useState<string | null>(null);
@@ -797,6 +798,24 @@ export default function ShortsFormatterStudio() {
                 }
                 if (cloudMeta.productId && !draft.selectedProductId && !draft.productId) {
                   setSavedProductId(cloudMeta.productId);
+                }
+                if (cloudMeta.editableTranscript && !draft.editableTranscript) {
+                  setEditableTranscript(cloudMeta.editableTranscript);
+                }
+                if (Array.isArray(cloudMeta.transcript) && cloudMeta.transcript.length > 0 && (!draft.words || draft.words.length === 0)) {
+                  setWords(cloudMeta.transcript);
+                }
+                if (cloudMeta.instagramCaption && !draft.instagramCaption) {
+                  setInstagramCaption(cloudMeta.instagramCaption);
+                }
+                if (cloudMeta.twitterCaption && !draft.twitterCaption) {
+                  setTwitterCaption(cloudMeta.twitterCaption);
+                }
+                if (cloudMeta.tiktokCaption && !draft.tiktokCaption) {
+                  setTiktokCaption(cloudMeta.tiktokCaption);
+                }
+                if (Array.isArray(cloudMeta.aiSuggestedTitles) && (!draft.aiSuggestedTitles || draft.aiSuggestedTitles.length === 0)) {
+                  setAiSuggestedTitles(cloudMeta.aiSuggestedTitles);
                 }
               }
             }).catch(() => {});
@@ -1264,7 +1283,8 @@ export default function ShortsFormatterStudio() {
         setWords(formattedWords);
         const fullText = formattedWords.map((w) => w.word).join(' ');
         setEditableTranscript(fullText);
-        generateAiMetadata(fullText);
+        generateAiTitles(fullText);
+        generateAiCaptions(fullText);
       } else if (res && res.text) {
         const split = res.text.split(/\s+/).filter(Boolean);
         const estDuration = res.duration || duration || 30;
@@ -1277,7 +1297,8 @@ export default function ShortsFormatterStudio() {
         }));
         setWords(formattedWords);
         setEditableTranscript(res.text);
-        generateAiMetadata(res.text);
+        generateAiTitles(res.text);
+        generateAiCaptions(res.text);
       } else {
         throw new Error('No words or text returned from Whisper API.');
       }
@@ -1290,12 +1311,55 @@ export default function ShortsFormatterStudio() {
     }
   };
 
-  // Generate AI Title, Multi-Platform Descriptions, and Pinned Comment from transcript & selected product
-  const generateAiMetadata = async (textInput?: string, productOverride?: Product | null) => {
+  // Generate 4 viral high-CTR video title hooks using AI without modifying captions
+  const generateAiTitles = async (textInput?: string) => {
+    setIsAiGeneratingTitles(true);
+    try {
+      const text = textInput || editableTranscript || words.map((w) => w.word).join(' ');
+      const cleanText = (text || '').replace(/\s+/g, ' ').trim();
+      const currentTitle = videoTitle.trim();
+      const productTitle = selectedProduct?.title;
+
+      if (!cleanText && !currentTitle && !productTitle) {
+        toast.error('Please enter a video title, transcribe audio, or select a product to generate titles.');
+        return;
+      }
+
+      const res = await api.generateTitleSuggestions({
+        title: currentTitle || undefined,
+        transcript: cleanText || undefined,
+        productTitle: productTitle || undefined,
+      });
+
+      if (res && Array.isArray(res.suggestions) && res.suggestions.length > 0) {
+        setAiSuggestedTitles(res.suggestions);
+        // If current title is empty, automatically populate with the top suggestion
+        if (!currentTitle) {
+          setVideoTitle(res.suggestions[0]);
+          setThumbnailTitle(res.suggestions[0]);
+          if (shortProjectId && shortProjectId !== 'short_active_draft' && !shortProjectId.startsWith('draft-')) {
+            api.saveProject({ id: shortProjectId, name: res.suggestions[0] }).catch(console.warn);
+          }
+        }
+        toast.success(`Generated ${res.suggestions.length} viral title ideas!`);
+      } else {
+        toast.error('Could not generate title suggestions. Please try again.');
+      }
+    } catch (e: any) {
+      console.warn('AI title generation error:', e);
+      toast.error(e.message || 'Failed to generate title hooks');
+    } finally {
+      setTimeout(() => setIsAiGeneratingTitles(false), 300);
+    }
+  };
+
+  // Generate multi-platform captions & descriptions (YouTube, Instagram, X, TikTok)
+  // Decoupled from title generation so existing video title is preserved!
+  const generateAiCaptions = async (textInput?: string, productOverride?: Product | null) => {
     setIsAiGeneratingMeta(true);
     try {
       const text = textInput || editableTranscript || words.map((w) => w.word).join(' ');
-      
+
       // Auto-match best product from catalog if no manual product override is set
       let matchedProduct = productOverride !== undefined ? productOverride : selectedProduct;
       if (!productOverride && products && products.length > 0 && text) {
@@ -1332,37 +1396,25 @@ export default function ShortsFormatterStudio() {
       }
 
       const product = matchedProduct || selectedProduct;
-      const productUrl = product?.externalUrl || 'https://opportunity-system.com/about';
-
+      const productUrl = product?.externalUrl || '';
       const cleanText = (text || '').replace(/\s+/g, ' ').trim();
+      const currentTitle = videoTitle.trim();
 
-      if (!cleanText) {
-        const fileFallback = videoFile?.name ? videoFile.name.replace(/\.[^/.]+$/, '').toUpperCase() : 'AI SHOPPABLE SHORT';
-        setVideoTitle(fileFallback);
-        setThumbnailTitle(fileFallback);
-        setVideoDescription(
-          `🚀 Grab the blueprint & software tools: ${productUrl}\n\n#Shorts #Programming #SoftwareEngineering #AI #TechCareers #OpportunityOS`
-        );
+      if (!cleanText && !currentTitle && !product?.title) {
+        toast.error('Please enter a video title, transcribe audio, or select a product first.');
         return;
       }
 
-      // Invoke real AI Multi-Platform Generator (Groq LLM / Backend)
       const aiResult = await api.generateSocialMetadata({
-        transcript: cleanText,
+        title: currentTitle || undefined,
+        transcript: cleanText || undefined,
         productTitle: product?.title,
         productPrice: product?.price,
-        productUrl,
-        brandName: 'Opportunity OS',
+        productUrl: productUrl || undefined,
+        brandName: product?.title || 'Brand',
       });
 
       if (aiResult) {
-        if (aiResult.title) {
-          setVideoTitle(aiResult.title);
-          setThumbnailTitle(aiResult.title);
-        }
-        if (Array.isArray(aiResult.suggestions) && aiResult.suggestions.length > 0) {
-          setAiSuggestedTitles(aiResult.suggestions);
-        }
         if (aiResult.youtube?.description) {
           setVideoDescription(aiResult.youtube.description);
         }
@@ -1379,22 +1431,33 @@ export default function ShortsFormatterStudio() {
           setTiktokCaption(aiResult.tiktok);
         }
 
-        // Sync AI-generated title to PostgreSQL project record
         if (shortProjectId && shortProjectId !== 'short_active_draft' && !shortProjectId.startsWith('draft-')) {
           api.saveProject({
             id: shortProjectId,
-            name: aiResult.title,
-            description: (aiResult.youtube?.description || aiResult.title).slice(0, 240),
+            description: (aiResult.youtube?.description || currentTitle || '').slice(0, 240),
           }).catch((err) => {
-            console.warn('Failed to sync AI title to project record:', err);
+            console.warn('Failed to sync project description:', err);
           });
         }
+
+        toast.success('Generated multi-platform social captions & hashtags!');
+      } else {
+        toast.error('Failed to generate social captions. Please try again.');
       }
-    } catch (e) {
-      console.warn('AI metadata generation error:', e);
+    } catch (e: any) {
+      console.warn('AI social caption generation error:', e);
+      toast.error(e.message || 'Failed to generate social captions');
     } finally {
       setTimeout(() => setIsAiGeneratingMeta(false), 300);
     }
+  };
+
+  // Legacy helper to invoke both generators
+  const generateAiMetadata = async (textInput?: string, productOverride?: Product | null) => {
+    await Promise.all([
+      generateAiTitles(textInput),
+      generateAiCaptions(textInput, productOverride),
+    ]);
   };
 
   // Two-Tier Shoppable Product Handlers:
@@ -1441,7 +1504,7 @@ export default function ShortsFormatterStudio() {
     if (product.externalUrl) {
       setQrCustomUrl(product.externalUrl);
     }
-    generateAiMetadata(undefined, product);
+    generateAiCaptions(undefined, product);
   };
 
   // Reordering and Drag-and-Drop handlers for Hero Carousel
@@ -2777,8 +2840,8 @@ export default function ShortsFormatterStudio() {
 
       const ytFeaturedProduct = youtubeProduct || (youtubeBurnDrawer ? selectedProduct : null);
 
-      const fullDesc = videoDescription || `${editableTranscript.slice(0, 300)}...\n\n👉 Grab the Blueprint & Opportunity OS: https://opportunity-system.com/about${ytFeaturedProduct ? `\n⚡ Featured Product: ${ytFeaturedProduct.title}` : ''}\n\n#Shorts #Programming #SoftwareEngineering #AI #TechCareers #OpportunityOS`;
-      const fullTitle = videoTitle ? (videoTitle.toLowerCase().includes('#shorts') ? videoTitle : `${videoTitle} #Shorts`) : (thumbnailTitle ? `${thumbnailTitle} #Shorts` : 'AI-Native Short #Shorts');
+      const fullDesc = videoDescription || (editableTranscript ? `${editableTranscript.slice(0, 300)}...${ytFeaturedProduct ? `\n\n⚡ Featured Product: ${ytFeaturedProduct.title}\n${ytFeaturedProduct.externalUrl || ''}` : ''}\n\n#Shorts` : '');
+      const fullTitle = videoTitle ? (videoTitle.toLowerCase().includes('#shorts') ? videoTitle : `${videoTitle} #Shorts`) : (thumbnailTitle ? `${thumbnailTitle} #Shorts` : 'Short #Shorts');
 
       // 3. Resolve video source: prioritize existing cloud video (e.g. published to About page or cloud storage)
       const existingCloudVideo = cloudVideoUrl || (videoUrl && (videoUrl.startsWith('http://') || videoUrl.startsWith('https://')) && !videoUrl.startsWith('blob:') ? videoUrl : null);
@@ -3346,22 +3409,13 @@ export default function ShortsFormatterStudio() {
     return text;
   };
 
-  // Social Copy Generation
+  // Social Copy Generation - strictly uses AI suggestions with no generic boilerplate
   const socialTitles = useMemo(() => {
     if (aiSuggestedTitles && aiSuggestedTitles.length > 0) {
       return aiSuggestedTitles;
     }
-    if (!editableTranscript) return ['AI-Native Software Engineering ⚡', 'System Design Blueprint 🚀'];
-    const sentences = editableTranscript.split(/[.!?]+/).map((s) => s.trim()).filter((s) => s.length > 10);
-    if (sentences.length > 0) {
-      return [
-        sentences[0].slice(0, 55).toUpperCase(),
-        `The Secret to ${sentences[0].slice(0, 32)}... 🔥`,
-        `AI-Native Software Engineering (Explained) ⚡`,
-      ];
-    }
-    return ['AI-Native System Architecture ⚡', 'Software Engineering Blueprint 🔥'];
-  }, [aiSuggestedTitles, editableTranscript]);
+    return [];
+  }, [aiSuggestedTitles]);
 
   const pinnedComment = useMemo(() => {
     const productTitle = selectedProduct ? selectedProduct.title : 'Opportunity OS Platform';
@@ -4982,42 +5036,43 @@ export default function ShortsFormatterStudio() {
                   </div>
                 </div>
               </div>
-
-              <button
-                onClick={() => generateAiMetadata()}
-                disabled={isAiGeneratingMeta}
-                className="btn btn--outline"
-                style={{
-                  padding: '6px 12px',
-                  fontSize: '12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  background: 'rgba(99, 102, 241, 0.1)',
-                  borderColor: 'rgba(99, 102, 241, 0.4)',
-                  color: '#A5B4FC',
-                  fontWeight: 600,
-                }}
-                title="Re-generate AI Title and Description based on transcript"
-              >
-                <RefreshCw size={13} className={isAiGeneratingMeta ? 'spin' : ''} />
-                {isAiGeneratingMeta ? 'Analyzing...' : '⚡ Re-Generate with AI'}
-              </button>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {/* 1. Video Title Input */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                   <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Flame size={13} color="var(--accent-amber)" />
                     Video Title & Hook
                   </label>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <button
+                      type="button"
+                      onClick={() => generateAiTitles()}
+                      disabled={isAiGeneratingTitles}
+                      className="btn btn--outline"
+                      style={{
+                        padding: '3px 10px',
+                        fontSize: '11px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        background: 'rgba(245, 158, 11, 0.1)',
+                        borderColor: 'rgba(245, 158, 11, 0.4)',
+                        color: '#FCD34D',
+                        fontWeight: 600,
+                      }}
+                      title="Generate viral title hook ideas with AI"
+                    >
+                      <Sparkles size={12} className={isAiGeneratingTitles ? 'spin' : ''} />
+                      {isAiGeneratingTitles ? 'Generating Hooks...' : '✨ AI Title Hooks'}
+                    </button>
                     <span style={{ fontSize: '11px', color: videoTitle.length > 100 ? '#EF4444' : videoTitle.length > 80 ? '#F59E0B' : '#10B981', fontWeight: 600 }}>
                       {videoTitle.length}/100 chars
                     </span>
                     <button
+                      type="button"
                       onClick={() => copyToClipboard(videoTitle, 'custom_title')}
                       className="btn btn--outline"
                       style={{ padding: '2px 8px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
@@ -5084,11 +5139,32 @@ export default function ShortsFormatterStudio() {
 
               {/* 2. Multi-Platform Video Description & Social Caption */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                   <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Edit3 size={13} color="#60A5FA" />
                     Multi-Platform Video Description & Captions
                   </label>
+                  <button
+                    type="button"
+                    onClick={() => generateAiCaptions()}
+                    disabled={isAiGeneratingMeta}
+                    className="btn btn--outline"
+                    style={{
+                      padding: '4px 12px',
+                      fontSize: '11px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      background: 'rgba(99, 102, 241, 0.15)',
+                      borderColor: 'rgba(99, 102, 241, 0.4)',
+                      color: '#A5B4FC',
+                      fontWeight: 600,
+                    }}
+                    title="Generate tailored captions & hashtags for YouTube, Instagram, Twitter, and TikTok"
+                  >
+                    <RefreshCw size={12} className={isAiGeneratingMeta ? 'spin' : ''} />
+                    {isAiGeneratingMeta ? 'Generating Captions...' : '⚡ Generate Social Captions'}
+                  </button>
                 </div>
 
                 {/* Platform Selector Tabs */}
@@ -6317,7 +6393,7 @@ export default function ShortsFormatterStudio() {
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
                           <span>Full Description & Conversion Links:</span>
                           <button
-                            onClick={() => copyToClipboard(videoDescription || `${editableTranscript.slice(0, 240)}...\n\n👉 Grab the Blueprint & Opportunity OS: https://opportunity-system.com/about\n⚡ Featured Product: ${selectedProduct?.title || 'Opportunity OS'}\n\n#Shorts #Programming #SoftwareEngineering #AI #TechCareers #OpportunityOS`, 'yt_desc')}
+                            onClick={() => copyToClipboard(videoDescription || editableTranscript || '', 'yt_desc')}
                             className="btn btn--outline"
                             style={{ padding: '2px 6px', fontSize: '10px' }}
                           >
@@ -6326,7 +6402,7 @@ export default function ShortsFormatterStudio() {
                           </button>
                         </div>
                         <div style={{ padding: '8px 10px', background: 'rgba(255,255,255,0.04)', borderRadius: '4px', color: 'var(--text-secondary)', fontSize: '12px', lineHeight: '1.5', whiteSpace: 'pre-line' }}>
-                          {videoDescription || `${editableTranscript.slice(0, 240)}...\n\n👉 Grab the Blueprint & Opportunity OS: https://opportunity-system.com/about\n⚡ Featured Product: ${selectedProduct?.title || 'Opportunity OS'}\n\n#Shorts #Programming #SoftwareEngineering #AI #TechCareers #OpportunityOS`}
+                          {videoDescription || editableTranscript || 'No description generated yet.'}
                         </div>
                       </div>
 
@@ -6334,7 +6410,7 @@ export default function ShortsFormatterStudio() {
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
                           <span>Pinned Comment (Auto-Copy):</span>
                           <button
-                            onClick={() => copyToClipboard(pinnedCommentText || `👉 Access the blueprint & software tools: https://opportunity-system.com/about (Link in Bio ⚡)`, 'yt_pin')}
+                            onClick={() => copyToClipboard(pinnedCommentText || (selectedProduct?.externalUrl ? `👉 Check out ${selectedProduct.title}: ${selectedProduct.externalUrl}` : ''), 'yt_pin')}
                             className="btn btn--outline"
                             style={{ padding: '2px 6px', fontSize: '10px' }}
                           >
@@ -6343,7 +6419,7 @@ export default function ShortsFormatterStudio() {
                           </button>
                         </div>
                         <div style={{ padding: '8px 10px', background: 'rgba(255,255,255,0.04)', borderRadius: '4px', color: '#FFB800', fontSize: '12px', fontWeight: 600 }}>
-                          {pinnedCommentText || `👉 Access the blueprint & software tools: https://opportunity-system.com/about (Link in Bio ⚡)`}
+                          {pinnedCommentText || (selectedProduct?.externalUrl ? `👉 Check out ${selectedProduct.title}: ${selectedProduct.externalUrl}` : 'No pinned comment generated yet.')}
                         </div>
                       </div>
                     </>

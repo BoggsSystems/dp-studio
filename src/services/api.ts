@@ -571,15 +571,14 @@ export const api = {
   },
 
   async generateSocialMetadata(payload: {
-    transcript: string;
+    title?: string;
+    transcript?: string;
     productTitle?: string;
     productPrice?: number;
     productUrl?: string;
     brandName?: string;
   }): Promise<{
-    title: string;
-    suggestions?: string[];
-    youtube: { title: string; description: string; pinnedComment: string };
+    youtube: { description: string; pinnedComment: string };
     instagram: string;
     twitter: string;
     tiktok: string;
@@ -605,16 +604,20 @@ export const api = {
       (typeof window !== 'undefined' ? (window as any).__GROQ_API_KEY__ : '') ||
       '';
 
+    if (!groqKey) {
+      throw new Error('AI generation requires backend connection or VITE_GROQ_API_KEY.');
+    }
+
     const transcriptExcerpt = (payload.transcript || '').slice(0, 3000);
+    const videoTitle = payload.title ? `Video Title / Topic: "${payload.title}"` : '';
     const productInfo = payload.productTitle
       ? `Featured Product: "${payload.productTitle}"${payload.productPrice ? ` ($${payload.productPrice})` : ''}. URL: ${payload.productUrl || 'https://opportunity-system.com/about'}`
       : `Brand URL: ${payload.productUrl || 'https://opportunity-system.com/about'}`;
 
     const systemPrompt = `You are an elite short-form video viral strategist and copywriter.
-Analyze the provided spoken video transcript and featured product.
-Generate high-converting, platform-optimized metadata tailored for:
+Analyze the provided video title, transcript (if available), and featured product.
+Generate high-converting, platform-optimized captions and descriptions tailored for:
 1. YouTube Shorts:
-   - title: Under 70 chars. Punchy, high curiosity hook.
    - description: 150-350 chars. Captivating hook explaining the takeaway, includes the product link/CTA, and 3-5 relevant hashtags (always including #Shorts).
    - pinnedComment: High-converting CTA driving viewers to the link.
 2. Instagram Reels:
@@ -632,10 +635,7 @@ Generate high-converting, platform-optimized metadata tailored for:
 
 You MUST return a valid JSON object matching this schema:
 {
-  "title": "string (main title under 70 chars)",
-  "suggestions": ["alternative title 1", "alternative title 2", "alternative title 3"],
   "youtube": {
-    "title": "string",
     "description": "string",
     "pinnedComment": "string"
   },
@@ -644,82 +644,125 @@ You MUST return a valid JSON object matching this schema:
   "tiktok": "string"
 }`;
 
-    const userPrompt = `Video Transcript:
-"""
-${transcriptExcerpt}
-"""
-
-${productInfo}
+    const userPrompt = `${videoTitle ? `${videoTitle}\n` : ''}${transcriptExcerpt ? `Video Transcript:\n"""\n${transcriptExcerpt}\n"""\n` : ''}${productInfo}
 Brand: ${payload.brandName || 'Opportunity OS'}
 
 Generate the platform-optimized social copy now in JSON format.`;
 
-    try {
-      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${groqKey}`,
-        },
-        body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt },
-          ],
-          response_format: { type: 'json_object' },
-          temperature: 0.6,
-          max_tokens: 1200,
-        }),
-      });
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${groqKey}`,
+      },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.6,
+        max_tokens: 1200,
+      }),
+    });
 
-      if (response.ok) {
-        const data = await response.json();
-        const rawJson = data?.choices?.[0]?.message?.content;
-        if (rawJson) {
-          const parsed = JSON.parse(rawJson);
-          const altTitles = Array.isArray(parsed.suggestions) && parsed.suggestions.length > 0
-            ? parsed.suggestions.slice(0, 3)
-            : [
-                parsed.title || 'AI Shoppable Short',
-                parsed.youtube?.title || 'System Design Blueprint',
-                'The Secret Nobody Tells You ⚡',
-              ];
-
-          return {
-            title: parsed.title || parsed.youtube?.title || 'AI Shoppable Short',
-            suggestions: altTitles,
-            youtube: {
-              title: parsed.youtube?.title || parsed.title || 'AI Shoppable Short',
-              description: parsed.youtube?.description || '',
-              pinnedComment: parsed.youtube?.pinnedComment || '',
-            },
-            instagram: parsed.instagram || '',
-            twitter: parsed.twitter || '',
-            tiktok: parsed.tiktok || '',
-          };
-        }
+    if (response.ok) {
+      const data = await response.json();
+      const rawJson = data?.choices?.[0]?.message?.content;
+      if (rawJson) {
+        const parsed = JSON.parse(rawJson);
+        return {
+          youtube: {
+            description: parsed.youtube?.description || '',
+            pinnedComment: parsed.youtube?.pinnedComment || '',
+          },
+          instagram: parsed.instagram || '',
+          twitter: parsed.twitter || '',
+          tiktok: parsed.tiktok || '',
+        };
       }
-    } catch (err) {
-      console.warn('Direct Groq LLM completion failed:', err);
     }
 
-    // Client-side rule-based fallback
-    const fallbackTitle = transcriptExcerpt.slice(0, 50).trim().toUpperCase() || 'AI SHOPPABLE SHORT';
-    const fallbackUrl = payload.productUrl || 'https://opportunity-system.com/about';
-    const productLine = payload.productTitle ? `\n⚡ Featured: ${payload.productTitle} - ${fallbackUrl}` : `\n👉 Link: ${fallbackUrl}`;
+    throw new Error('AI returned an empty response. Please try again.');
+  },
 
-    return {
-      title: fallbackTitle,
-      youtube: {
-        title: fallbackTitle,
-        description: `${transcriptExcerpt.slice(0, 200)}...${productLine}\n\n#Shorts #AI #SoftwareEngineering #Tech`,
-        pinnedComment: `👉 Grab details here: ${fallbackUrl}`,
+  async generateTitleSuggestions(payload: {
+    title?: string;
+    transcript?: string;
+    productTitle?: string;
+  }): Promise<{ suggestions: string[] }> {
+    // 1. Try backend endpoint first
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/videos/generate-titles`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.data && Array.isArray(json.data.suggestions)) return json.data;
+      }
+    } catch (e) {
+      console.warn('Backend generate-titles request failed, attempting direct Groq fallback:', e);
+    }
+
+    // 2. Direct Groq fallback
+    const groqKey =
+      import.meta.env.VITE_GROQ_API_KEY ||
+      (typeof window !== 'undefined' ? (window as any).__GROQ_API_KEY__ : '') ||
+      '';
+
+    if (!groqKey) {
+      throw new Error('AI title generation requires backend connection or VITE_GROQ_API_KEY.');
+    }
+
+    const transcriptExcerpt = (payload.transcript || '').slice(0, 3000);
+    const existingTitle = payload.title ? `Current Title / Topic: "${payload.title}"` : '';
+    const productInfo = payload.productTitle ? `Featured Product: "${payload.productTitle}"` : '';
+
+    const systemPrompt = `You are a viral YouTube Shorts and TikTok headline specialist.
+Generate 4 distinct, ultra-high CTR viral titles (under 60 characters each).
+Use curiosity gaps, speedrun/challenge angles, or contrarian engineering insights.
+Return ONLY a valid JSON object matching this schema:
+{
+  "suggestions": ["string", "string", "string", "string"]
+}`;
+
+    const userPrompt = `${existingTitle ? `${existingTitle}\n` : ''}${transcriptExcerpt ? `Spoken Transcript:\n"""\n${transcriptExcerpt}\n"""\n` : ''}${productInfo}
+
+Generate 4 viral titles now in JSON format.`;
+
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${groqKey}`,
       },
-      instagram: `${transcriptExcerpt.slice(0, 150)}...\n\n🔗 Link in bio to explore!\n\n#softwareengineering #tech #ai`,
-      twitter: `${transcriptExcerpt.slice(0, 140)}... ${fallbackUrl} #AI`,
-      tiktok: `${transcriptExcerpt.slice(0, 120)}... Check bio for link! #techtok #ai`,
-    };
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.7,
+        max_tokens: 300,
+      }),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      const rawJson = data?.choices?.[0]?.message?.content;
+      if (rawJson) {
+        const parsed = JSON.parse(rawJson);
+        if (Array.isArray(parsed.suggestions) && parsed.suggestions.length > 0) {
+          return { suggestions: parsed.suggestions.slice(0, 5) };
+        }
+      }
+    }
+
+    throw new Error('AI returned empty title suggestions.');
   },
 
   // --- Social Multi-Channel Distribution & YouTube Publishing ---
