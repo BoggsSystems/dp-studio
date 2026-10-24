@@ -606,6 +606,11 @@ export default function ShortsFormatterStudio() {
   const [videoTitle, setVideoTitle] = useState<string>('');
   const [videoDescription, setVideoDescription] = useState<string>('');
   const [pinnedCommentText, setPinnedCommentText] = useState<string>('');
+  const [platformTab, setPlatformTab] = useState<'youtube' | 'instagram' | 'twitter' | 'tiktok'>('youtube');
+  const [instagramCaption, setInstagramCaption] = useState<string>('');
+  const [twitterCaption, setTwitterCaption] = useState<string>('');
+  const [tiktokCaption, setTiktokCaption] = useState<string>('');
+  const [aiSuggestedTitles, setAiSuggestedTitles] = useState<string[]>([]);
   const [isAiGeneratingMeta, setIsAiGeneratingMeta] = useState<boolean>(false);
 
   // High-CTR Thumbnail Studio State
@@ -764,6 +769,10 @@ export default function ShortsFormatterStudio() {
           if (draft.videoTitle) setVideoTitle(draft.videoTitle);
           if (draft.videoDescription) setVideoDescription(draft.videoDescription);
           if (draft.pinnedCommentText) setPinnedCommentText(draft.pinnedCommentText);
+          if (draft.instagramCaption) setInstagramCaption(draft.instagramCaption);
+          if (draft.twitterCaption) setTwitterCaption(draft.twitterCaption);
+          if (draft.tiktokCaption) setTiktokCaption(draft.tiktokCaption);
+          if (Array.isArray(draft.aiSuggestedTitles)) setAiSuggestedTitles(draft.aiSuggestedTitles);
           if (draft.thumbnailTitle) setThumbnailTitle(draft.thumbnailTitle);
           if (draft.thumbnailStyle) setThumbnailStyle(draft.thumbnailStyle);
           if (draft.thumbnailFontSize) setThumbnailFontSize(draft.thumbnailFontSize);
@@ -889,6 +898,10 @@ export default function ShortsFormatterStudio() {
           videoTitle,
           videoDescription,
           pinnedCommentText,
+          instagramCaption,
+          twitterCaption,
+          tiktokCaption,
+          aiSuggestedTitles,
           highlightColor,
           fontSize,
           verticalPosition,
@@ -1277,8 +1290,8 @@ export default function ShortsFormatterStudio() {
     }
   };
 
-  // Generate AI Title, Rich Description, and Pinned Comment from transcript & selected product
-  const generateAiMetadata = (textInput?: string, productOverride?: Product | null) => {
+  // Generate AI Title, Multi-Platform Descriptions, and Pinned Comment from transcript & selected product
+  const generateAiMetadata = async (textInput?: string, productOverride?: Product | null) => {
     setIsAiGeneratingMeta(true);
     try {
       const text = textInput || editableTranscript || words.map((w) => w.word).join(' ');
@@ -1321,68 +1334,64 @@ export default function ShortsFormatterStudio() {
       const product = matchedProduct || selectedProduct;
       const productUrl = product?.externalUrl || 'https://opportunity-system.com/about';
 
-      const productSnippet = product
-        ? `\n⚡ Featured Product: ${product.title} ($${product.price.toFixed(2)})\n👉 Buy / Details: ${productUrl}`
-        : `\n👉 Explore Blueprint & Platform: ${productUrl}`;
+      const cleanText = (text || '').replace(/\s+/g, ' ').trim();
 
-      const pinnedSnippet = product
-        ? `👉 Grab the ${product.title} here: ${productUrl} (Link in Bio ⚡)`
-        : `👉 Explore Opportunity OS and free tools here: ${productUrl} (Link in Bio ⚡)`;
-
-      if (!text || text.trim().length === 0) {
+      if (!cleanText) {
         const fileFallback = videoFile?.name ? videoFile.name.replace(/\.[^/.]+$/, '').toUpperCase() : 'AI SHOPPABLE SHORT';
         setVideoTitle(fileFallback);
         setThumbnailTitle(fileFallback);
         setVideoDescription(
-          `🚀 Grab the blueprint & software tools: ${productUrl}${productSnippet}\n\n#Shorts #Programming #SoftwareEngineering #AI #TechCareers #OpportunityOS`
+          `🚀 Grab the blueprint & software tools: ${productUrl}\n\n#Shorts #Programming #SoftwareEngineering #AI #TechCareers #OpportunityOS`
         );
-        setPinnedCommentText(pinnedSnippet);
         return;
       }
 
-      const cleanText = text.replace(/\s+/g, ' ').trim();
-      const sentences = cleanText.split(/[.!?]+/).map((s) => s.trim()).filter((s) => s.length > 4);
-      
-      let hook = '';
-      if (sentences.length > 0) {
-        const first = sentences[0];
-        if (first.length <= 60) {
-          hook = first.toUpperCase();
-        } else {
-          // If the first spoken thought is long, cleanly grab the first 6-8 words up to 55 chars
-          const words = first.split(/\s+/);
-          let sliced = '';
-          for (const w of words) {
-            if ((sliced + ' ' + w).trim().length <= 55) {
-              sliced = (sliced + ' ' + w).trim();
-            } else {
-              break;
-            }
-          }
-          hook = (sliced || first.slice(0, 50)).toUpperCase();
+      // Invoke real AI Multi-Platform Generator (Groq LLM / Backend)
+      const aiResult = await api.generateSocialMetadata({
+        transcript: cleanText,
+        productTitle: product?.title,
+        productPrice: product?.price,
+        productUrl,
+        brandName: 'Opportunity OS',
+      });
+
+      if (aiResult) {
+        if (aiResult.title) {
+          setVideoTitle(aiResult.title);
+          setThumbnailTitle(aiResult.title);
         }
-      } else {
-        hook = cleanText.slice(0, 50).toUpperCase();
+        if (Array.isArray(aiResult.suggestions) && aiResult.suggestions.length > 0) {
+          setAiSuggestedTitles(aiResult.suggestions);
+        }
+        if (aiResult.youtube?.description) {
+          setVideoDescription(aiResult.youtube.description);
+        }
+        if (aiResult.youtube?.pinnedComment) {
+          setPinnedCommentText(aiResult.youtube.pinnedComment);
+        }
+        if (aiResult.instagram) {
+          setInstagramCaption(aiResult.instagram);
+        }
+        if (aiResult.twitter) {
+          setTwitterCaption(aiResult.twitter);
+        }
+        if (aiResult.tiktok) {
+          setTiktokCaption(aiResult.tiktok);
+        }
+
+        // Sync AI-generated title to PostgreSQL project record
+        if (shortProjectId && shortProjectId !== 'short_active_draft' && !shortProjectId.startsWith('draft-')) {
+          api.saveProject({
+            id: shortProjectId,
+            name: aiResult.title,
+            description: (aiResult.youtube?.description || aiResult.title).slice(0, 240),
+          }).catch((err) => {
+            console.warn('Failed to sync AI title to project record:', err);
+          });
+        }
       }
-
-      if (!hook) {
-        hook = videoFile?.name ? videoFile.name.replace(/\.[^/.]+$/, '').toUpperCase() : 'AI SHOPPABLE SHORT';
-      }
-
-      const hookSnippet = cleanText.length > 240 ? cleanText.slice(0, 240) + '...' : cleanText;
-      const desc = `${hookSnippet}\n\n${productSnippet}\n\n#Shorts #Programming #SoftwareEngineering #AI #TechCareers #OpportunityOS`;
-
-      setVideoTitle(hook);
-      setThumbnailTitle(hook);
-      setVideoDescription(desc);
-      setPinnedCommentText(pinnedSnippet);
-
-      // Sync AI-generated title to PostgreSQL project record
-      if (shortProjectId && shortProjectId !== 'short_active_draft' && !shortProjectId.startsWith('draft-')) {
-        api.saveProject({ id: shortProjectId, name: hook, description: desc.slice(0, 240) }).catch((err) => {
-          console.warn('Failed to sync AI title to project record:', err);
-        });
-      }
+    } catch (e) {
+      console.warn('AI metadata generation error:', e);
     } finally {
       setTimeout(() => setIsAiGeneratingMeta(false), 300);
     }
@@ -3089,9 +3098,11 @@ export default function ShortsFormatterStudio() {
       setPublishTwitterStage('INITIALIZING');
       setPublishTwitterPercent(50);
 
-      const postText = videoTitle
-        ? `${videoTitle}\n\n👉 Full interactive short & blueprint: https://opportunity-system.com/about ⚡\n\n#AI #Coding #Tech`
-        : `${thumbnailTitle}\n\n👉 Full interactive short & blueprint: https://opportunity-system.com/about ⚡\n\n#AI #Coding #Tech`;
+      const postText =
+        twitterCaption ||
+        (videoTitle
+          ? `${videoTitle}\n\n👉 Full interactive short & blueprint: https://opportunity-system.com/about ⚡\n\n#AI #Coding #Tech`
+          : `${thumbnailTitle}\n\n👉 Full interactive short & blueprint: https://opportunity-system.com/about ⚡\n\n#AI #Coding #Tech`);
 
       const result = await api.publishTwitterPost(
         {
@@ -3337,13 +3348,20 @@ export default function ShortsFormatterStudio() {
 
   // Social Copy Generation
   const socialTitles = useMemo(() => {
-    if (!editableTranscript) return ['How to build AI systems ⚡', 'Bypassing 45-min portals in 10ms 🚀'];
-    return [
-      `How to bypass 45-minute ATS portals in 10 milliseconds ⚡`,
-      `The AI Engineering Secret Nobody Tells You (Speedrun) 🔥`,
-      `I automated my entire application pipeline with Opportunity OS 🚀`,
-    ];
-  }, [editableTranscript]);
+    if (aiSuggestedTitles && aiSuggestedTitles.length > 0) {
+      return aiSuggestedTitles;
+    }
+    if (!editableTranscript) return ['AI-Native Software Engineering ⚡', 'System Design Blueprint 🚀'];
+    const sentences = editableTranscript.split(/[.!?]+/).map((s) => s.trim()).filter((s) => s.length > 10);
+    if (sentences.length > 0) {
+      return [
+        sentences[0].slice(0, 55).toUpperCase(),
+        `The Secret to ${sentences[0].slice(0, 32)}... 🔥`,
+        `AI-Native Software Engineering (Explained) ⚡`,
+      ];
+    }
+    return ['AI-Native System Architecture ⚡', 'Software Engineering Blueprint 🔥'];
+  }, [aiSuggestedTitles, editableTranscript]);
 
   const pinnedComment = useMemo(() => {
     const productTitle = selectedProduct ? selectedProduct.title : 'Opportunity OS Platform';
@@ -5064,82 +5082,296 @@ export default function ShortsFormatterStudio() {
                 )}
               </div>
 
-              {/* 2. Video Description & Social Caption */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {/* 2. Multi-Platform Video Description & Social Caption */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Edit3 size={13} color="#60A5FA" />
-                    Video Description & Social Caption
+                    Multi-Platform Video Description & Captions
                   </label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '11px', color: videoDescription.length > 5000 ? '#EF4444' : 'var(--text-muted)' }}>
-                      {videoDescription.length}/5000 chars
-                    </span>
-                    <button
-                      onClick={() => copyToClipboard(videoDescription, 'custom_desc')}
-                      className="btn btn--outline"
-                      style={{ padding: '2px 8px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
-                    >
-                      {copiedKey === 'custom_desc' ? <Check size={11} color="#10b981" /> : <Copy size={11} />}
-                      {copiedKey === 'custom_desc' ? 'Copied' : 'Copy'}
-                    </button>
+                </div>
+
+                {/* Platform Selector Tabs */}
+                <div style={{ display: 'flex', gap: '6px', background: 'rgba(255, 255, 255, 0.04)', padding: '4px', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                  {[
+                    { id: 'youtube', label: '📺 YouTube Shorts', limit: 5000, value: videoDescription },
+                    { id: 'instagram', label: '📸 Instagram Reels', limit: 2200, value: instagramCaption },
+                    { id: 'twitter', label: '𝕏 Twitter / X', limit: 280, value: twitterCaption },
+                    { id: 'tiktok', label: '🎵 TikTok', limit: 2200, value: tiktokCaption },
+                  ].map((tab) => {
+                    const isOverLimit = tab.value.length > tab.limit;
+                    return (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => setPlatformTab(tab.id as any)}
+                        style={{
+                          flex: 1,
+                          padding: '6px 8px',
+                          fontSize: '11px',
+                          fontWeight: platformTab === tab.id ? 700 : 500,
+                          borderRadius: '6px',
+                          border: platformTab === tab.id ? '1px solid rgba(99, 102, 241, 0.5)' : '1px solid transparent',
+                          background: platformTab === tab.id ? 'rgba(99, 102, 241, 0.2)' : 'transparent',
+                          color: platformTab === tab.id ? '#C7D2FE' : 'var(--text-muted)',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        {tab.label}
+                        {isOverLimit && <span style={{ color: '#EF4444', fontSize: '9px', fontWeight: 700 }}>!</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Active Platform Editor Content */}
+                {platformTab === 'youtube' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                        Optimized for search & recommendation shelf. Links are clickable.
+                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '11px', color: videoDescription.length > 5000 ? '#EF4444' : 'var(--text-muted)' }}>
+                          {videoDescription.length}/5000 chars
+                        </span>
+                        <button
+                          onClick={() => copyToClipboard(videoDescription, 'custom_desc_yt')}
+                          className="btn btn--outline"
+                          style={{ padding: '2px 8px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                        >
+                          {copiedKey === 'custom_desc_yt' ? <Check size={11} color="#10b981" /> : <Copy size={11} />}
+                          {copiedKey === 'custom_desc_yt' ? 'Copied' : 'Copy'}
+                        </button>
+                      </div>
+                    </div>
+                    <textarea
+                      rows={5}
+                      value={videoDescription}
+                      onChange={(e) => setVideoDescription(e.target.value)}
+                      className="form-input"
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        fontSize: '12px',
+                        lineHeight: '1.5',
+                        color: '#fff',
+                        background: 'rgba(0, 0, 0, 0.4)',
+                        border: '1px solid rgba(255, 255, 255, 0.15)',
+                        borderRadius: 'var(--radius-sm)',
+                        fontFamily: 'inherit',
+                        resize: 'vertical',
+                      }}
+                      placeholder="Enter YouTube Shorts description, links, and hashtags..."
+                    />
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Quick Insert:</span>
+                      <button
+                        onClick={() => setVideoDescription((prev) => prev + '\n👉 Grab the Blueprint & Opportunity OS: https://opportunity-system.com/about')}
+                        className="btn btn--outline"
+                        style={{ padding: '2px 8px', fontSize: '11px', color: '#60A5FA', borderColor: 'rgba(96, 165, 250, 0.3)' }}
+                      >
+                        + Bio Link
+                      </button>
+                      <button
+                        onClick={() => setVideoDescription((prev) => prev + `\n⚡ Featured Product: ${selectedProduct?.title || 'AI-Native Software Engineering'}`)}
+                        className="btn btn--outline"
+                        style={{ padding: '2px 8px', fontSize: '11px', color: '#34D399', borderColor: 'rgba(52, 211, 153, 0.3)' }}
+                      >
+                        + Product Info
+                      </button>
+                      <button
+                        onClick={() => setVideoDescription((prev) => prev + '\n\n#Shorts #Programming #SoftwareEngineering #AI #OpportunityOS')}
+                        className="btn btn--outline"
+                        style={{ padding: '2px 8px', fontSize: '11px', color: '#F472B6', borderColor: 'rgba(244, 114, 182, 0.3)' }}
+                      >
+                        + Viral #Tags
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
 
-                <textarea
-                  rows={5}
-                  value={videoDescription}
-                  onChange={(e) => setVideoDescription(e.target.value)}
-                  className="form-input"
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    fontSize: '12px',
-                    lineHeight: '1.5',
-                    color: '#fff',
-                    background: 'rgba(0, 0, 0, 0.4)',
-                    border: '1px solid rgba(255, 255, 255, 0.15)',
-                    borderRadius: 'var(--radius-sm)',
-                    fontFamily: 'inherit',
-                    resize: 'vertical',
-                  }}
-                  placeholder="Enter full video description, product links, and hashtags..."
-                />
+                {platformTab === 'instagram' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                        First 120 chars hook viewers before '...more'. Uses 'Link in bio' CTA.
+                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '11px', color: instagramCaption.length > 2200 ? '#EF4444' : 'var(--text-muted)' }}>
+                          {instagramCaption.length}/2200 chars
+                        </span>
+                        <button
+                          onClick={() => copyToClipboard(instagramCaption, 'custom_desc_ig')}
+                          className="btn btn--outline"
+                          style={{ padding: '2px 8px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                        >
+                          {copiedKey === 'custom_desc_ig' ? <Check size={11} color="#10b981" /> : <Copy size={11} />}
+                          {copiedKey === 'custom_desc_ig' ? 'Copied' : 'Copy'}
+                        </button>
+                      </div>
+                    </div>
+                    <textarea
+                      rows={5}
+                      value={instagramCaption}
+                      onChange={(e) => setInstagramCaption(e.target.value)}
+                      className="form-input"
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        fontSize: '12px',
+                        lineHeight: '1.5',
+                        color: '#fff',
+                        background: 'rgba(0, 0, 0, 0.4)',
+                        border: '1px solid rgba(255, 255, 255, 0.15)',
+                        borderRadius: 'var(--radius-sm)',
+                        fontFamily: 'inherit',
+                        resize: 'vertical',
+                      }}
+                      placeholder="Enter Instagram Reel caption (hook first 120 chars, add 'link in bio' CTA)..."
+                    />
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Quick Insert:</span>
+                      <button
+                        onClick={() => setInstagramCaption((prev) => prev + '\n\n🔗 Link in bio to grab the full blueprint!')}
+                        className="btn btn--outline"
+                        style={{ padding: '2px 8px', fontSize: '11px', color: '#60A5FA', borderColor: 'rgba(96, 165, 250, 0.3)' }}
+                      >
+                        + Link in Bio
+                      </button>
+                      <button
+                        onClick={() => setInstagramCaption((prev) => prev + '\n\n#softwareengineering #systemdesign #coding #ai #techtrends')}
+                        className="btn btn--outline"
+                        style={{ padding: '2px 8px', fontSize: '11px', color: '#F472B6', borderColor: 'rgba(244, 114, 182, 0.3)' }}
+                      >
+                        + Niche Hashtags
+                      </button>
+                    </div>
+                  </div>
+                )}
 
-                {/* Quick Insert Snippet Pills */}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Quick Insert:</span>
-                  <button
-                    onClick={() => {
-                      const linkText = '\n👉 Grab the Blueprint & Opportunity OS: https://opportunity-system.com/about';
-                      setVideoDescription((prev) => prev + linkText);
-                    }}
-                    className="btn btn--outline"
-                    style={{ padding: '2px 8px', fontSize: '11px', color: '#60A5FA', borderColor: 'rgba(96, 165, 250, 0.3)' }}
-                  >
-                    + Bio Link
-                  </button>
-                  <button
-                    onClick={() => {
-                      const productText = `\n⚡ Featured Product: ${selectedProduct?.title || 'AI-Native Software Engineering'}`;
-                      setVideoDescription((prev) => prev + productText);
-                    }}
-                    className="btn btn--outline"
-                    style={{ padding: '2px 8px', fontSize: '11px', color: '#34D399', borderColor: 'rgba(52, 211, 153, 0.3)' }}
-                  >
-                    + Product Info
-                  </button>
-                  <button
-                    onClick={() => {
-                      const tagsText = '\n\n#Shorts #Programming #SoftwareEngineering #AI #TechCareers #OpportunityOS';
-                      setVideoDescription((prev) => prev + tagsText);
-                    }}
-                    className="btn btn--outline"
-                    style={{ padding: '2px 8px', fontSize: '11px', color: '#F472B6', borderColor: 'rgba(244, 114, 182, 0.3)' }}
-                  >
-                    + Viral #Tags
-                  </button>
-                </div>
+                {platformTab === 'twitter' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                        Direct, punchy take with clickable link. Strict 280 char limit.
+                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '11px', color: twitterCaption.length > 280 ? '#EF4444' : twitterCaption.length > 250 ? '#F59E0B' : '#10B981', fontWeight: 600 }}>
+                          {twitterCaption.length}/280 chars
+                        </span>
+                        <button
+                          onClick={() => copyToClipboard(twitterCaption, 'custom_desc_tw')}
+                          className="btn btn--outline"
+                          style={{ padding: '2px 8px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                        >
+                          {copiedKey === 'custom_desc_tw' ? <Check size={11} color="#10b981" /> : <Copy size={11} />}
+                          {copiedKey === 'custom_desc_tw' ? 'Copied' : 'Copy'}
+                        </button>
+                      </div>
+                    </div>
+                    <textarea
+                      rows={4}
+                      value={twitterCaption}
+                      onChange={(e) => setTwitterCaption(e.target.value)}
+                      className="form-input"
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        fontSize: '12px',
+                        lineHeight: '1.5',
+                        color: '#fff',
+                        background: 'rgba(0, 0, 0, 0.4)',
+                        border: twitterCaption.length > 280 ? '1px solid #EF4444' : '1px solid rgba(255, 255, 255, 0.15)',
+                        borderRadius: 'var(--radius-sm)',
+                        fontFamily: 'inherit',
+                        resize: 'vertical',
+                      }}
+                      placeholder="Enter tweet text (under 280 characters)..."
+                    />
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Quick Insert:</span>
+                      <button
+                        onClick={() => setTwitterCaption((prev) => (prev ? `${prev} https://opportunity-system.com/about` : 'https://opportunity-system.com/about'))}
+                        className="btn btn--outline"
+                        style={{ padding: '2px 8px', fontSize: '11px', color: '#60A5FA', borderColor: 'rgba(96, 165, 250, 0.3)' }}
+                      >
+                        + Blueprint Link
+                      </button>
+                      <button
+                        onClick={() => setTwitterCaption((prev) => prev + ' #AI #Tech')}
+                        className="btn btn--outline"
+                        style={{ padding: '2px 8px', fontSize: '11px', color: '#F472B6', borderColor: 'rgba(244, 114, 182, 0.3)' }}
+                      >
+                        + Minimal Tags
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {platformTab === 'tiktok' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                        Casual, question-driven curiosity hook. Search SEO keywords.
+                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '11px', color: tiktokCaption.length > 2200 ? '#EF4444' : 'var(--text-muted)' }}>
+                          {tiktokCaption.length}/2200 chars
+                        </span>
+                        <button
+                          onClick={() => copyToClipboard(tiktokCaption, 'custom_desc_tt')}
+                          className="btn btn--outline"
+                          style={{ padding: '2px 8px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                        >
+                          {copiedKey === 'custom_desc_tt' ? <Check size={11} color="#10b981" /> : <Copy size={11} />}
+                          {copiedKey === 'custom_desc_tt' ? 'Copied' : 'Copy'}
+                        </button>
+                      </div>
+                    </div>
+                    <textarea
+                      rows={4}
+                      value={tiktokCaption}
+                      onChange={(e) => setTiktokCaption(e.target.value)}
+                      className="form-input"
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        fontSize: '12px',
+                        lineHeight: '1.5',
+                        color: '#fff',
+                        background: 'rgba(0, 0, 0, 0.4)',
+                        border: '1px solid rgba(255, 255, 255, 0.15)',
+                        borderRadius: 'var(--radius-sm)',
+                        fontFamily: 'inherit',
+                        resize: 'vertical',
+                      }}
+                      placeholder="Enter TikTok caption with search keywords..."
+                    />
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Quick Insert:</span>
+                      <button
+                        onClick={() => setTiktokCaption((prev) => prev + '\n\n⚡ Check bio for the system blueprint!')}
+                        className="btn btn--outline"
+                        style={{ padding: '2px 8px', fontSize: '11px', color: '#60A5FA', borderColor: 'rgba(96, 165, 250, 0.3)' }}
+                      >
+                        + Bio CTA
+                      </button>
+                      <button
+                        onClick={() => setTiktokCaption((prev) => prev + ' #techtok #softwareengineering #coding #learnontiktok')}
+                        className="btn btn--outline"
+                        style={{ padding: '2px 8px', fontSize: '11px', color: '#F472B6', borderColor: 'rgba(244, 114, 182, 0.3)' }}
+                      >
+                        + TikTok #Tags
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* 3. High-Converting Pinned Comment */}
