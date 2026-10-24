@@ -584,6 +584,7 @@ export const api = {
     tiktok: string;
   }> {
     // 1. Try backend endpoint first
+    let backendError: string | null = null;
     try {
       const res = await fetch(`${API_BASE_URL}/api/videos/generate-metadata`, {
         method: 'POST',
@@ -593,19 +594,24 @@ export const api = {
       if (res.ok) {
         const json = await res.json();
         if (json.data) return json.data;
+      } else {
+        const errJson = await res.json().catch(() => ({}));
+        backendError = errJson.message || `Backend generation returned HTTP ${res.status}`;
+        console.warn(`Backend generate-metadata error (HTTP ${res.status}):`, errJson);
       }
-    } catch (e) {
-      console.warn('Backend generate-metadata request failed, attempting direct Groq fallback:', e);
+    } catch (e: any) {
+      backendError = e.message || 'Failed to reach backend';
+      console.warn('Backend generate-metadata network failure:', e);
     }
 
-    // 2. Direct Groq fallback for client-side zero-latency processing
+    // 2. Direct Groq fallback if VITE_GROQ_API_KEY is configured
     const groqKey =
       import.meta.env.VITE_GROQ_API_KEY ||
       (typeof window !== 'undefined' ? (window as any).__GROQ_API_KEY__ : '') ||
       '';
 
     if (!groqKey) {
-      throw new Error('AI generation requires backend connection or VITE_GROQ_API_KEY.');
+      throw new Error(backendError || 'AI social caption generation failed.');
     }
 
     const transcriptExcerpt = (payload.transcript || '').slice(0, 3000);
@@ -656,7 +662,7 @@ Generate the platform-optimized social copy now in JSON format.`;
         Authorization: `Bearer ${groqKey}`,
       },
       body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
+        model: 'qwen/qwen3.8-27b',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
@@ -693,6 +699,7 @@ Generate the platform-optimized social copy now in JSON format.`;
     productTitle?: string;
   }): Promise<{ suggestions: string[] }> {
     // 1. Try backend endpoint first
+    let backendError: string | null = null;
     try {
       const res = await fetch(`${API_BASE_URL}/api/videos/generate-titles`, {
         method: 'POST',
@@ -702,19 +709,24 @@ Generate the platform-optimized social copy now in JSON format.`;
       if (res.ok) {
         const json = await res.json();
         if (json.data && Array.isArray(json.data.suggestions)) return json.data;
+      } else {
+        const errJson = await res.json().catch(() => ({}));
+        backendError = errJson.message || `Backend generation returned HTTP ${res.status}`;
+        console.warn(`Backend generate-titles error (HTTP ${res.status}):`, errJson);
       }
-    } catch (e) {
-      console.warn('Backend generate-titles request failed, attempting direct Groq fallback:', e);
+    } catch (e: any) {
+      backendError = e.message || 'Failed to reach backend';
+      console.warn('Backend generate-titles network failure:', e);
     }
 
-    // 2. Direct Groq fallback
+    // 2. Direct Groq fallback if VITE_GROQ_API_KEY is configured
     const groqKey =
       import.meta.env.VITE_GROQ_API_KEY ||
       (typeof window !== 'undefined' ? (window as any).__GROQ_API_KEY__ : '') ||
       '';
 
     if (!groqKey) {
-      throw new Error('AI title generation requires backend connection or VITE_GROQ_API_KEY.');
+      throw new Error(backendError || 'AI title hook generation failed.');
     }
 
     const transcriptExcerpt = (payload.transcript || '').slice(0, 3000);
@@ -740,14 +752,14 @@ Generate 4 viral titles now in JSON format.`;
         Authorization: `Bearer ${groqKey}`,
       },
       body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
+        model: 'qwen/qwen3.8-27b',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
         ],
         response_format: { type: 'json_object' },
         temperature: 0.7,
-        max_tokens: 300,
+        max_tokens: 400,
       }),
     });
 
