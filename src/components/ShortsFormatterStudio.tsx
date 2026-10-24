@@ -4698,6 +4698,11 @@ export default function ShortsFormatterStudio() {
                         return (
                           <div
                             key={p.id}
+                            onClick={() => {
+                              setYoutubeSelectedProductId(p.id);
+                              setYoutubeQrTarget('PRODUCT');
+                              setIsYoutubeProductPickerOpen(false);
+                            }}
                             style={{
                               padding: '12px',
                               borderRadius: '10px',
@@ -4710,6 +4715,7 @@ export default function ShortsFormatterStudio() {
                               display: 'flex',
                               flexDirection: 'column',
                               gap: '10px',
+                              cursor: 'pointer',
                               transition: 'all 0.15s ease',
                             }}
                           >

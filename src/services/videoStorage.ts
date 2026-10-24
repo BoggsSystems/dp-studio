@@ -273,13 +273,25 @@ export async function saveShortDraftToCloud(
       body: JSON.stringify(payload),
     });
 
-    // Also sync canonical Project name and thumbnailUrl in PostgreSQL database
+    // Also sync canonical Project name, thumbnailUrl, and metadata in PostgreSQL database
     if (short.id && !short.id.startsWith('draft-') && short.id !== 'short_active_draft') {
       api.saveProject({
         id: short.id,
         ...(short.title && short.title !== 'AI Shoppable Short' && short.title !== 'AI SHOPPABLE SHORT' ? { name: short.title } : {}),
         ...(thumbnailUrl && !thumbnailUrl.startsWith('data:') ? { thumbnailUrl } : {}),
         ...(videoUrl && !videoUrl.startsWith('blob:') ? { masterVodUrl: videoUrl } : {}),
+        metadata: {
+          youtubeSelectedProductId: short.youtubeSelectedProductId !== undefined ? short.youtubeSelectedProductId : null,
+          youtubeBurnQr: short.youtubeBurnQr,
+          youtubeQrTarget: short.youtubeQrTarget,
+          youtubeQrPlacement: short.youtubeQrPlacement,
+          youtubeCustomQrUrl: short.youtubeCustomQrUrl,
+          youtubeBurnDrawer: short.youtubeBurnDrawer,
+          productId: short.productId,
+          selectedProductId: short.productId,
+          carouselProductIds: short.carouselProductIds,
+          includedProductIds: short.includedProductIds,
+        },
       }).catch((projErr) => {
         console.warn('Project PostgreSQL sync notice:', projErr);
       });
@@ -638,6 +650,18 @@ export async function deleteVodProjectFromCloud(
 
 export async function loadShortProjectIntoActiveDraft(short: FormattedShortProject, blob?: Blob | null): Promise<void> {
   try {
+    const activeDraftRaw = localStorage.getItem('digitpop_shorts_formatter_draft_v1');
+    let localDraft: any = null;
+    if (activeDraftRaw) {
+      try { localDraft = JSON.parse(activeDraftRaw); } catch (e) {}
+    }
+    const isSameProject = localDraft && localDraft.id === short.id;
+
+    const resolvedYtProductId =
+      short.youtubeSelectedProductId !== undefined && short.youtubeSelectedProductId !== null
+        ? short.youtubeSelectedProductId
+        : ((short as any).metadata?.youtubeSelectedProductId || (isSameProject ? localDraft.youtubeSelectedProductId : null));
+
     const draftData = {
       id: short.id,
       title: short.title,
@@ -662,7 +686,7 @@ export async function loadShortProjectIntoActiveDraft(short: FormattedShortProje
       youtubeQrPlacement: short.youtubeQrPlacement || (short as any).metadata?.youtubeQrPlacement || 'TOP_RIGHT',
       youtubeCustomQrUrl: short.youtubeCustomQrUrl || (short as any).metadata?.youtubeCustomQrUrl || 'https://opportunity-system.com/about',
       youtubeBurnDrawer: short.youtubeBurnDrawer !== undefined ? short.youtubeBurnDrawer : (short as any).metadata?.youtubeBurnDrawer ?? false,
-      youtubeSelectedProductId: short.youtubeSelectedProductId !== undefined ? short.youtubeSelectedProductId : ((short as any).metadata?.youtubeSelectedProductId || null),
+      youtubeSelectedProductId: resolvedYtProductId,
       selectedProductId: short.productId || (short as any).selectedProductId || (short as any).metadata?.productId || null,
       productTitle: short.productTitle || (short as any).metadata?.productTitle,
       productPrice: short.productPrice || (short as any).metadata?.productPrice,

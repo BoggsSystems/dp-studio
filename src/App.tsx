@@ -434,13 +434,25 @@ function StudioApp() {
                 projects={projects}
                 availableProducts={catalogProducts}
                 onSelectProject={async (selected) => {
-                  setProject(selected);
+                  let activeSelected = selected;
+                  if (selected.id && !selected.id.startsWith('draft-')) {
+                    try {
+                      const fresh = await api.getProject(selected.id);
+                      if (fresh) {
+                        activeSelected = fresh;
+                        setProjects((prev) => prev.map((p) => (p.id === fresh.id ? fresh : p)));
+                      }
+                    } catch (e) {
+                      console.warn('Could not fetch fresh project on selection:', e);
+                    }
+                  }
+                  setProject(activeSelected);
                   const isShort =
-                    selected.mediaType === 'SHORT' ||
-                    (selected.masterVodUrl ? selected.masterVodUrl.includes('/shorts/') || selected.masterVodUrl.includes('_SHORT') : false) ||
-                    selected.channel === 'shorts';
+                    activeSelected.mediaType === 'SHORT' ||
+                    (activeSelected.masterVodUrl ? activeSelected.masterVodUrl.includes('/shorts/') || activeSelected.masterVodUrl.includes('_SHORT') : false) ||
+                    activeSelected.channel === 'shorts';
                   if (isShort) {
-                    const meta = (selected.metadata as any) || {};
+                    const meta = (activeSelected.metadata as any) || {};
                     const shortObj: FormattedShortProject = {
                       id: selected.id,
                       title: meta.thumbnailTitle || selected.name,
