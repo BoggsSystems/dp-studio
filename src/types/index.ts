@@ -268,4 +268,44 @@ export interface ProjectDistributionResponse {
   products: ProductPerformanceSummary[];
 }
 
+export interface ProjectAnalyticsSummary {
+  id: string;
+  name: string;
+  thumbnailUrl?: string;
+  durationSeconds?: number;
+  createdAt?: string;
+  publishedChannels: string[];
+  views: number;
+  watchTimeHours: number;
+  outboundClicks: number;
+  qrScans: number;
+  ctrPercent: number;
+  productsCount: number;
+}
+
+export interface ProductAggregatedVideoBreakdown {
+  projectId: string;
+  videoTitle: string;
+  thumbnailUrl?: string;
+  inVideoImpressions: number;
+  catalogExpands: number;
+  outboundClickThroughs: number;
+  ctrPercent: number;
+}
+
+export interface ProductAggregatedSummary {
+  productId: string;
+  title: string;
+  imageUrl?: string;
+  price?: number;
+  externalUrl?: string;
+  totalImpressions: number;
+  totalExpands: number;
+  totalOutboundClicks: number;
+  overallCtrPercent: number;
+  featuredVideosCount: number;
+  videos: ProductAggregatedVideoBreakdown[];
+}
+
+
 

@@ -1,4 +1,4 @@
-import { Project, Clip, AiTagDetection, User, Campaign, StreamSession, ProductGroup, ViewingMode, Product, ChannelMetricSummary, ProductPerformanceSummary, AnalyticsOverviewResponse, ProjectDistributionResponse } from '../types';
+import { Project, Clip, AiTagDetection, User, Campaign, StreamSession, ProductGroup, ViewingMode, Product, ChannelMetricSummary, ProductPerformanceSummary, AnalyticsOverviewResponse, ProjectDistributionResponse, ProjectAnalyticsSummary, ProductAggregatedSummary, ProductAggregatedVideoBreakdown } from '../types';
 
 const API_BASE_URL = (
   import.meta.env.VITE_API_URL ||
@@ -1518,6 +1518,36 @@ Generate 4 viral titles now in JSON format.`;
         ],
         products: [],
       };
+    }
+  },
+
+  async getProjectsAnalyticsSummary(userId?: string): Promise<ProjectAnalyticsSummary[]> {
+    try {
+      const url = new URL(`${API_BASE_URL}/api/analytics/projects-summary`);
+      if (userId) url.searchParams.set('userId', userId);
+      const res = await fetch(url.toString(), {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch (e) {
+      console.warn('Failed to fetch projects analytics summary from server:', e);
+      return [];
+    }
+  },
+
+  async getProductsAnalyticsSummary(userId?: string): Promise<ProductAggregatedSummary[]> {
+    try {
+      const url = new URL(`${API_BASE_URL}/api/analytics/products-summary`);
+      if (userId) url.searchParams.set('userId', userId);
+      const res = await fetch(url.toString(), {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch (e) {
+      console.warn('Failed to fetch products analytics summary from server:', e);
+      return [];
     }
   },
 
