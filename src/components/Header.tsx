@@ -11,12 +11,13 @@ import {
   LogOut, 
   User as UserIcon,
   ChevronDown,
-  ShoppingBag
+  ShoppingBag,
+  BarChart3
 } from 'lucide-react';
 import { Project } from '../types';
 import { useAuth } from '../context/AuthContext';
 
-export type StudioTab = 'projects' | 'vod' | 'products' | 'live' | 'campaigns' | 'clips' | 'quiz';
+export type StudioTab = 'projects' | 'vod' | 'products' | 'live' | 'campaigns' | 'clips' | 'quiz' | 'analytics';
 
 interface HeaderProps {
   activeTab: StudioTab;
@@ -149,6 +150,14 @@ export default function Header({
           >
             <HelpCircle size={14} />
             <span>Quizzes</span>
+          </button>
+
+          <button
+            className={`tab-btn ${activeTab === 'analytics' ? 'active' : ''}`}
+            onClick={() => setActiveTab('analytics')}
+          >
+            <BarChart3 size={14} color={activeTab === 'analytics' ? 'var(--accent-teal)' : undefined} />
+            <span>Analytics</span>
           </button>
         </div>
 

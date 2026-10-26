@@ -225,3 +225,47 @@ export interface FormattedShortProject {
   updatedAt?: string;
 }
 
+export interface ChannelMetricSummary {
+  channel: string;
+  name: string;
+  status: 'LIVE' | 'NOT_PUBLISHED';
+  publishedUrl?: string;
+  externalPostId?: string;
+  views: number;
+  likes: number;
+  comments: number;
+  shares: number;
+  clickThroughs: number;
+  watchTimeHours: number;
+  publishedAt?: string;
+}
+
+export interface ProductPerformanceSummary {
+  productId: string;
+  title: string;
+  imageUrl?: string;
+  price?: number;
+  externalUrl?: string;
+  inVideoImpressions: number;
+  catalogExpands: number;
+  outboundClickThroughs: number;
+  ctrPercent: number;
+}
+
+export interface AnalyticsOverviewResponse {
+  crossChannelViews: number;
+  totalWatchTimeHours: number;
+  productClickThroughs: number;
+  qrScans: number;
+  overallCtrPercent: number;
+  activeChannelsCount: number;
+}
+
+export interface ProjectDistributionResponse {
+  projectId: string;
+  videoTitle: string;
+  channels: ChannelMetricSummary[];
+  products: ProductPerformanceSummary[];
+}
+
+

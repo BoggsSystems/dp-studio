@@ -8,6 +8,7 @@ import ProductCatalog from './components/ProductCatalog';
 import AiAutopilotPanel from './components/AiAutopilotPanel';
 import ShortsFormatterStudio from './components/ShortsFormatterStudio';
 import QuizEditor from './components/QuizEditor';
+import AnalyticsDashboard from './components/AnalyticsDashboard';
 import DeployModal from './components/DeployModal';
 import AuthModal from './components/AuthModal';
 import ProjectList from './components/ProjectList';
@@ -669,6 +670,20 @@ function StudioApp() {
 
             {/* WATCH-TO-EARN QUIZZES TAB */}
             {activeTab === 'quiz' && <QuizEditor />}
+
+            {/* CROSS-CHANNEL & PRODUCT ANALYTICS */}
+            {activeTab === 'analytics' && (
+              <AnalyticsDashboard
+                projects={projects}
+                currentProjectId={project?.id}
+                onSelectProject={(proj) => {
+                  setProject(proj);
+                }}
+                onNavigateShorts={(projId) => {
+                  setActiveTab('clips');
+                }}
+              />
+            )}
           </main>
         </>
       )}

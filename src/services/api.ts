@@ -1,4 +1,4 @@
-import { Project, Clip, AiTagDetection, User, Campaign, StreamSession, ProductGroup, ViewingMode, Product } from '../types';
+import { Project, Clip, AiTagDetection, User, Campaign, StreamSession, ProductGroup, ViewingMode, Product, ChannelMetricSummary, ProductPerformanceSummary, AnalyticsOverviewResponse, ProjectDistributionResponse } from '../types';
 
 const API_BASE_URL = (
   import.meta.env.VITE_API_URL ||
@@ -1470,6 +1470,83 @@ Generate 4 viral titles now in JSON format.`;
         brandRecallRate: 0,
         totalSpent: 0,
       } as Campaign;
+    }
+  },
+
+  // --- Analytics & Telemetry ---
+  async getAnalyticsOverview(userId?: string): Promise<AnalyticsOverviewResponse> {
+    try {
+      const url = new URL(`${API_BASE_URL}/api/analytics/overview`);
+      if (userId) url.searchParams.set('userId', userId);
+      const res = await fetch(url.toString(), {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch (e) {
+      console.warn('Failed to fetch analytics overview from server, using local fallback:', e);
+      return {
+        crossChannelViews: 0,
+        totalWatchTimeHours: 0,
+        productClickThroughs: 0,
+        qrScans: 0,
+        overallCtrPercent: 0,
+        activeChannelsCount: 0,
+      };
+    }
+  },
+
+  async getProjectDistribution(projectId: string): Promise<ProjectDistributionResponse> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/analytics/projects/${projectId}/distribution`, {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch (e) {
+      console.warn(`Failed to fetch project distribution for ${projectId}, using fallback:`, e);
+      return {
+        projectId,
+        videoTitle: 'Shoppable Video Project',
+        channels: [
+          { channel: 'YOUTUBE_SHORTS', name: 'YouTube Shorts', status: 'NOT_PUBLISHED', views: 0, likes: 0, comments: 0, shares: 0, clickThroughs: 0, watchTimeHours: 0 },
+          { channel: 'TIKTOK', name: 'TikTok', status: 'NOT_PUBLISHED', views: 0, likes: 0, comments: 0, shares: 0, clickThroughs: 0, watchTimeHours: 0 },
+          { channel: 'INSTAGRAM_REELS', name: 'Instagram Reels', status: 'NOT_PUBLISHED', views: 0, likes: 0, comments: 0, shares: 0, clickThroughs: 0, watchTimeHours: 0 },
+          { channel: 'X_TWITTER', name: 'X / Twitter', status: 'NOT_PUBLISHED', views: 0, likes: 0, comments: 0, shares: 0, clickThroughs: 0, watchTimeHours: 0 },
+          { channel: 'WEB_PLAYER', name: 'Shoppable Web Embed', status: 'LIVE', views: 0, likes: 0, comments: 0, shares: 0, clickThroughs: 0, watchTimeHours: 0 },
+          { channel: 'QR_OVERLAY', name: 'Dynamic QR Code', status: 'LIVE', views: 0, likes: 0, comments: 0, shares: 0, clickThroughs: 0, watchTimeHours: 0 },
+        ],
+        products: [],
+      };
+    }
+  },
+
+  async trackPlayerEvent(payload: {
+    projectId: string;
+    eventType: 'VIEW' | 'WATCH_TIME' | 'QR_SCAN' | 'CATALOG_OPEN' | 'DRAWER_IMPRESSION' | 'PRODUCT_CLICKTHROUGH';
+    channel?: string;
+    productId?: string;
+    productTitle?: string;
+    destinationUrl?: string;
+    watchTimeSec?: number;
+    viewerId?: string;
+  }): Promise<{ success: boolean }> {
+    try {
+      const endpoint = `${API_BASE_URL}/api/analytics/track`;
+      const body = JSON.stringify(payload);
+      if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
+        navigator.sendBeacon(endpoint, new Blob([body], { type: 'application/json' }));
+        return { success: true };
+      }
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+        keepalive: true,
+      });
+      return await res.json().catch(() => ({ success: true }));
+    } catch (e) {
+      return { success: false };
     }
   },
 };

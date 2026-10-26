@@ -1247,7 +1247,11 @@ export default function ShortsFormatterStudio() {
       targetUrl = youtubeCustomQrUrl || 'https://opportunity-system.com/about';
     }
 
-    QRCode.toDataURL(targetUrl, {
+    const qrUrlToEncode = (shortProjectId && !shortProjectId.startsWith('draft-'))
+      ? `https://digitpop.opportunity-system.com/r/${shortProjectId}`
+      : targetUrl;
+
+    QRCode.toDataURL(qrUrlToEncode, {
       width: 320,
       margin: 1,
       color: {
@@ -1261,7 +1265,7 @@ export default function ShortsFormatterStudio() {
       .catch((err) => {
         console.error('YouTube QR code generation error:', err);
       });
-  }, [youtubeQrTarget, youtubeProduct, selectedProduct, youtubeCustomQrUrl]);
+  }, [youtubeQrTarget, youtubeProduct, selectedProduct, youtubeCustomQrUrl, shortProjectId]);
 
   // Transcription trigger function
   const runTranscription = async (fileToProcess?: File) => {
@@ -7287,8 +7291,19 @@ export default function ShortsFormatterStudio() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        if ((currentHeroProduct || selectedProduct)?.externalUrl) {
-                          window.open((currentHeroProduct || selectedProduct)!.externalUrl, '_blank');
+                        const p = currentHeroProduct || selectedProduct;
+                        if (p?.externalUrl) {
+                          try {
+                            api.trackPlayerEvent({
+                              projectId: shortProjectId,
+                              eventType: 'PRODUCT_CLICKTHROUGH',
+                              channel: 'PREVIEW_PLAYER',
+                              productId: p.id,
+                              productTitle: p.title,
+                              destinationUrl: p.externalUrl,
+                            }).catch(() => {});
+                          } catch (err) {}
+                          window.open(p.externalUrl, '_blank');
                         }
                       }}
                       style={{
