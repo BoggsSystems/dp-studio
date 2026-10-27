@@ -25,6 +25,60 @@ import { api } from './services/api';
 import TermsOfService from './components/legal/TermsOfService';
 import PrivacyPolicy from './components/legal/PrivacyPolicy';
 
+function buildFormattedShortFromProject(targetProj: Project): FormattedShortProject {
+  const meta = (targetProj.metadata as any) || {};
+  return {
+    id: targetProj.id,
+    title: meta.thumbnailTitle || targetProj.name,
+    videoUrl: targetProj.masterVodUrl || meta.optimizedVideoUrl || meta.originalVideoUrl || meta.videoUrl,
+    thumbnailUrl: targetProj.thumbnailUrl,
+    durationSeconds: targetProj.durationSeconds || 60,
+    words: meta.words || meta.transcript || [],
+    editableTranscript: meta.editableTranscript || '',
+    highlightColor: meta.highlightColor || 'amber',
+    fontSize: meta.fontSize !== undefined ? meta.fontSize : 22,
+    verticalPosition: meta.verticalPosition !== undefined ? meta.verticalPosition : 78,
+    wordPacing: meta.wordPacing || 'POP_TWO_WORDS',
+    autoEmojis: meta.autoEmojis ?? true,
+    uppercase: meta.uppercase ?? true,
+    layoutMode: meta.layoutMode || 'FIT_BLUR',
+    showShoppableDrawer: meta.showShoppableDrawer ?? true,
+    showQrCode: meta.showQrCode ?? true,
+    qrPlacement: meta.qrPlacement || 'TOP_RIGHT',
+    qrCustomUrl: meta.qrCustomUrl || '',
+    youtubeBurnQr: meta.youtubeBurnQr !== undefined ? meta.youtubeBurnQr : true,
+    youtubeQrTarget: meta.youtubeQrTarget || 'OPPORTUNITY_OS',
+    youtubeQrPlacement: meta.youtubeQrPlacement || 'TOP_RIGHT',
+    youtubeCustomQrUrl: meta.youtubeCustomQrUrl || 'https://opportunity-system.com/about',
+    youtubeBurnDrawer: meta.youtubeBurnDrawer !== undefined ? meta.youtubeBurnDrawer : false,
+    youtubeSelectedProductId: meta.youtubeSelectedProductId || null,
+    productId: meta.productId || meta.selectedProductId || (targetProj as any)?.pins?.[0]?.productId || undefined,
+    productTitle: meta.productTitle || undefined,
+    productPrice: meta.productPrice || undefined,
+    includedProductIds: Array.isArray(meta.includedProductIds) ? meta.includedProductIds : [],
+    carouselProductIds: Array.isArray(meta.carouselProductIds) ? meta.carouselProductIds : [],
+    carouselRotationSpeed: typeof meta.carouselRotationSpeed === 'number' ? meta.carouselRotationSpeed : 8,
+    thumbnailTitle: meta.thumbnailTitle || targetProj.name,
+    thumbnailStyle: meta.thumbnailStyle || 'VIRAL_WHITE',
+    thumbnailFontSize: meta.thumbnailFontSize !== undefined ? meta.thumbnailFontSize : 54,
+    thumbnailPosition: meta.thumbnailPosition !== undefined ? meta.thumbnailPosition : 45,
+    thumbnailBadge: meta.thumbnailBadge || targetProj.thumbnailBadge || '⚡ MUST WATCH',
+    thumbnailStrokeWidth: meta.thumbnailStrokeWidth !== undefined ? meta.thumbnailStrokeWidth : 14,
+    thumbnailUppercase: meta.thumbnailUppercase ?? true,
+    videoTitle: meta.videoTitle || targetProj.name,
+    videoDescription: meta.videoDescription || targetProj.description || '',
+    pinnedCommentText: meta.pinnedCommentText || '',
+    instagramCaption: meta.instagramCaption || '',
+    twitterCaption: meta.twitterCaption || '',
+    tiktokCaption: meta.tiktokCaption || '',
+    aiSuggestedTitles: Array.isArray(meta.aiSuggestedTitles) ? meta.aiSuggestedTitles : [],
+    publishedYouTubeUrl: meta.publishedYouTubeUrl || undefined,
+    status: targetProj.status === 'READY' ? 'PUBLISHED' : 'DRAFT',
+    createdAt: targetProj.createdAt || new Date().toISOString(),
+    updatedAt: targetProj.updatedAt || new Date().toISOString(),
+  };
+}
+
 function StudioApp() {
   const { user, isLoading } = useAuth();
   const [legalPage, setLegalPage] = useState<'terms' | 'privacy' | null>(() => {
@@ -453,57 +507,7 @@ function StudioApp() {
                     (activeSelected.masterVodUrl ? activeSelected.masterVodUrl.includes('/shorts/') || activeSelected.masterVodUrl.includes('_SHORT') : false) ||
                     activeSelected.channel === 'shorts';
                   if (isShort) {
-                    const meta = (activeSelected.metadata as any) || {};
-                    const shortObj: FormattedShortProject = {
-                      id: selected.id,
-                      title: meta.thumbnailTitle || selected.name,
-                      videoUrl: selected.masterVodUrl,
-                      thumbnailUrl: selected.thumbnailUrl,
-                      durationSeconds: selected.durationSeconds || 60,
-                      words: meta.words || meta.transcript || [],
-                      editableTranscript: meta.editableTranscript || '',
-                      highlightColor: meta.highlightColor || 'amber',
-                      fontSize: meta.fontSize !== undefined ? meta.fontSize : 22,
-                      verticalPosition: meta.verticalPosition !== undefined ? meta.verticalPosition : 78,
-                      wordPacing: meta.wordPacing || 'POP_TWO_WORDS',
-                      autoEmojis: meta.autoEmojis ?? true,
-                      uppercase: meta.uppercase ?? true,
-                      layoutMode: meta.layoutMode || 'FIT_BLUR',
-                      showShoppableDrawer: meta.showShoppableDrawer ?? true,
-                      showQrCode: meta.showQrCode ?? true,
-                      qrPlacement: meta.qrPlacement || 'TOP_RIGHT',
-                      qrCustomUrl: meta.qrCustomUrl || '',
-                      youtubeBurnQr: meta.youtubeBurnQr !== undefined ? meta.youtubeBurnQr : true,
-                      youtubeQrTarget: meta.youtubeQrTarget || 'OPPORTUNITY_OS',
-                      youtubeQrPlacement: meta.youtubeQrPlacement || 'TOP_RIGHT',
-                      youtubeCustomQrUrl: meta.youtubeCustomQrUrl || 'https://opportunity-system.com/about',
-                      youtubeBurnDrawer: meta.youtubeBurnDrawer !== undefined ? meta.youtubeBurnDrawer : false,
-                      youtubeSelectedProductId: meta.youtubeSelectedProductId || null,
-                      productId: meta.productId || meta.selectedProductId || (selected as any)?.pins?.[0]?.productId || undefined,
-                      productTitle: meta.productTitle || undefined,
-                      productPrice: meta.productPrice || undefined,
-                      includedProductIds: Array.isArray(meta.includedProductIds) ? meta.includedProductIds : [],
-                      carouselProductIds: Array.isArray(meta.carouselProductIds) ? meta.carouselProductIds : [],
-                      carouselRotationSpeed: typeof meta.carouselRotationSpeed === 'number' ? meta.carouselRotationSpeed : 8,
-                      thumbnailTitle: meta.thumbnailTitle || selected.name,
-                      thumbnailStyle: meta.thumbnailStyle || 'VIRAL_WHITE',
-                      thumbnailFontSize: meta.thumbnailFontSize !== undefined ? meta.thumbnailFontSize : 54,
-                      thumbnailPosition: meta.thumbnailPosition !== undefined ? meta.thumbnailPosition : 45,
-                      thumbnailBadge: meta.thumbnailBadge || selected.thumbnailBadge || '⚡ MUST WATCH',
-                      thumbnailStrokeWidth: meta.thumbnailStrokeWidth !== undefined ? meta.thumbnailStrokeWidth : 14,
-                      thumbnailUppercase: meta.thumbnailUppercase ?? true,
-                      videoTitle: meta.videoTitle || selected.name,
-                      videoDescription: meta.videoDescription || selected.description || '',
-                      pinnedCommentText: meta.pinnedCommentText || '',
-                      instagramCaption: meta.instagramCaption || '',
-                      twitterCaption: meta.twitterCaption || '',
-                      tiktokCaption: meta.tiktokCaption || '',
-                      aiSuggestedTitles: Array.isArray(meta.aiSuggestedTitles) ? meta.aiSuggestedTitles : [],
-                      publishedYouTubeUrl: meta.publishedYouTubeUrl || undefined,
-                      status: selected.status === 'READY' ? 'PUBLISHED' : 'DRAFT',
-                      createdAt: selected.createdAt || new Date().toISOString(),
-                      updatedAt: selected.updatedAt || new Date().toISOString(),
-                    };
+                    const shortObj = buildFormattedShortFromProject(activeSelected);
                     await loadShortProjectIntoActiveDraft(shortObj).catch(() => {});
                     setActiveTab('clips');
                   } else {
@@ -679,7 +683,19 @@ function StudioApp() {
                 onSelectProject={(proj) => {
                   setProject(proj);
                 }}
-                onNavigateShorts={(projId) => {
+                onNavigateShorts={async (projId) => {
+                  if (projId) {
+                    try {
+                      const targetProj = projects.find((p) => p.id === projId) || await api.getProject(projId);
+                      if (targetProj) {
+                        setProject(targetProj);
+                        const shortObj = buildFormattedShortFromProject(targetProj);
+                        await loadShortProjectIntoActiveDraft(shortObj).catch(() => {});
+                      }
+                    } catch (e) {
+                      console.warn('Could not load short project for navigation:', e);
+                    }
+                  }
                   setActiveTab('clips');
                 }}
               />

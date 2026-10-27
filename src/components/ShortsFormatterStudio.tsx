@@ -789,14 +789,21 @@ export default function ShortsFormatterStudio() {
           if (draft.cloudVideoUrl || (draft.videoUrl && !draft.videoUrl.startsWith('blob:'))) {
             const remoteUrl = draft.cloudVideoUrl || draft.videoUrl;
             setCloudVideoUrl(remoteUrl);
+            setVideoUrl((current) => current || remoteUrl);
           }
           if (draft.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(draft.id)) {
             api.getProject(draft.id).then((cloudProj) => {
               if (cloudProj && !isCancelled) {
-                if (cloudProj.masterVodUrl && !draft.cloudVideoUrl) {
-                  setCloudVideoUrl(cloudProj.masterVodUrl);
-                }
                 const cloudMeta = (cloudProj.metadata as any) || {};
+                const resolvedCloudUrl =
+                  cloudProj.masterVodUrl ||
+                  cloudMeta.optimizedVideoUrl ||
+                  cloudMeta.originalVideoUrl ||
+                  cloudMeta.videoUrl;
+                if (resolvedCloudUrl) {
+                  setCloudVideoUrl(resolvedCloudUrl);
+                  setVideoUrl((current) => current || resolvedCloudUrl);
+                }
                 if (cloudMeta.youtubeSelectedProductId && !draft.youtubeSelectedProductId) {
                   setYoutubeSelectedProductId(cloudMeta.youtubeSelectedProductId);
                 }

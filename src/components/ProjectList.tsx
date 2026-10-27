@@ -60,6 +60,7 @@ export default function ProjectList({
         ? {
             ...short,
             ...full.project,
+            videoUrl: short.videoUrl || full.project.videoUrl || (full.project as any)?.cloudVideoUrl,
             youtubeSelectedProductId: full.project.youtubeSelectedProductId || short.youtubeSelectedProductId || null,
           }
         : short;
