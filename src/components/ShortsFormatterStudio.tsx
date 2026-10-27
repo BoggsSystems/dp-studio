@@ -546,6 +546,7 @@ export default function ShortsFormatterStudio() {
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [cloudVideoUrl, setCloudVideoUrl] = useState<string | null>(null);
+  const [useCors, setUseCors] = useState<boolean>(true);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [transcribeProgress, setTranscribeProgress] = useState<string>('');
   const [transcribeError, setTranscribeError] = useState<string | null>(null);
@@ -789,7 +790,8 @@ export default function ShortsFormatterStudio() {
           if (draft.cloudVideoUrl || (draft.videoUrl && !draft.videoUrl.startsWith('blob:'))) {
             const remoteUrl = draft.cloudVideoUrl || draft.videoUrl;
             setCloudVideoUrl(remoteUrl);
-            setVideoUrl((current) => current || remoteUrl);
+            setVideoUrl(remoteUrl);
+            setUseCors(true);
           }
           if (draft.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(draft.id)) {
             api.getProject(draft.id).then((cloudProj) => {
@@ -802,7 +804,8 @@ export default function ShortsFormatterStudio() {
                   cloudMeta.videoUrl;
                 if (resolvedCloudUrl) {
                   setCloudVideoUrl(resolvedCloudUrl);
-                  setVideoUrl((current) => current || resolvedCloudUrl);
+                  setVideoUrl(resolvedCloudUrl);
+                  setUseCors(true);
                 }
                 if (cloudMeta.youtubeSelectedProductId && !draft.youtubeSelectedProductId) {
                   setYoutubeSelectedProductId(cloudMeta.youtubeSelectedProductId);
@@ -863,6 +866,7 @@ export default function ShortsFormatterStudio() {
           // Priority 1: If project already has a hosted cloud video, always prioritize that remote URL
           setVideoUrl(remoteUrl);
           setCloudVideoUrl(remoteUrl);
+          setUseCors(true);
           hasRestoredData = true;
           // Purge any stale unlinked video blob in IndexedDB from a previous session
           if (storedVideo && storedVideo.projectId && storedVideo.projectId !== targetProjectId) {
@@ -1927,9 +1931,19 @@ export default function ShortsFormatterStudio() {
       ctx.drawImage(video, 0, 0, 1080, 1920);
     }
 
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
-    setThumbnailImage(dataUrl);
+    try {
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+      setThumbnailImage(dataUrl);
+    } catch (e) {
+      console.warn('Thumbnail frame capture skipped due to tainted canvas or CORS restrictions:', e);
+    }
   };
+
+  useEffect(() => {
+    if (videoUrl && videoRef.current) {
+      videoRef.current.load();
+    }
+  }, [videoUrl, useCors]);
 
   // Dynamic AI Viral Hooks generated from transcript & product
   const viralHookSuggestions = useMemo(() => {
@@ -7165,9 +7179,12 @@ export default function ShortsFormatterStudio() {
               {/* Optional Blurred Backdrop for 16:9 Fit */}
               {layoutMode === 'FIT_BLUR' && (
                 <video
+                  key={`bg-${videoUrl}-${useCors ? 'cors' : 'nocors'}`}
                   src={videoUrl}
-                  crossOrigin="anonymous"
+                  crossOrigin={useCors ? 'anonymous' : undefined}
                   muted
+                  playsInline
+                  preload="metadata"
                   style={{
                     position: 'absolute',
                     inset: '-20px',
@@ -7182,13 +7199,23 @@ export default function ShortsFormatterStudio() {
 
               {/* Main Video Surface */}
               <video
+                key={`main-${videoUrl}-${useCors ? 'cors' : 'nocors'}`}
                 ref={videoRef}
                 src={videoUrl}
-                crossOrigin="anonymous"
+                crossOrigin={useCors ? 'anonymous' : undefined}
                 playsInline
+                preload="auto"
                 muted={isMuted}
                 onTimeUpdate={handleTimeUpdate}
                 onLoadedMetadata={handleLoadedMetadata}
+                onError={(e) => {
+                  const mediaErr = e.currentTarget.error;
+                  console.warn('ShortsFormatterStudio video error:', mediaErr?.code, mediaErr?.message, videoUrl);
+                  if (useCors) {
+                    console.info('Retrying video load without crossOrigin attribute...');
+                    setUseCors(false);
+                  }
+                }}
                 onEnded={() => setIsPlaying(false)}
                 style={{
                   position: 'relative',
