@@ -219,6 +219,9 @@ export interface FormattedShortProject {
   thumbnailStrokeWidth?: number;
   thumbnailUppercase?: boolean;
   publishedYouTubeUrl?: string;
+  publishedAboutPageUrl?: string;
+  isPublishedToAbout?: boolean;
+  distributions?: Record<string, any>;
   publishedAt?: string;
   status: 'DRAFT' | 'PUBLISHED';
   createdAt?: string;

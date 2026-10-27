@@ -722,6 +722,10 @@ export default function ShortsFormatterStudio() {
           const draft = JSON.parse(savedDraftJson);
           if (draft.id) setShortProjectId(draft.id);
           if (draft.publishedYouTubeUrl) setPublishedYouTubeUrl(draft.publishedYouTubeUrl);
+          if (draft.publishedAboutPageUrl) setPublishedAboutPageUrl(draft.publishedAboutPageUrl);
+          if (draft.isPublishedToAbout || draft.distributions?.aboutPage?.status === 'PUBLISHED') {
+            setPublishedAboutPageUrl(draft.publishedAboutPageUrl || 'https://opportunity-system.com/about');
+          }
           if (draft.words && draft.words.length > 0) {
             setWords(draft.words);
             hasRestoredData = true;
@@ -816,6 +820,13 @@ export default function ShortsFormatterStudio() {
                 }
                 if (Array.isArray(cloudMeta.aiSuggestedTitles) && (!draft.aiSuggestedTitles || draft.aiSuggestedTitles.length === 0)) {
                   setAiSuggestedTitles(cloudMeta.aiSuggestedTitles);
+                }
+                const isCloudAboutPublished = cloudMeta.distributions?.aboutPage?.status === 'PUBLISHED' || cloudMeta.isPublishedToAbout === true;
+                if (isCloudAboutPublished) {
+                  setPublishedAboutPageUrl(cloudMeta.publishedAboutPageUrl || 'https://opportunity-system.com/about');
+                }
+                if (cloudMeta.distributions?.youtube?.status === 'PUBLISHED' && cloudMeta.publishedYouTubeUrl) {
+                  setPublishedYouTubeUrl(cloudMeta.publishedYouTubeUrl);
                 }
               }
             }).catch(() => {});
@@ -953,7 +964,14 @@ export default function ShortsFormatterStudio() {
           thumbnailUppercase,
           thumbnailImage,
           publishedYouTubeUrl,
-          status: publishedYouTubeUrl ? 'PUBLISHED' : 'DRAFT',
+          publishedAboutPageUrl,
+          isPublishedToAbout: Boolean(publishedAboutPageUrl),
+          distributions: {
+            aboutPage: publishedAboutPageUrl
+              ? { status: 'PUBLISHED', publishedAt: new Date().toISOString() }
+              : { status: 'DRAFT' },
+          },
+          status: (publishedYouTubeUrl || publishedAboutPageUrl) ? 'PUBLISHED' : 'DRAFT',
           updatedAt: Date.now(),
         };
         localStorage.setItem('digitpop_shorts_formatter_draft_v1', JSON.stringify(draftData));
@@ -1007,7 +1025,14 @@ export default function ShortsFormatterStudio() {
             thumbnailStrokeWidth,
             thumbnailUppercase,
             publishedYouTubeUrl: publishedYouTubeUrl || undefined,
-            status: publishedYouTubeUrl ? 'PUBLISHED' : 'DRAFT',
+            publishedAboutPageUrl: publishedAboutPageUrl || undefined,
+            isPublishedToAbout: Boolean(publishedAboutPageUrl),
+            distributions: {
+              aboutPage: publishedAboutPageUrl
+                ? { status: 'PUBLISHED', publishedAt: new Date().toISOString() }
+                : { status: 'DRAFT' },
+            },
+            status: (publishedYouTubeUrl || publishedAboutPageUrl) ? 'PUBLISHED' : 'DRAFT',
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           };
@@ -1026,6 +1051,15 @@ export default function ShortsFormatterStudio() {
               id: shortProjectId,
               name: shortProjectRecord.title,
               description: videoDescription?.slice(0, 240) || shortProjectRecord.title,
+              metadata: {
+                ...(publishedAboutPageUrl ? {
+                  isPublishedToAbout: true,
+                  publishedAboutPageUrl,
+                  distributions: {
+                    aboutPage: { status: 'PUBLISHED' },
+                  },
+                } : {}),
+              },
             }).catch(() => {});
           }
         }
@@ -1074,6 +1108,8 @@ export default function ShortsFormatterStudio() {
     thumbnailStrokeWidth,
     thumbnailUppercase,
     thumbnailImage,
+    publishedYouTubeUrl,
+    publishedAboutPageUrl,
   ]);
 
   // Load catalog products and connected social accounts
@@ -3354,6 +3390,14 @@ export default function ShortsFormatterStudio() {
         thumbnailStrokeWidth,
         thumbnailUppercase,
         publishedYouTubeUrl: publishedYouTubeUrl || undefined,
+        publishedAboutPageUrl: 'https://opportunity-system.com/about',
+        isPublishedToAbout: true,
+        distributions: {
+          aboutPage: {
+            status: 'PUBLISHED',
+            publishedAt: new Date().toISOString(),
+          },
+        },
         status: 'PUBLISHED',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -3363,39 +3407,79 @@ export default function ShortsFormatterStudio() {
       // 5. Register in Cloud Media Catalog
       setPublishAboutPageStage('SAVING');
       setPublishAboutPagePercent(92);
-      try {
-        if (!videoUrlToPublish || videoUrlToPublish.startsWith('blob:') || videoUrlToPublish.includes('/uploads/cdn/')) {
-          videoUrlToPublish = `https://pub-2af6e082fcb44c58add86361dad9d14b.r2.dev/videos/shorts/opportunity-system/${encodeURIComponent(shortProjectId)}.mp4`;
-        }
-        if (!thumbUrlToPublish || thumbUrlToPublish.startsWith('blob:') || thumbUrlToPublish.includes('/uploads/cdn/')) {
-          thumbUrlToPublish = `https://pub-2af6e082fcb44c58add86361dad9d14b.r2.dev/thumbnails/shorts/opportunity-system/${encodeURIComponent(shortProjectId)}.jpg`;
-        }
-        setCloudVideoUrl(videoUrlToPublish);
+      if (!videoUrlToPublish || videoUrlToPublish.startsWith('blob:') || videoUrlToPublish.includes('/uploads/cdn/')) {
+        videoUrlToPublish = `https://pub-2af6e082fcb44c58add86361dad9d14b.r2.dev/videos/shorts/opportunity-system/${encodeURIComponent(shortProjectId)}.mp4`;
+      }
+      if (!thumbUrlToPublish || thumbUrlToPublish.startsWith('blob:') || thumbUrlToPublish.includes('/uploads/cdn/')) {
+        thumbUrlToPublish = `https://pub-2af6e082fcb44c58add86361dad9d14b.r2.dev/thumbnails/shorts/opportunity-system/${encodeURIComponent(shortProjectId)}.jpg`;
+      }
+      setCloudVideoUrl(videoUrlToPublish);
 
-        const resp = await fetch(`${apiBase}/api/publisher/shorts/publish`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
+      const resp = await fetch(`${apiBase}/api/publisher/shorts/publish`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...projectPayload,
+          videoUrl: videoUrlToPublish,
+          thumbnailUrl: thumbUrlToPublish,
+          creatorSlug: 'opportunity-system',
+          destinationChannel: 'about',
+        }),
+      });
+
+      if (!resp.ok) {
+        const errText = await resp.text().catch(() => '');
+        throw new Error(`Media Catalog publish returned HTTP ${resp.status}: ${errText || resp.statusText}`);
+      }
+
+      const publishedData = await resp.json().catch(() => null);
+      if (publishedData && publishedData.id) {
+        projectPayload.id = publishedData.id;
+        setShortProjectId(publishedData.id);
+      }
+
+      // Update local draft and IndexedDB with verified published state
+      await saveShortProject(projectPayload, videoBlobToUpload);
+      try {
+        const existingDraftJson = localStorage.getItem('digitpop_shorts_formatter_draft_v1');
+        const existingDraft = existingDraftJson ? JSON.parse(existingDraftJson) : {};
+        localStorage.setItem('digitpop_shorts_formatter_draft_v1', JSON.stringify({
+          ...existingDraft,
+          ...projectPayload,
+          publishedAboutPageUrl: 'https://opportunity-system.com/about',
+          isPublishedToAbout: true,
+          distributions: {
+            ...(existingDraft.distributions || {}),
+            aboutPage: {
+              status: 'PUBLISHED',
+              publishedAt: new Date().toISOString(),
+            },
           },
-          body: JSON.stringify({
-            ...projectPayload,
-            videoUrl: videoUrlToPublish,
-            thumbnailUrl: thumbUrlToPublish,
-            creatorSlug: 'opportunity-system',
-            destinationChannel: 'about',
-          }),
-        });
-        if (resp.ok) {
-          const publishedData = await resp.json().catch(() => null);
-          if (publishedData && publishedData.id) {
-            projectPayload.id = publishedData.id;
-            await saveShortProject(projectPayload, videoBlobToUpload);
-          }
-        } else {
-          console.warn('DigitPop Cloud publish API warning:', resp.status, await resp.text().catch(() => ''));
-        }
-      } catch (cloudErr) {
-        console.warn('DigitPop Cloud upload warning:', cloudErr);
+          status: 'PUBLISHED',
+        }));
+      } catch (storageErr) {
+        console.warn('Could not update localStorage draft after publish:', storageErr);
+      }
+
+      // Explicitly sync project metadata to PostgreSQL DB to guarantee persistence
+      if (projectPayload.id && projectPayload.id !== 'short_active_draft' && !projectPayload.id.startsWith('draft-')) {
+        await api.saveProject({
+          id: projectPayload.id,
+          status: 'READY',
+          isActive: true,
+          metadata: {
+            distributions: {
+              aboutPage: {
+                status: 'PUBLISHED',
+                publishedAt: new Date().toISOString(),
+              },
+            },
+            isPublishedToAbout: true,
+            publishedAboutPageUrl: 'https://opportunity-system.com/about',
+          },
+        }).catch((err) => console.warn('Secondary project save warning:', err));
       }
 
       setPublishAboutPageStage('DONE');

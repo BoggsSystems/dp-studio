@@ -306,6 +306,9 @@ export async function saveShortDraftToCloud(
           twitterCaption: short.twitterCaption || '',
           tiktokCaption: short.tiktokCaption || '',
           aiSuggestedTitles: short.aiSuggestedTitles || [],
+          ...(short.distributions ? { distributions: short.distributions } : {}),
+          ...(short.isPublishedToAbout !== undefined ? { isPublishedToAbout: short.isPublishedToAbout } : {}),
+          ...(short.publishedAboutPageUrl ? { publishedAboutPageUrl: short.publishedAboutPageUrl } : {}),
         },
       }).catch((projErr) => {
         console.warn('Project PostgreSQL sync notice:', projErr);
