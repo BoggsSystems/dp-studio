@@ -568,6 +568,7 @@ export default function ShortsFormatterStudio() {
 
   // Playback state
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const bgVideoRef = useRef<HTMLVideoElement | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioDestRef = useRef<MediaStreamAudioDestinationNode | null>(null);
   const audioSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
@@ -1880,10 +1881,35 @@ export default function ShortsFormatterStudio() {
   const togglePlay = () => {
     if (!videoRef.current) return;
     if (videoRef.current.paused) {
-      videoRef.current.play();
-      setIsPlaying(true);
+      const playPromise = videoRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            setIsPlaying(true);
+            if (bgVideoRef.current && bgVideoRef.current.paused) {
+              bgVideoRef.current.play().catch(() => {});
+            }
+          })
+          .catch((err) => {
+            console.warn('Shorts video playback prevented by browser:', err);
+            // If blocked due to audio autoplay policies, try muted
+            if (!videoRef.current?.muted) {
+              console.info('Attempting muted playback fallback...');
+              setIsMuted(true);
+              if (videoRef.current) {
+                videoRef.current.muted = true;
+                videoRef.current.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+              }
+            } else {
+              setIsPlaying(false);
+            }
+          });
+      } else {
+        setIsPlaying(true);
+      }
     } else {
       videoRef.current.pause();
+      if (bgVideoRef.current) bgVideoRef.current.pause();
       setIsPlaying(false);
     }
   };
@@ -1891,12 +1917,18 @@ export default function ShortsFormatterStudio() {
   const handleTimeUpdate = () => {
     if (videoRef.current) {
       setCurrentTime(videoRef.current.currentTime);
+      if (bgVideoRef.current && Math.abs(bgVideoRef.current.currentTime - videoRef.current.currentTime) > 0.3) {
+        bgVideoRef.current.currentTime = videoRef.current.currentTime;
+      }
     }
   };
 
   const handleLoadedMetadata = () => {
     if (videoRef.current) {
-      setDuration(videoRef.current.duration);
+      const vidDuration = videoRef.current.duration;
+      if (vidDuration && !isNaN(vidDuration)) {
+        setDuration(vidDuration);
+      }
       setTimeout(() => {
         captureFrameAtCurrentTime();
       }, 300);
@@ -1942,6 +1974,9 @@ export default function ShortsFormatterStudio() {
   useEffect(() => {
     if (videoUrl && videoRef.current) {
       videoRef.current.load();
+      if (bgVideoRef.current) {
+        bgVideoRef.current.load();
+      }
     }
   }, [videoUrl, useCors]);
 
@@ -3517,8 +3552,11 @@ export default function ShortsFormatterStudio() {
 
   const seekTo = (seconds: number) => {
     if (videoRef.current) {
-      videoRef.current.currentTime = Math.max(0, Math.min(seconds, duration));
+      videoRef.current.currentTime = Math.max(0, Math.min(seconds, duration || videoRef.current.duration || 1));
       setCurrentTime(videoRef.current.currentTime);
+      if (bgVideoRef.current) {
+        bgVideoRef.current.currentTime = videoRef.current.currentTime;
+      }
     }
   };
 
@@ -7180,6 +7218,7 @@ export default function ShortsFormatterStudio() {
               {layoutMode === 'FIT_BLUR' && (
                 <video
                   key={`bg-${videoUrl}-${useCors ? 'cors' : 'nocors'}`}
+                  ref={bgVideoRef}
                   src={videoUrl}
                   crossOrigin={useCors ? 'anonymous' : undefined}
                   muted
@@ -7202,10 +7241,23 @@ export default function ShortsFormatterStudio() {
                 key={`main-${videoUrl}-${useCors ? 'cors' : 'nocors'}`}
                 ref={videoRef}
                 src={videoUrl}
+                poster={thumbnailImage || undefined}
                 crossOrigin={useCors ? 'anonymous' : undefined}
                 playsInline
                 preload="auto"
                 muted={isMuted}
+                onPlay={() => {
+                  setIsPlaying(true);
+                  if (bgVideoRef.current && bgVideoRef.current.paused) {
+                    bgVideoRef.current.play().catch(() => {});
+                  }
+                }}
+                onPause={() => {
+                  setIsPlaying(false);
+                  if (bgVideoRef.current && !bgVideoRef.current.paused) {
+                    bgVideoRef.current.pause();
+                  }
+                }}
                 onTimeUpdate={handleTimeUpdate}
                 onLoadedMetadata={handleLoadedMetadata}
                 onError={(e) => {
@@ -7216,7 +7268,10 @@ export default function ShortsFormatterStudio() {
                     setUseCors(false);
                   }
                 }}
-                onEnded={() => setIsPlaying(false)}
+                onEnded={() => {
+                  setIsPlaying(false);
+                  if (bgVideoRef.current) bgVideoRef.current.pause();
+                }}
                 style={{
                   position: 'relative',
                   width: '100%',
