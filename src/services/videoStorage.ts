@@ -64,7 +64,7 @@ export async function getDraftVideoBlob(expectedProjectId?: string): Promise<{ b
       request.onsuccess = () => {
         const res = request.result;
         if (res && res.blob) {
-          if (expectedProjectId && res.projectId && res.projectId !== expectedProjectId) {
+          if (expectedProjectId && (!res.projectId || res.projectId !== expectedProjectId)) {
             resolve(null);
             return;
           }

@@ -52,7 +52,7 @@ import QRCode from 'qrcode';
 import { api } from '../services/api';
 import { saveDraftVideoBlob, getDraftVideoBlob, clearDraftVideoBlob, saveShortProject, createCloudShortProject } from '../services/videoStorage';
 import { toast } from '../services/toast';
-import { Product, FormattedShortProject } from '../types';
+import { Product, FormattedShortProject, Project } from '../types';
 
 interface WordItem {
   id: string;
@@ -542,7 +542,12 @@ async function extractAudioFromVideo(file: File): Promise<Blob> {
   }
 }
 
-export default function ShortsFormatterStudio() {
+interface ShortsFormatterStudioProps {
+  project?: Project | null;
+  onProjectUpdated?: (updated: Project) => void;
+}
+
+export default function ShortsFormatterStudio({ project, onProjectUpdated }: ShortsFormatterStudioProps = {}) {
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [cloudVideoUrl, setCloudVideoUrl] = useState<string | null>(null);
@@ -722,7 +727,9 @@ export default function ShortsFormatterStudio() {
         let draftWordsFound = false;
         if (savedDraftJson) {
           const draft = JSON.parse(savedDraftJson);
-          if (draft.id) setShortProjectId(draft.id);
+          const matchesProject = !project?.id || draft.id === project.id;
+          if (matchesProject) {
+            if (draft.id) setShortProjectId(draft.id);
           if (draft.publishedYouTubeUrl) setPublishedYouTubeUrl(draft.publishedYouTubeUrl);
           if (draft.publishedAboutPageUrl) setPublishedAboutPageUrl(draft.publishedAboutPageUrl);
           if (draft.isPublishedToAbout || draft.distributions?.aboutPage?.status === 'PUBLISHED') {
@@ -842,20 +849,33 @@ export default function ShortsFormatterStudio() {
               }
             }).catch(() => {});
           }
+          }
         }
 
         let shouldAutoTranscribe = false;
         let fileForTranscribe: File | null = null;
 
-        // Determine target project ID and cloud video URL from saved draft
-        let targetProjectId: string | undefined = undefined;
+        // Determine target project ID and cloud video URL from project prop or matching saved draft
+        let targetProjectId: string | undefined = project?.id || undefined;
         let remoteUrl: string | null = null;
-        if (savedDraftJson) {
+        if (project) {
+          const pMeta = (project.metadata as any) || {};
+          remoteUrl =
+            project.masterVodUrl ||
+            pMeta.optimizedVideoUrl ||
+            pMeta.originalVideoUrl ||
+            pMeta.videoUrl ||
+            null;
+        }
+
+        if (!remoteUrl && savedDraftJson) {
           try {
             const parsedDraft = JSON.parse(savedDraftJson);
-            if (parsedDraft.id) targetProjectId = parsedDraft.id;
-            if (parsedDraft.cloudVideoUrl || (parsedDraft.videoUrl && !parsedDraft.videoUrl.startsWith('blob:'))) {
-              remoteUrl = parsedDraft.cloudVideoUrl || parsedDraft.videoUrl;
+            if (!targetProjectId && parsedDraft.id) targetProjectId = parsedDraft.id;
+            if (!project?.id || parsedDraft.id === project.id) {
+              if (parsedDraft.cloudVideoUrl || (parsedDraft.videoUrl && !parsedDraft.videoUrl.startsWith('blob:'))) {
+                remoteUrl = parsedDraft.cloudVideoUrl || parsedDraft.videoUrl;
+              }
             }
           } catch (e) {}
         }
@@ -870,9 +890,7 @@ export default function ShortsFormatterStudio() {
           setUseCors(true);
           hasRestoredData = true;
           // Purge any stale unlinked video blob in IndexedDB from a previous session
-          if (storedVideo && storedVideo.projectId && storedVideo.projectId !== targetProjectId) {
-            clearDraftVideoBlob().catch(() => {});
-          }
+          clearDraftVideoBlob().catch(() => {});
         } else if (storedVideo && storedVideo.blob && !isCancelled) {
           // Priority 2: Unsaved local video blob for this draft
           const file = new File([storedVideo.blob], storedVideo.name || 'short_video.mp4', {
@@ -920,6 +938,100 @@ export default function ShortsFormatterStudio() {
       isCancelled = true;
     };
   }, []);
+
+  // Synchronize when active project prop changes or is updated from parent
+  useEffect(() => {
+    if (!project || !project.id) return;
+
+    const meta = (project.metadata as any) || {};
+    const resolvedUrl =
+      project.masterVodUrl ||
+      meta.optimizedVideoUrl ||
+      meta.originalVideoUrl ||
+      meta.videoUrl ||
+      null;
+
+    setShortProjectId(project.id);
+    if (resolvedUrl) {
+      setCloudVideoUrl(resolvedUrl);
+      setVideoUrl(resolvedUrl);
+      setVideoFile(null);
+      setUseCors(true);
+      clearDraftVideoBlob().catch(() => {});
+    }
+
+    if (project.name || meta.videoTitle || meta.thumbnailTitle) {
+      setVideoTitle(project.name || meta.videoTitle || meta.thumbnailTitle);
+    }
+    if (project.description || meta.videoDescription) {
+      setVideoDescription(project.description || meta.videoDescription);
+    }
+    if (meta.thumbnailTitle || project.name) {
+      setThumbnailTitle(meta.thumbnailTitle || project.name);
+    }
+    if (meta.thumbnailStyle) setThumbnailStyle(meta.thumbnailStyle);
+    if (meta.thumbnailFontSize !== undefined) setThumbnailFontSize(meta.thumbnailFontSize);
+    if (meta.thumbnailPosition !== undefined) setThumbnailPosition(meta.thumbnailPosition);
+    if (meta.thumbnailBadge !== undefined) setThumbnailBadge(meta.thumbnailBadge);
+    if (meta.thumbnailStrokeWidth !== undefined) setThumbnailStrokeWidth(meta.thumbnailStrokeWidth);
+    if (meta.thumbnailUppercase !== undefined) setThumbnailUppercase(meta.thumbnailUppercase);
+    if (meta.thumbnailImage) setThumbnailImage(meta.thumbnailImage);
+
+    const projectWords = meta.words || meta.transcript;
+    if (Array.isArray(projectWords) && projectWords.length > 0) {
+      setWords(projectWords);
+    }
+    if (meta.editableTranscript) {
+      setEditableTranscript(meta.editableTranscript);
+    } else if (typeof meta.transcript === 'string') {
+      setEditableTranscript(meta.transcript);
+    }
+
+    if (meta.highlightColor) {
+      const validKeys: HighlightColor[] = ['amber', 'emerald', 'cyan', 'pink', 'orange', 'violet'];
+      if (validKeys.includes(meta.highlightColor)) setHighlightColor(meta.highlightColor);
+    }
+    if (meta.fontSize !== undefined) setFontSize(meta.fontSize);
+    if (meta.verticalPosition !== undefined) setVerticalPosition(meta.verticalPosition);
+    if (meta.wordPacing) setWordPacing(meta.wordPacing);
+    if (meta.autoEmojis !== undefined) setAutoEmojis(meta.autoEmojis);
+    if (meta.uppercase !== undefined) setUppercase(meta.uppercase);
+    if (meta.layoutMode) setLayoutMode(meta.layoutMode);
+    if (meta.showShoppableDrawer !== undefined) setShowShoppableDrawer(meta.showShoppableDrawer);
+    if (meta.showQrCode !== undefined) setShowQrCode(meta.showQrCode);
+    if (meta.qrPlacement) setQrPlacement(meta.qrPlacement);
+    if (meta.qrCustomUrl) setQrCustomUrl(meta.qrCustomUrl);
+    if (meta.youtubeBurnQr !== undefined) setYoutubeBurnQr(meta.youtubeBurnQr);
+    if (meta.youtubeQrTarget) setYoutubeQrTarget(meta.youtubeQrTarget);
+    if (meta.youtubeQrPlacement) setYoutubeQrPlacement(meta.youtubeQrPlacement);
+    if (meta.youtubeCustomQrUrl) setYoutubeCustomQrUrl(meta.youtubeCustomQrUrl);
+    if (meta.youtubeBurnDrawer !== undefined) setYoutubeBurnDrawer(meta.youtubeBurnDrawer);
+    if (meta.youtubeSelectedProductId !== undefined) setYoutubeSelectedProductId(meta.youtubeSelectedProductId);
+
+    if (meta.productId || meta.selectedProductId) {
+      setSavedProductId(meta.productId || meta.selectedProductId);
+    }
+    if (Array.isArray(meta.includedProductIds)) {
+      setIncludedProductIds(meta.includedProductIds);
+    }
+    if (Array.isArray(meta.carouselProductIds)) {
+      setCarouselProductIds(meta.carouselProductIds);
+    }
+    if (typeof meta.carouselRotationSpeed === 'number') {
+      setCarouselRotationSpeed(meta.carouselRotationSpeed);
+    }
+
+    if (meta.publishedYouTubeUrl) setPublishedYouTubeUrl(meta.publishedYouTubeUrl);
+    if (meta.publishedAboutPageUrl) setPublishedAboutPageUrl(meta.publishedAboutPageUrl);
+    if (meta.isPublishedToAbout || meta.distributions?.aboutPage?.status === 'PUBLISHED') {
+      setPublishedAboutPageUrl(meta.publishedAboutPageUrl || 'https://opportunity-system.com/about');
+    }
+    if (meta.instagramCaption) setInstagramCaption(meta.instagramCaption);
+    if (meta.twitterCaption) setTwitterCaption(meta.twitterCaption);
+    if (meta.tiktokCaption) setTiktokCaption(meta.tiktokCaption);
+    if (meta.pinnedCommentText) setPinnedCommentText(meta.pinnedCommentText);
+    if (Array.isArray(meta.aiSuggestedTitles)) setAiSuggestedTitles(meta.aiSuggestedTitles);
+  }, [project?.id, project?.masterVodUrl]);
 
   // 2. Auto-save draft whenever configuration or transcript changes
   useEffect(() => {
@@ -1072,6 +1184,8 @@ export default function ShortsFormatterStudio() {
                   },
                 } : {}),
               },
+            }).then((saved) => {
+              if (saved && onProjectUpdated) onProjectUpdated(saved);
             }).catch(() => {});
           }
         }

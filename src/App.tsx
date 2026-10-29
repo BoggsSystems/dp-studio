@@ -670,7 +670,15 @@ function StudioApp() {
             )}
 
             {/* AI VIRAL SHORTS (9:16) TAB */}
-            {activeTab === 'clips' && <ShortsFormatterStudio />}
+            {activeTab === 'clips' && (
+              <ShortsFormatterStudio
+                project={project}
+                onProjectUpdated={(updated) => {
+                  setProject(updated);
+                  setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+                }}
+              />
+            )}
 
             {/* WATCH-TO-EARN QUIZZES TAB */}
             {activeTab === 'quiz' && <QuizEditor />}
