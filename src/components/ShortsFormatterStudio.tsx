@@ -714,6 +714,8 @@ export default function ShortsFormatterStudio({ project, onProjectUpdated }: Sho
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [savedProductId, setSavedProductId] = useState<string | null>(null);
   const isMountedRef = useRef<boolean>(false);
+  const isHydratingRef = useRef<boolean>(true);
+  const hasUserEditedRef = useRef<boolean>(false);
 
   // 1. Restore local metadata & IndexedDB video blob on mount
   useEffect(() => {
@@ -928,6 +930,9 @@ export default function ShortsFormatterStudio({ project, onProjectUpdated }: Sho
       } finally {
         if (!isCancelled) {
           isMountedRef.current = true;
+          setTimeout(() => {
+            isHydratingRef.current = false;
+          }, 1000);
         }
       }
     };
@@ -942,6 +947,9 @@ export default function ShortsFormatterStudio({ project, onProjectUpdated }: Sho
   // Synchronize when active project prop changes or is updated from parent
   useEffect(() => {
     if (!project || !project.id) return;
+
+    isHydratingRef.current = true;
+    hasUserEditedRef.current = false;
 
     const meta = (project.metadata as any) || {};
     const resolvedUrl =
@@ -1031,12 +1039,19 @@ export default function ShortsFormatterStudio({ project, onProjectUpdated }: Sho
     if (meta.tiktokCaption) setTiktokCaption(meta.tiktokCaption);
     if (meta.pinnedCommentText) setPinnedCommentText(meta.pinnedCommentText);
     if (Array.isArray(meta.aiSuggestedTitles)) setAiSuggestedTitles(meta.aiSuggestedTitles);
+
+    const settleTimer = setTimeout(() => {
+      isHydratingRef.current = false;
+    }, 1000);
+    return () => clearTimeout(settleTimer);
   }, [project?.id, project?.masterVodUrl]);
 
   // 2. Auto-save draft whenever configuration or transcript changes
   useEffect(() => {
     if (!isMountedRef.current) return;
+    if (isHydratingRef.current) return;
 
+    hasUserEditedRef.current = true;
     setAutoSaveStatus('saving');
 
     const timer = setTimeout(() => {
@@ -1092,7 +1107,14 @@ export default function ShortsFormatterStudio({ project, onProjectUpdated }: Sho
           isPublishedToAbout: Boolean(publishedAboutPageUrl),
           distributions: {
             aboutPage: publishedAboutPageUrl
-              ? { status: 'PUBLISHED', publishedAt: new Date().toISOString() }
+              ? {
+                  status: 'PUBLISHED',
+                  ...(project?.metadata?.distributions?.aboutPage?.publishedAt
+                    ? { publishedAt: project.metadata.distributions.aboutPage.publishedAt }
+                    : (project?.metadata as any)?.publishedAt
+                      ? { publishedAt: (project?.metadata as any).publishedAt }
+                      : {}),
+                }
               : { status: 'DRAFT' },
           },
           status: (publishedYouTubeUrl || publishedAboutPageUrl) ? 'PUBLISHED' : 'DRAFT',
@@ -1162,8 +1184,10 @@ export default function ShortsFormatterStudio({ project, onProjectUpdated }: Sho
           };
           saveShortProject(shortProjectRecord);
 
-          // If project exists in DB and title is meaningful, keep Project.name in sync
+          // Only sync to DB if user actually made an edit (never during initial load or hydration)
           if (
+            hasUserEditedRef.current &&
+            !isHydratingRef.current &&
             shortProjectId &&
             shortProjectId !== 'short_active_draft' &&
             !shortProjectId.startsWith('draft-') &&
@@ -1171,6 +1195,11 @@ export default function ShortsFormatterStudio({ project, onProjectUpdated }: Sho
             shortProjectRecord.title !== 'AI Shoppable Short' &&
             shortProjectRecord.title !== 'AI SHOPPABLE SHORT'
           ) {
+            const existingPublishedAt =
+              project?.metadata?.distributions?.aboutPage?.publishedAt ||
+              (project?.metadata as any)?.publishedAt ||
+              undefined;
+
             api.saveProject({
               id: shortProjectId,
               name: shortProjectRecord.title,
@@ -1180,7 +1209,10 @@ export default function ShortsFormatterStudio({ project, onProjectUpdated }: Sho
                   isPublishedToAbout: true,
                   publishedAboutPageUrl,
                   distributions: {
-                    aboutPage: { status: 'PUBLISHED' },
+                    aboutPage: {
+                      status: 'PUBLISHED',
+                      ...(existingPublishedAt ? { publishedAt: existingPublishedAt } : {}),
+                    },
                   },
                 } : {}),
               },
@@ -3565,7 +3597,10 @@ export default function ShortsFormatterStudio({ project, onProjectUpdated }: Sho
         distributions: {
           aboutPage: {
             status: 'PUBLISHED',
-            publishedAt: new Date().toISOString(),
+            publishedAt:
+              project?.metadata?.distributions?.aboutPage?.publishedAt ||
+              (project?.metadata as any)?.publishedAt ||
+              new Date().toISOString(),
           },
         },
         status: 'PUBLISHED',
@@ -3624,7 +3659,10 @@ export default function ShortsFormatterStudio({ project, onProjectUpdated }: Sho
             ...(existingDraft.distributions || {}),
             aboutPage: {
               status: 'PUBLISHED',
-              publishedAt: new Date().toISOString(),
+              publishedAt:
+                project?.metadata?.distributions?.aboutPage?.publishedAt ||
+                (project?.metadata as any)?.publishedAt ||
+                new Date().toISOString(),
             },
           },
           status: 'PUBLISHED',
@@ -3643,7 +3681,10 @@ export default function ShortsFormatterStudio({ project, onProjectUpdated }: Sho
             distributions: {
               aboutPage: {
                 status: 'PUBLISHED',
-                publishedAt: new Date().toISOString(),
+                publishedAt:
+                  project?.metadata?.distributions?.aboutPage?.publishedAt ||
+                  (project?.metadata as any)?.publishedAt ||
+                  new Date().toISOString(),
               },
             },
             isPublishedToAbout: true,
