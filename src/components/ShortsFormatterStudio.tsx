@@ -1539,8 +1539,7 @@ export default function ShortsFormatterStudio({ project, onProjectUpdated }: Sho
         setAiSuggestedTitles(res.suggestions);
         // If current title is empty, automatically populate with the top suggestion
         if (!currentTitle) {
-          setVideoTitle(res.suggestions[0]);
-          setThumbnailTitle(res.suggestions[0]);
+          handleTitleUpdate(res.suggestions[0]);
           if (shortProjectId && shortProjectId !== 'short_active_draft' && !shortProjectId.startsWith('draft-')) {
             api.saveProject({ id: shortProjectId, name: res.suggestions[0] }).catch(console.warn);
           }
@@ -1765,12 +1764,35 @@ export default function ShortsFormatterStudio({ project, onProjectUpdated }: Sho
     setDragOverCarouselIndex(null);
   };
 
+  // Synchronize title changes across video, thumbnail headline, and top project header
+  const handleTitleUpdate = (newTitle: string) => {
+    hasUserEditedRef.current = true;
+    setVideoTitle(newTitle);
+    setThumbnailTitle(newTitle);
+    const trimmed = newTitle.trim();
+    if (trimmed && onProjectUpdated) {
+      if (project) {
+        onProjectUpdated({ ...project, name: trimmed });
+      } else {
+        onProjectUpdated({
+          id: shortProjectId,
+          name: trimmed,
+          format: 'SHORT',
+          status: 'DRAFT',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        } as any);
+      }
+    }
+  };
+
   // Handle Video File Selection
   const handleFileChange = async (file: File) => {
     if (!file) return;
 
     // Derive instant initial title from filename before transcription completes
     const baseName = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ').toUpperCase();
+    hasUserEditedRef.current = true;
     setVideoTitle(baseName);
     setThumbnailTitle(baseName);
 
@@ -1789,6 +1811,21 @@ export default function ShortsFormatterStudio({ project, onProjectUpdated }: Sho
       api.saveProject({ id: targetProjectId, name: baseName }).catch((err) => {
         console.warn('Failed to sync initial short title to project:', err);
       });
+    }
+
+    if (onProjectUpdated) {
+      if (project) {
+        onProjectUpdated({ ...project, id: targetProjectId, name: baseName });
+      } else {
+        onProjectUpdated({
+          id: targetProjectId,
+          name: baseName,
+          format: 'SHORT',
+          status: 'DRAFT',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        } as any);
+      }
     }
 
     setVideoFile(file);
@@ -1943,6 +1980,22 @@ export default function ShortsFormatterStudio({ project, onProjectUpdated }: Sho
 
     const blobToUpload = persistentCloudUrl ? undefined : (videoFile || undefined);
     await saveShortProject(shortProject, blobToUpload);
+
+    if (shortProjectId && !shortProjectId.startsWith('draft-') && shortProjectId !== 'short_active_draft') {
+      try {
+        const saved = await api.saveProject({
+          id: shortProjectId,
+          name: shortProject.title,
+          description: videoDescription?.slice(0, 240) || shortProject.title,
+        });
+        if (saved && onProjectUpdated) onProjectUpdated(saved);
+      } catch (err) {
+        console.warn('Manual save project sync error:', err);
+      }
+    } else if (onProjectUpdated && project) {
+      onProjectUpdated({ ...project, name: shortProject.title });
+    }
+
     setSaveSuccessMsg('💾 Saved to Shorts Library!');
     setTimeout(() => setSaveSuccessMsg(null), 3000);
   };
@@ -5402,10 +5455,7 @@ export default function ShortsFormatterStudio({ project, onProjectUpdated }: Sho
                 <input
                   type="text"
                   value={videoTitle}
-                  onChange={(e) => {
-                    setVideoTitle(e.target.value);
-                    setThumbnailTitle(e.target.value);
-                  }}
+                  onChange={(e) => handleTitleUpdate(e.target.value)}
                   className="form-input"
                   style={{
                     width: '100%',
@@ -5429,10 +5479,7 @@ export default function ShortsFormatterStudio({ project, onProjectUpdated }: Sho
                     {socialTitles.map((t, idx) => (
                       <button
                         key={idx}
-                        onClick={() => {
-                          setVideoTitle(t);
-                          setThumbnailTitle(t);
-                        }}
+                        onClick={() => handleTitleUpdate(t)}
                         style={{
                           background: videoTitle === t ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.05)',
                           border: videoTitle === t ? '1px solid #818CF8' : '1px solid rgba(255, 255, 255, 0.1)',
@@ -5545,7 +5592,10 @@ export default function ShortsFormatterStudio({ project, onProjectUpdated }: Sho
                     <textarea
                       rows={5}
                       value={videoDescription}
-                      onChange={(e) => setVideoDescription(e.target.value)}
+                      onChange={(e) => {
+                        hasUserEditedRef.current = true;
+                        setVideoDescription(e.target.value);
+                      }}
                       className="form-input"
                       style={{
                         width: '100%',
@@ -6084,7 +6134,7 @@ export default function ShortsFormatterStudio({ project, onProjectUpdated }: Sho
                     {viralHookSuggestions.map((hook, idx) => (
                       <button
                         key={idx}
-                        onClick={() => setThumbnailTitle(hook)}
+                        onClick={() => handleTitleUpdate(hook)}
                         className="btn btn--outline"
                         style={{
                           padding: '4px 10px',
@@ -6109,10 +6159,7 @@ export default function ShortsFormatterStudio({ project, onProjectUpdated }: Sho
                   <input
                     type="text"
                     value={thumbnailTitle}
-                    onChange={(e) => {
-                      setThumbnailTitle(e.target.value);
-                      setVideoTitle(e.target.value);
-                    }}
+                    onChange={(e) => handleTitleUpdate(e.target.value)}
                     placeholder="Enter bold hook headline (e.g. DID YOU DO YOUR 20 MINUTES?)"
                     style={{
                       width: '100%',
