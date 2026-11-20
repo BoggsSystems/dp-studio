@@ -44,17 +44,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         })
         .catch((err) => {
           console.warn('Backend invite accept failed (likely local offline dev mode):', err);
-          // Graceful fallback: authenticate as Ros so the invitation tour can be tested immediately
-          const mockRos: User = {
-            id: 'usr_ros_' + Date.now(),
-            email: 'ros@opportunity-system.com',
-            fullName: 'Ros',
+          // Graceful fallback: authenticate with URL name/email or fallback
+          const invitedEmail = urlParams.get('email') || (inviteToken.includes('jeff') ? 'jeff_boggs@hotmail.com' : 'ros@opportunity-system.com');
+          const invitedName = urlParams.get('name') || (inviteToken.includes('jeff') ? 'Jeff Boggs' : 'Ros');
+          const mockUser: User = {
+            id: 'usr_invite_' + Date.now(),
+            email: invitedEmail,
+            fullName: invitedName,
             role: 'PUBLISHER',
           };
-          const mockToken = 'demo_token_ros_' + Date.now();
+          const mockToken = 'demo_token_' + Date.now();
           localStorage.setItem('dp_studio_token', mockToken);
           setToken(mockToken);
-          setUser(mockRos);
+          setUser(mockUser);
           setIsNewInviteUser(true);
           const cleanUrl = window.location.pathname + (window.location.hash || '');
           window.history.replaceState({}, document.title, cleanUrl);
