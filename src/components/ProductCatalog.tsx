@@ -12,7 +12,8 @@ import {
   Sparkles,
   Store,
   Layers,
-  Edit3
+  Edit3,
+  X
 } from 'lucide-react';
 import { Product } from '../types';
 import { api } from '../services/api';
@@ -360,7 +361,9 @@ export default function ProductCatalog({
                   Import Product from URL
                 </h3>
               </div>
-              <button className="icon-btn" onClick={() => setIsUrlModalOpen(false)}>✕</button>
+              <button className="icon-btn" onClick={() => setIsUrlModalOpen(false)} aria-label="Close">
+                <X size={16} />
+              </button>
             </div>
 
             <form onSubmit={handleResolveUrl}>
@@ -429,7 +432,9 @@ export default function ProductCatalog({
                   Sync Shopify Store Catalog
                 </h3>
               </div>
-              <button className="icon-btn" onClick={() => setIsShopifyModalOpen(false)}>✕</button>
+              <button className="icon-btn" onClick={() => setIsShopifyModalOpen(false)} aria-label="Close">
+                <X size={16} />
+              </button>
             </div>
 
             <form onSubmit={handleSyncShopify}>

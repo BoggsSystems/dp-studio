@@ -1244,8 +1244,9 @@ export default function CreateProductModal({
                   </div>
                 </div>
 
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', textAlign: 'center', marginTop: '12px', maxWidth: '280px' }}>
-                  ⚡ Viewer can browse all {imageUrls.length} angles seamlessly during live broadcast or VOD playback.
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', textAlign: 'center', marginTop: '12px', maxWidth: '280px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
+                  <Sparkles size={12} color="var(--accent-teal)" />
+                  <span>Viewer can browse all {imageUrls.length} angles seamlessly during live broadcast or VOD playback.</span>
                 </div>
               </div>
 

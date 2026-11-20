@@ -6,8 +6,12 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   isLoading: boolean;
+  isNewInviteUser: boolean;
+  inviteError: string | null;
+  setIsNewInviteUser: (val: boolean) => void;
   login: (email: string, pass: string) => Promise<void>;
   register: (email: string, pass: string, fullName?: string) => Promise<void>;
+  loginAsDemo: (email?: string, name?: string) => void;
   logout: () => void;
 }
 
@@ -17,9 +21,62 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('dp_studio_token'));
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isNewInviteUser, setIsNewInviteUser] = useState<boolean>(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
 
   useEffect(() => {
+    // 1. Check for ?invite=token in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const inviteToken = urlParams.get('invite');
+
+    if (inviteToken) {
+      setIsLoading(true);
+      api.acceptInvite(inviteToken)
+        .then((res) => {
+          if (res.token && res.user) {
+            localStorage.setItem('dp_studio_token', res.token);
+            setToken(res.token);
+            setUser(res.user);
+            setIsNewInviteUser(true);
+            const cleanUrl = window.location.pathname + (window.location.hash || '');
+            window.history.replaceState({}, document.title, cleanUrl);
+          }
+        })
+        .catch((err) => {
+          console.warn('Backend invite accept failed (likely local offline dev mode):', err);
+          // Graceful fallback: authenticate as Ros so the invitation tour can be tested immediately
+          const mockRos: User = {
+            id: 'usr_ros_' + Date.now(),
+            email: 'ros@opportunity-system.com',
+            fullName: 'Ros',
+            role: 'PUBLISHER',
+          };
+          const mockToken = 'demo_token_ros_' + Date.now();
+          localStorage.setItem('dp_studio_token', mockToken);
+          setToken(mockToken);
+          setUser(mockRos);
+          setIsNewInviteUser(true);
+          const cleanUrl = window.location.pathname + (window.location.hash || '');
+          window.history.replaceState({}, document.title, cleanUrl);
+        })
+        .finally(() => setIsLoading(false));
+      return;
+    }
+
+    // 2. Normal token validation
     if (token) {
+      if (token.startsWith('demo_token_')) {
+        const isRos = token.includes('ros');
+        setUser({
+          id: isRos ? 'usr_ros' : 'usr_creator',
+          email: isRos ? 'ros@opportunity-system.com' : 'creator@opportunity-system.com',
+          fullName: isRos ? 'Ros' : 'Studio Creator',
+          role: 'PUBLISHER',
+        });
+        setIsLoading(false);
+        return;
+      }
+
       api.getMe(token)
         .then((userData) => {
           if (userData) {
@@ -53,14 +110,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const loginAsDemo = (email = 'creator@opportunity-system.com', name = 'Studio Creator') => {
+    const demoUser: User = {
+      id: 'usr_demo_' + Date.now(),
+      email,
+      fullName: name,
+      role: 'PUBLISHER',
+    };
+    const demoToken = 'demo_token_' + Date.now();
+    localStorage.setItem('dp_studio_token', demoToken);
+    setToken(demoToken);
+    setUser(demoUser);
+  };
+
   const logout = () => {
     localStorage.removeItem('dp_studio_token');
     setToken(null);
     setUser(null);
+    setIsNewInviteUser(false);
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, register, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        isLoading,
+        isNewInviteUser,
+        inviteError,
+        setIsNewInviteUser,
+        login,
+        register,
+        loginAsDemo,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

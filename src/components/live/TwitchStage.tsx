@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Camera, Video, Monitor, Smartphone, Radio, Plus, Unplug, CheckCircle2, X } from 'lucide-react';
 
 export interface ConnectedDevice {
   deviceId: string;
@@ -87,7 +88,9 @@ function LiveCameraStream({ activeSource, isPip }: LiveCameraStreamProps) {
             <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#34d399', letterSpacing: '0.5px' }}>● RAILWAY CLOUD INGEST ACTIVE</span>
           </div>
 
-          <span style={{ fontSize: isPip ? '1.8rem' : '3.5rem' }}>📹</span>
+          <div style={{ width: isPip ? '36px' : '60px', height: isPip ? '36px' : '60px', borderRadius: '50%', background: 'rgba(56, 189, 248, 0.15)', border: '1px solid rgba(56, 189, 248, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38bdf8' }}>
+            <Video size={isPip ? 18 : 30} />
+          </div>
 
           <span style={{ fontSize: isPip ? '0.75rem' : '1.1rem', fontWeight: 800, color: '#fff', textAlign: 'center' }}>
             {activeSource === 'IPHONE_ROAMING' ? 'iPhone 16 Pro Roaming Cam (4K 60fps)' : 'MacBook Pro Presenter Cam (1080p 60fps)'}
@@ -352,7 +355,9 @@ export default function TwitchStage({ activeSource, onSelectSource }: TwitchStag
       <div style={{ background: 'rgba(15, 23, 42, 0.8)', padding: '14px 16px', borderRadius: '12px', border: '1px solid var(--border-glass)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#38bdf8' }}>📱 LIVE CONNECTED CLIENT DEVICES MATRIX ({connectedDevices.length})</span>
+            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#38bdf8', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              <Smartphone size={14} /> LIVE CONNECTED CLIENT DEVICES MATRIX ({connectedDevices.length})
+            </span>
             <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 600 }}>● Railway Cloud Router Active</span>
           </div>
 
@@ -373,16 +378,19 @@ export default function TwitchStage({ activeSource, onSelectSource }: TwitchStag
               gap: '4px'
             }}
           >
-            ➕ Pair / Attach Device
+            <Plus size={13} />
+            <span>Pair / Attach Device</span>
           </button>
         </div>
 
         {connectedDevices.length === 0 ? (
           <div style={{ background: 'rgba(30, 41, 59, 0.4)', borderRadius: '10px', border: '1px dashed var(--border-glass)', padding: '24px 16px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '1.8rem' }}>📡</span>
+            <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(99, 102, 241, 0.15)', border: '1px solid rgba(99, 102, 241, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#818cf8' }}>
+              <Radio size={24} />
+            </div>
             <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#f8fafc' }}>NO CLIENT DEVICES CURRENTLY REGISTERED</span>
             <span style={{ fontSize: '0.8rem', color: '#94a3b8', maxWidth: '460px', lineHeight: 1.5 }}>
-              Launch <strong style={{ color: '#38bdf8' }}>DigitPop Studio</strong> on your MacBook or iPhone to auto-register, or click <strong style={{ color: '#3b82f6' }}>"➕ Pair / Attach Device"</strong> above to attach a stream source manually.
+              Launch <strong style={{ color: '#38bdf8' }}>DigitPop Studio</strong> on your MacBook or iPhone to auto-register, or click <strong style={{ color: '#3b82f6' }}>"Pair / Attach Device"</strong> above to attach a stream source manually.
             </span>
           </div>
         ) : (
@@ -409,9 +417,9 @@ export default function TwitchStage({ activeSource, onSelectSource }: TwitchStag
                     <button
                       onClick={() => handleDetachDevice(dev.deviceId)}
                       title="Disconnect / Remove Device"
-                      style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#f87171', borderRadius: '4px', padding: '2px 6px', cursor: 'pointer', fontSize: '0.65rem' }}
+                      style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#f87171', borderRadius: '4px', padding: '2px 6px', cursor: 'pointer', fontSize: '0.65rem', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
                     >
-                      🔌 Remove
+                      <Unplug size={10} /> Remove
                     </button>
                   </div>
                 </div>
@@ -452,7 +460,19 @@ export default function TwitchStage({ activeSource, onSelectSource }: TwitchStag
                         color: dev.role === role ? '#34d399' : '#94a3b8'
                       }}
                     >
-                      {role === 'MAIN_SCREEN' ? '🖥️ Main' : role === 'PIP_FACE' ? '📷 PiP' : '📹 Angle 3'}
+                      {role === 'MAIN_SCREEN' ? (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                          <Monitor size={11} /> Main
+                        </span>
+                      ) : role === 'PIP_FACE' ? (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                          <Camera size={11} /> PiP
+                        </span>
+                      ) : (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                          <Video size={11} /> Angle 3
+                        </span>
+                      )}
                     </button>
                   ))}
                 </div>
@@ -553,7 +573,8 @@ export default function TwitchStage({ activeSource, onSelectSource }: TwitchStag
               gap: '6px'
             }}
           >
-            📱 iPhone Roaming Cam
+            <Smartphone size={13} />
+            <span>iPhone Roaming Cam</span>
           </button>
         </div>
       </div>
@@ -563,11 +584,16 @@ export default function TwitchStage({ activeSource, onSelectSource }: TwitchStag
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.75)', backdropFilter: 'blur(8px)', zIndex: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
           <div style={{ background: '#0f172a', border: '1px solid rgba(168, 85, 247, 0.4)', borderRadius: '16px', padding: '24px', maxWidth: '460px', width: '100%', display: 'flex', flexDirection: 'column', gap: '16px', boxShadow: '0 20px 50px rgba(0,0,0,0.8)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#fff' }}>📱 Pair New Client Broadcaster Device</h3>
-              <button onClick={() => setIsPairModalOpen(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer' }}>✕</button>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#fff', display: 'inline-flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                <Smartphone size={18} color="#38bdf8" />
+                <span>Pair New Client Broadcaster Device</span>
+              </h3>
+              <button onClick={() => setIsPairModalOpen(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '4px' }}>
+                <X size={18} />
+              </button>
             </div>
 
-            <p style={{ color: '#cbd5e1', fontSize: '0.85rem', lineHeight: 1.5 }}>
+            <p style={{ color: '#cbd5e1', fontSize: '0.85rem', lineHeight: 1.5, margin: 0 }}>
               Scan the session pairing QR code or tap a quick preset below to attach a new broadcasting client to the live Railway Cloud router:
             </p>
 
@@ -576,7 +602,9 @@ export default function TwitchStage({ activeSource, onSelectSource }: TwitchStag
                 onClick={() => handleAttachDevicePreset('iPhone 16 Pro Roaming Cam', 'IOS_APP', '4K 60fps')}
                 style={{ background: 'rgba(30, 41, 59, 0.8)', border: '1px solid #10b981', color: '#fff', padding: '12px', borderRadius: '10px', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
               >
-                <span>📱 Attach iPhone 16 Pro (4K 60fps)</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                  <Smartphone size={14} color="#10b981" /> Attach iPhone 16 Pro (4K 60fps)
+                </span>
                 <span style={{ color: '#34d399', fontSize: '0.75rem' }}>+ Attach</span>
               </button>
 
@@ -584,7 +612,9 @@ export default function TwitchStage({ activeSource, onSelectSource }: TwitchStag
                 onClick={() => handleAttachDevicePreset('iPad Pro Studio Cam', 'IOS_APP', '1080p 60fps')}
                 style={{ background: 'rgba(30, 41, 59, 0.8)', border: '1px solid #a855f7', color: '#fff', padding: '12px', borderRadius: '10px', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
               >
-                <span>📱 Attach iPad Pro Studio (1080p)</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                  <Smartphone size={14} color="#a855f7" /> Attach iPad Pro Studio (1080p)
+                </span>
                 <span style={{ color: '#c084fc', fontSize: '0.75rem' }}>+ Attach</span>
               </button>
 
@@ -592,7 +622,9 @@ export default function TwitchStage({ activeSource, onSelectSource }: TwitchStag
                 onClick={() => handleAttachDevicePreset('Sony Alpha A7IV Studio Rig', 'HDMI_CAPTURE', '4K 60fps')}
                 style={{ background: 'rgba(30, 41, 59, 0.8)', border: '1px solid #38bdf8', color: '#fff', padding: '12px', borderRadius: '10px', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
               >
-                <span>📷 Attach Sony Alpha A7IV Rig (4K)</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                  <Camera size={14} color="#38bdf8" /> Attach Sony Alpha A7IV Rig (4K)
+                </span>
                 <span style={{ color: '#38bdf8', fontSize: '0.75rem' }}>+ Attach</span>
               </button>
             </div>

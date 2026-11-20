@@ -13,6 +13,7 @@ import {
   Send,
   Video,
   Share2,
+  FileEdit,
 } from 'lucide-react';
 import ConfirmModal from './ConfirmModal';
 import { toast } from '../services/toast';
@@ -188,16 +189,18 @@ export default function SavedShortsManager({ onOpenInStudio, onNewShort }: Saved
               <button
                 onClick={() => setFilterStatus('PUBLISHED')}
                 className={`btn ${filterStatus === 'PUBLISHED' ? 'btn--primary' : 'btn--ghost'}`}
-                style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 600 }}
+                style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '5px' }}
               >
-                🟢 Published ({shorts.filter((s) => s.status === 'PUBLISHED' || !!s.publishedYouTubeUrl).length})
+                <CheckCircle2 size={12} color="#10b981" />
+                <span>Published ({shorts.filter((s) => s.status === 'PUBLISHED' || !!s.publishedYouTubeUrl).length})</span>
               </button>
               <button
                 onClick={() => setFilterStatus('DRAFT')}
                 className={`btn ${filterStatus === 'DRAFT' ? 'btn--primary' : 'btn--ghost'}`}
-                style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 600 }}
+                style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '5px' }}
               >
-                📝 Drafts ({shorts.filter((s) => s.status !== 'PUBLISHED' && !s.publishedYouTubeUrl).length})
+                <FileEdit size={12} />
+                <span>Drafts ({shorts.filter((s) => s.status !== 'PUBLISHED' && !s.publishedYouTubeUrl).length})</span>
               </button>
             </div>
 

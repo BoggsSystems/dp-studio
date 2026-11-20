@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Radio, Plus, Copy, Check, ExternalLink, Play, Sparkles, Key, Video, Calendar } from 'lucide-react';
+import { Radio, Plus, Copy, Check, ExternalLink, Play, Sparkles, Key, Video, Calendar, Zap, BookOpen, Lightbulb } from 'lucide-react';
 import { StreamSession, ProductGroup } from '../../types';
 import { api } from '../../services/api';
 
@@ -192,7 +192,9 @@ export default function LivestreamHub({ onEnterOnAirStudio }: LivestreamHubProps
                 alignItems: 'center',
               }}
             >
-              <div style={{ fontSize: '28px' }}>⚡</div>
+              <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(20, 184, 166, 0.15)', border: '1px solid rgba(20, 184, 166, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#14b8a6', flexShrink: 0 }}>
+                <Zap size={20} />
+              </div>
               <div>
                 <span style={{ fontSize: '11px', color: 'var(--accent-teal)', fontWeight: 700 }}>HOT MOMENT #1</span>
                 <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
@@ -213,7 +215,9 @@ export default function LivestreamHub({ onEnterOnAirStudio }: LivestreamHubProps
                 alignItems: 'center',
               }}
             >
-              <div style={{ fontSize: '28px' }}>📖</div>
+              <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(59, 130, 246, 0.15)', border: '1px solid rgba(59, 130, 246, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#60a5fa', flexShrink: 0 }}>
+                <BookOpen size={20} />
+              </div>
               <div>
                 <span style={{ fontSize: '11px', color: 'var(--accent-blue)', fontWeight: 700 }}>HOT MOMENT #2</span>
                 <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
@@ -319,7 +323,11 @@ export default function LivestreamHub({ onEnterOnAirStudio }: LivestreamHubProps
                   marginTop: '6px',
                 }}
               >
-                💡 <strong>Broadcasting Tip</strong>: You can stream directly into `dp-studio` using your browser webcam/mic and screen capture without OBS, or push from OBS/vMix using the RTMP credentials above.
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
+                  <Lightbulb size={13} color="var(--accent-amber)" />
+                  <span>Broadcasting Tip:</span>
+                </div>
+                <div>You can stream directly into `dp-studio` using your browser webcam/mic and screen capture without OBS, or push from OBS/vMix using the RTMP credentials above.</div>
               </div>
 
               <button

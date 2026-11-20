@@ -58,6 +58,46 @@ export const api = {
     }
   },
 
+  async acceptInvite(token: string): Promise<{ user: User; token: string; isNewInvite: boolean }> {
+    const res = await fetch(`${API_BASE_URL}/api/invites/accept`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ message: 'Failed to accept invitation.' }));
+      throw new Error(err.message || `HTTP ${res.status}`);
+    }
+    return await res.json();
+  },
+
+  async createInvite(data: {
+    email: string;
+    fullName?: string;
+    role?: string;
+    studioBaseUrl?: string;
+  }): Promise<{
+    success: boolean;
+    token: string;
+    inviteUrl: string;
+    email: string;
+    emailSent: boolean;
+  }> {
+    const res = await fetch(`${API_BASE_URL}/api/invites`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ message: 'Failed to create invite.' }));
+      throw new Error(err.message || `HTTP ${res.status}`);
+    }
+    return await res.json();
+  },
+
   // --- Central Products & Catalog ---
   async getProducts(): Promise<Product[]> {
     try {

@@ -114,7 +114,7 @@ export const AI_COVER_PRESETS: Record<AiCoverStyle, AiCoverPreset> = {
     description: 'Matrix code rain, glowing cyan wireframe & holographic HUD aperture',
     gradientBg: ['#030712', '#051923', '#003554'],
     accentColor: '#00F2FE',
-    badge: '⚡ CYBER MATRIX',
+    badge: 'CYBER MATRIX',
   },
   CINEMATIC: {
     id: 'CINEMATIC',
@@ -122,7 +122,7 @@ export const AI_COVER_PRESETS: Record<AiCoverStyle, AiCoverPreset> = {
     description: 'Moody 35mm bokeh, warm gold rim lighting & volumetric particles',
     gradientBg: ['#0a080d', '#1f130b', '#2e1908'],
     accentColor: '#FFB800',
-    badge: '🎬 35MM BOKEH',
+    badge: '35MM BOKEH',
   },
   TECH_3D: {
     id: 'TECH_3D',
@@ -130,7 +130,7 @@ export const AI_COVER_PRESETS: Record<AiCoverStyle, AiCoverPreset> = {
     description: 'Futuristic floating glass cubes, neon nodes & deep violet geometry',
     gradientBg: ['#090514', '#170c2e', '#321055'],
     accentColor: '#A855F7',
-    badge: '🔮 BLENDER 3D',
+    badge: 'BLENDER 3D',
   },
   MANGA: {
     id: 'MANGA',
@@ -138,7 +138,7 @@ export const AI_COVER_PRESETS: Record<AiCoverStyle, AiCoverPreset> = {
     description: 'High-velocity action speedlines, dark monochrome & crimson burst',
     gradientBg: ['#050505', '#1a0508', '#2b070d'],
     accentColor: '#EF4444',
-    badge: '💥 ACTION BURST',
+    badge: 'ACTION BURST',
   },
   MINIMAL_DARK: {
     id: 'MINIMAL_DARK',
@@ -146,7 +146,7 @@ export const AI_COVER_PRESETS: Record<AiCoverStyle, AiCoverPreset> = {
     description: 'Deep obsidian luxury gradient, frosted card frame & high contrast',
     gradientBg: ['#030712', '#0f172a', '#1e293b'],
     accentColor: '#38BDF8',
-    badge: '✨ PRO STUDIO',
+    badge: 'PRO STUDIO',
   },
 };
 
@@ -1284,7 +1284,7 @@ export default function ShortsFormatterStudio({ project, onProjectUpdated }: Sho
     const params = new URLSearchParams(window.location.search);
     if (params.get('youtube_connected') === 'true') {
       const channel = params.get('channel') || 'YouTube Channel';
-      setYoutubeConnectSuccessMsg(`🎉 Successfully connected YouTube Channel: ${channel}`);
+      setYoutubeConnectSuccessMsg(`Successfully connected YouTube Channel: ${channel}`);
       api.getSocialAccounts().then((accounts) => setSocialAccounts(accounts));
       window.history.replaceState({}, document.title, window.location.pathname);
     } else if (params.get('youtube_error')) {
@@ -1292,7 +1292,7 @@ export default function ShortsFormatterStudio({ project, onProjectUpdated }: Sho
       window.history.replaceState({}, document.title, window.location.pathname);
     } else if (params.get('tiktok_connected') === 'true') {
       const channel = params.get('channel') || 'TikTok Creator';
-      setTiktokConnectSuccessMsg(`🎉 Successfully connected TikTok Account: @${channel}`);
+      setTiktokConnectSuccessMsg(`Successfully connected TikTok Account: @${channel}`);
       api.getSocialAccounts().then((accounts) => setSocialAccounts(accounts));
       window.history.replaceState({}, document.title, window.location.pathname);
     } else if (params.get('tiktok_error')) {
@@ -1300,7 +1300,7 @@ export default function ShortsFormatterStudio({ project, onProjectUpdated }: Sho
       window.history.replaceState({}, document.title, window.location.pathname);
     } else if (params.get('instagram_connected') === 'true') {
       const channel = params.get('channel') || 'Instagram Account';
-      setInstagramConnectSuccessMsg(`🎉 Successfully connected Instagram: @${channel}`);
+      setInstagramConnectSuccessMsg(`Successfully connected Instagram: @${channel}`);
       api.getSocialAccounts().then((accounts) => setSocialAccounts(accounts));
       window.history.replaceState({}, document.title, window.location.pathname);
     } else if (params.get('instagram_error')) {
@@ -1308,7 +1308,7 @@ export default function ShortsFormatterStudio({ project, onProjectUpdated }: Sho
       window.history.replaceState({}, document.title, window.location.pathname);
     } else if (params.get('twitter_connected') === 'true') {
       const channel = params.get('channel') || 'X Account';
-      setTwitterConnectSuccessMsg(`🎉 Successfully connected X (Twitter): @${channel}`);
+      setTwitterConnectSuccessMsg(`Successfully connected X (Twitter): @${channel}`);
       api.getSocialAccounts().then((accounts) => setSocialAccounts(accounts));
       window.history.replaceState({}, document.title, window.location.pathname);
     } else if (params.get('twitter_error')) {
@@ -1320,21 +1320,21 @@ export default function ShortsFormatterStudio({ project, onProjectUpdated }: Sho
     const handleOAuthMessage = (event: MessageEvent) => {
       if (event.data?.type === 'YOUTUBE_CONNECTED') {
         const channel = event.data.channel || 'YouTube Channel';
-        setYoutubeConnectSuccessMsg(`🎉 Successfully connected YouTube Channel: @${channel}`);
+        setYoutubeConnectSuccessMsg(`Successfully connected YouTube Channel: @${channel}`);
         setPublishYouTubeError(null);
         api.getSocialAccounts().then((accounts) => setSocialAccounts(accounts));
       } else if (event.data?.type === 'YOUTUBE_ERROR') {
         setPublishYouTubeError(`YouTube Connection Error: ${event.data.error}`);
       } else if (event.data?.type === 'TIKTOK_CONNECTED') {
         const channel = event.data.channel || 'TikTok Creator';
-        setTiktokConnectSuccessMsg(`🎉 Successfully connected TikTok Account: @${channel}`);
+        setTiktokConnectSuccessMsg(`Successfully connected TikTok Account: @${channel}`);
         setPublishTikTokError(null);
         api.getSocialAccounts().then((accounts) => setSocialAccounts(accounts));
       } else if (event.data?.type === 'TIKTOK_ERROR') {
         setPublishTikTokError(`TikTok Connection Error: ${event.data.error}`);
       } else if (event.data?.type === 'INSTAGRAM_CONNECTED') {
         const channel = event.data.channel || 'Instagram Account';
-        setInstagramConnectSuccessMsg(`🎉 Successfully connected Instagram: @${channel}`);
+        setInstagramConnectSuccessMsg(`Successfully connected Instagram: @${channel}`);
         setPublishInstagramError(null);
         api.getSocialAccounts().then((accounts) => setSocialAccounts(accounts));
       } else if (event.data?.type === 'INSTAGRAM_ERROR') {
@@ -1469,13 +1469,13 @@ export default function ShortsFormatterStudio({ project, onProjectUpdated }: Sho
     try {
       let res: any;
       if (fileToProcess) {
-        setTranscribeProgress('⚡ Extracting lightweight audio track for instant transcription...');
+        setTranscribeProgress('Extracting lightweight audio track for instant transcription...');
         // 1. Extract audio in browser to send 500KB instead of 100MB
         const audioBlob = await extractAudioFromVideo(fileToProcess);
-        setTranscribeProgress('🚀 Transcribing with Groq Whisper Large v3 Turbo (~0.4s)...');
+        setTranscribeProgress('Transcribing with Groq Whisper Large v3 Turbo (~0.4s)...');
         res = await api.transcribeVideo(audioBlob, 'short_audio.wav');
       } else if (videoUrl) {
-        setTranscribeProgress('🚀 Server extracting & transcribing audio with Groq Whisper...');
+        setTranscribeProgress('Server extracting & transcribing audio with Groq Whisper...');
         res = await api.transcribeVideoUrl(videoUrl);
       } else {
         throw new Error('No video file or URL available for transcription.');

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ShoppingBag, Bot, Zap, BookOpen, Lightbulb, CheckCircle2 } from 'lucide-react';
 
 export interface ProductGroup {
   id: string;
@@ -64,14 +65,14 @@ export default function ShoppableTriggerDeck({
       {/* Control Deck Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '1.2rem' }}>🛍️</span>
+          <ShoppingBag size={18} color="var(--accent-teal, #14b8a6)" />
           <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#f8fafc' }}>SHOPPABLE PRODUCER CONTROL DECK</h2>
         </div>
 
         {/* AI Autopilot Toggle */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(15, 23, 42, 0.6)', padding: '6px 14px', borderRadius: '20px', border: '1px solid var(--border-glass)' }}>
-          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: isAiAutopilot ? '#a855f7' : 'var(--text-muted)' }}>
-            🤖 AI Autopilot Engine
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 600, color: isAiAutopilot ? '#a855f7' : 'var(--text-muted)' }}>
+            <Bot size={15} /> AI Autopilot Engine
           </span>
           <button
             onClick={onToggleAiAutopilot}
@@ -125,7 +126,9 @@ export default function ShoppableTriggerDeck({
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ fontSize: '1.5rem', background: 'rgba(168, 85, 247, 0.15)', padding: '8px', borderRadius: '10px' }}>{group.icon}</span>
+                  <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(168, 85, 247, 0.15)', border: '1px solid rgba(168, 85, 247, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#c084fc', flexShrink: 0 }}>
+                    {group.id.includes('book') ? <BookOpen size={18} /> : group.id.includes('light') ? <Lightbulb size={18} /> : <Zap size={18} />}
+                  </div>
                   <div>
                     <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#f8fafc' }}>{group.title}</h3>
                     <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px' }}>{group.subtitle}</p>
@@ -151,7 +154,15 @@ export default function ShoppableTriggerDeck({
                     boxShadow: isTriggering ? '0 0 20px rgba(16, 185, 129, 0.6)' : undefined
                   }}
                 >
-                  {isTriggering ? '⚡ DISPATCHED!' : '⚡ 1-Tap Trigger'}
+                  {isTriggering ? (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                      <CheckCircle2 size={13} /> DISPATCHED
+                    </span>
+                  ) : (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                      <Zap size={13} /> 1-Tap Trigger
+                    </span>
+                  )}
                 </button>
               </div>
             </div>

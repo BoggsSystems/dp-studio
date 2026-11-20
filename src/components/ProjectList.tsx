@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Video, Play, Edit3, ExternalLink, Trash2, Layers, ShoppingBag, CheckCircle, Sparkles, Smartphone, CheckCircle2 } from 'lucide-react';
+import { Plus, Video, Play, Edit3, ExternalLink, Trash2, Layers, ShoppingBag, CheckCircle, Sparkles, Smartphone, CheckCircle2, Film, Radio, Loader2 } from 'lucide-react';
 import { Project, FormattedShortProject, StreamSession, Product } from '../types';
 import ProjectWizardModal from './ProjectWizardModal';
 import ConfirmModal from './ConfirmModal';
 import { toast } from '../services/toast';
+import { api } from '../services/api';
 import { getAllShortProjects, getShortProject, loadShortProjectIntoActiveDraft, deleteShortProject, setShortPublishedInCloud, deleteVodProjectFromCloud } from '../services/videoStorage';
 
 interface ProjectListProps {
@@ -43,6 +44,46 @@ export default function ProjectList({
   const [localProjects, setLocalProjects] = useState<Project[]>(projects);
 
   useEffect(() => { setLocalProjects(projects); }, [projects]);
+
+  const [isCreatingSample, setIsCreatingSample] = useState(false);
+
+  const handleCreateSampleShowcase = async () => {
+    try {
+      setIsCreatingSample(true);
+      const sampleProj: Project = {
+        id: `proj_showcase_${Date.now()}`,
+        name: 'DigitPop Interactive Showcase',
+        description: 'Experience frame-synchronized product hotspots, interactive overlays, and immersive video commerce.',
+        category: 'Technology & SaaS',
+        channel: 'about',
+        mediaType: 'VOD',
+        thumbnailBadge: '16:9 VOD',
+        masterVodUrl: 'https://pub-2af6e082fcb44c58add86361dad9d14b.r2.dev/raw_videos/opportunity_os_showcase.mp4',
+        status: 'READY',
+        isActive: true,
+        productGroups: [],
+        baskets: [],
+      };
+      try {
+        const saved = await api.saveProject(sampleProj);
+        if (saved) {
+          onProjectCreated(saved);
+          onSelectProject(saved);
+          toast.success('Sample showcase project loaded!');
+          return;
+        }
+      } catch (e) {
+        console.warn('API save fallback for sample project:', e);
+      }
+      onProjectCreated(sampleProj);
+      onSelectProject(sampleProj);
+      toast.success('Sample showcase project loaded!');
+    } catch (err) {
+      toast.error('Could not load sample project');
+    } finally {
+      setIsCreatingSample(false);
+    }
+  };
 
   useEffect(() => {
     setSavedShorts(getAllShortProjects());
@@ -170,17 +211,19 @@ export default function ProjectList({
                 type="button"
                 onClick={() => setCategoryFilter('VOD')}
                 className={`btn ${categoryFilter === 'VOD' ? 'btn--primary' : 'btn--ghost'}`}
-                style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 600 }}
+                style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '5px' }}
               >
-                🎬 16:9 VODs ({vodProjects.length})
+                <Film size={12} />
+                <span>16:9 VODs ({vodProjects.length})</span>
               </button>
               <button
                 type="button"
                 onClick={() => setCategoryFilter('SHORTS')}
                 className={`btn ${categoryFilter === 'SHORTS' ? 'btn--primary' : 'btn--ghost'}`}
-                style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 600 }}
+                style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '5px' }}
               >
-                ⚡ 9:16 Shorts ({shortProjects.length})
+                <Sparkles size={12} />
+                <span>9:16 Shorts ({shortProjects.length})</span>
               </button>
             </div>
 
@@ -195,17 +238,177 @@ export default function ProjectList({
           </div>
         </div>
 
-        {/* Project Grid */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
-            gap: '20px',
-            marginTop: '16px',
-          }}
-        >
-          {localProjects
-            .filter((proj) => {
+        {/* Project Grid or Sleek Center CTA */}
+        {localProjects.filter((proj) => {
+          if (categoryFilter === 'VOD') return !isShortProject(proj);
+          if (categoryFilter === 'SHORTS') return isShortProject(proj);
+          return true;
+        }).length === 0 ? (
+          <div
+            style={{
+              margin: '36px auto',
+              maxWidth: '680px',
+              padding: '48px 36px',
+              background: 'linear-gradient(180deg, rgba(17, 24, 39, 0.75) 0%, rgba(10, 15, 29, 0.95) 100%)',
+              border: '1px solid var(--border-hairline)',
+              borderRadius: '20px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.06)',
+              backdropFilter: 'blur(16px)',
+              textAlign: 'center',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+            }}
+          >
+            <div
+              style={{
+                width: '64px',
+                height: '64px',
+                borderRadius: '16px',
+                background: 'rgba(99, 102, 241, 0.1)',
+                border: '1px solid rgba(99, 102, 241, 0.22)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: '20px',
+                boxShadow: '0 8px 24px -4px rgba(99, 102, 241, 0.25)',
+              }}
+            >
+              <Film size={28} color="#818cf8" strokeWidth={1.8} />
+            </div>
+
+            <h2
+              style={{
+                fontSize: '22px',
+                fontWeight: 700,
+                letterSpacing: '-0.025em',
+                color: '#f8fafc',
+                margin: '0 0 10px 0',
+              }}
+            >
+              {categoryFilter === 'SHORTS'
+                ? 'Create Your First Shoppable Short'
+                : categoryFilter === 'VOD'
+                ? 'Create Your First Interactive 16:9 Video'
+                : 'Create Your First Shoppable Video'}
+            </h2>
+            <p
+              style={{
+                fontSize: '13px',
+                color: '#94a3b8',
+                lineHeight: 1.6,
+                maxWidth: '460px',
+                margin: '0 0 28px 0',
+              }}
+            >
+              {categoryFilter === 'SHORTS'
+                ? 'Transform vertical video with AI captions, dynamic animated product cards, and instant mobile checkout.'
+                : categoryFilter === 'VOD'
+                ? 'Upload a 16:9 master video to place frame-accurate product hotspots, interactive overlays, and synchronized drawers.'
+                : 'Upload a 16:9 master video, format a viral 9:16 short, or start from a showcase sample to begin placing frame-accurate product hotspots.'}
+            </p>
+
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => setIsWizardOpen(true)}
+                style={{
+                  padding: '11px 22px',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 14px rgba(99, 102, 241, 0.35)',
+                }}
+              >
+                <Plus size={16} strokeWidth={2.2} />
+                <span>Create Video Project</span>
+              </button>
+
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={handleCreateSampleShowcase}
+                disabled={isCreatingSample}
+                style={{
+                  padding: '11px 20px',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  borderRadius: '8px',
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid var(--border-hairline)',
+                  color: '#e2e8f0',
+                }}
+              >
+                {isCreatingSample ? (
+                  <Loader2 size={15} className="spinner" />
+                ) : (
+                  <Sparkles size={15} color="#38bdf8" />
+                )}
+                <span>{isCreatingSample ? 'Loading Demo...' : 'Load Showcase Sample'}</span>
+              </button>
+            </div>
+
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: '12px',
+                marginTop: '36px',
+                width: '100%',
+                borderTop: '1px solid var(--border-hairline)',
+                paddingTop: '24px',
+                textAlign: 'left',
+              }}
+            >
+              <div style={{ padding: '12px', borderRadius: '10px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.04)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', color: '#93c5fd', fontSize: '12px', fontWeight: 600 }}>
+                  <Film size={13} />
+                  <span>16:9 VOD</span>
+                </div>
+                <p style={{ margin: 0, fontSize: '11px', color: '#64748b', lineHeight: 1.4 }}>
+                  Frame-synced hotspots, product drawers & interactive player.
+                </p>
+              </div>
+
+              <div style={{ padding: '12px', borderRadius: '10px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.04)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', color: '#c084fc', fontSize: '12px', fontWeight: 600 }}>
+                  <Sparkles size={13} />
+                  <span>9:16 Shorts</span>
+                </div>
+                <p style={{ margin: 0, fontSize: '11px', color: '#64748b', lineHeight: 1.4 }}>
+                  Viral captions, mobile shopping drawer & multi-platform publish.
+                </p>
+              </div>
+
+              <div style={{ padding: '12px', borderRadius: '10px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.04)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', color: '#f472b6', fontSize: '12px', fontWeight: 600 }}>
+                  <Radio size={13} />
+                  <span>Live Stream</span>
+                </div>
+                <p style={{ margin: 0, fontSize: '11px', color: '#64748b', lineHeight: 1.4 }}>
+                  Real-time product drops, stream overlays & viewer checkout.
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
+              gap: '20px',
+              marginTop: '16px',
+            }}
+          >
+            {localProjects
+              .filter((proj) => {
               if (categoryFilter === 'VOD') return !isShortProject(proj);
               if (categoryFilter === 'SHORTS') return isShortProject(proj);
               return true;
@@ -283,7 +486,15 @@ export default function ProjectList({
                         color: isShort ? '#fff' : 'var(--accent-teal)',
                       }}
                     >
-                      {isShort ? '⚡ 9:16 Short' : '🎬 16:9 VOD'}
+                      {isShort ? (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          <Sparkles size={11} /> 9:16 Short
+                        </span>
+                      ) : (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          <Film size={11} /> 16:9 VOD
+                        </span>
+                      )}
                     </div>
 
                     {/* Status Badge */}
@@ -385,7 +596,8 @@ export default function ProjectList({
                 </div>
               );
             })}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Project Wizard Modal */}

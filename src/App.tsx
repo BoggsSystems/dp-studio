@@ -24,6 +24,8 @@ import { loadShortProjectIntoActiveDraft } from './services/videoStorage';
 import { api } from './services/api';
 import TermsOfService from './components/legal/TermsOfService';
 import PrivacyPolicy from './components/legal/PrivacyPolicy';
+import StudioIntroductionModal from './components/StudioIntroductionModal';
+import InviteCollaboratorModal from './components/InviteCollaboratorModal';
 
 function buildFormattedShortFromProject(targetProj: Project): FormattedShortProject {
   const meta = (targetProj.metadata as any) || {};
@@ -80,7 +82,9 @@ function buildFormattedShortFromProject(targetProj: Project): FormattedShortProj
 }
 
 function StudioApp() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, isNewInviteUser } = useAuth();
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState<boolean>(false);
+  const [isIntroModalOpen, setIsIntroModalOpen] = useState<boolean>(false);
   const [legalPage, setLegalPage] = useState<'terms' | 'privacy' | null>(() => {
     if (typeof window === 'undefined') return null;
     const path = window.location.pathname.toLowerCase();
@@ -129,6 +133,16 @@ function StudioApp() {
   const [thumbnailToast, setThumbnailToast] = useState<string | null>(null);
 
   const videoElementRef = useRef<HTMLVideoElement>(null);
+
+  // Automatically trigger introduction if user arrived via invite or hasn't completed tour
+  useEffect(() => {
+    if (user) {
+      const hasSeenTour = localStorage.getItem('dp_studio_intro_seen');
+      if (isNewInviteUser || !hasSeenTour) {
+        setIsIntroModalOpen(true);
+      }
+    }
+  }, [user, isNewInviteUser]);
 
   // Load initial data only when authenticated
   useEffect(() => {
@@ -480,6 +494,8 @@ function StudioApp() {
             isSaving={isSaving}
             onNewProject={handleNewProject}
             onOpenAuth={() => setIsAuthModalOpen(true)}
+            onOpenInvite={() => setIsInviteModalOpen(true)}
+            onOpenIntro={() => setIsIntroModalOpen(true)}
           />
 
           <main className="studio-main">
@@ -715,6 +731,15 @@ function StudioApp() {
       {/* Modals */}
       {isDeployOpen && <DeployModal project={project} onClose={() => setIsDeployOpen(false)} />}
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+      <InviteCollaboratorModal isOpen={isInviteModalOpen} onClose={() => setIsInviteModalOpen(false)} />
+      <StudioIntroductionModal
+        isOpen={isIntroModalOpen}
+        onClose={() => setIsIntroModalOpen(false)}
+        onExploreWorkspace={() => {
+          setIsIntroModalOpen(false);
+          setActiveTab('projects');
+        }}
+      />
 
       {/* Toast Notification */}
       {thumbnailToast && (

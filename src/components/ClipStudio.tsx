@@ -87,7 +87,7 @@ export default function ClipStudio({ projectId, initialView = 'FORMATTER' }: Cli
           }}
         >
           <Wand2 size={15} color={activeView === 'FORMATTER' ? 'var(--accent-teal)' : 'currentColor'} />
-          <span>🎨 Shorts Formatter & Studio</span>
+          <span>Shorts Formatter & Studio</span>
         </button>
         <button
           onClick={() => setActiveView('LIBRARY')}
@@ -107,7 +107,7 @@ export default function ClipStudio({ projectId, initialView = 'FORMATTER' }: Cli
           }}
         >
           <FolderKanban size={15} color={activeView === 'LIBRARY' ? 'var(--accent-teal)' : 'currentColor'} />
-          <span>📁 My Shorts & Published Library ({savedShortsCount})</span>
+          <span>My Shorts & Published Library ({savedShortsCount})</span>
         </button>
         <button
           onClick={() => setActiveView('EXTRACTED')}
@@ -127,7 +127,7 @@ export default function ClipStudio({ projectId, initialView = 'FORMATTER' }: Cli
           }}
         >
           <ListVideo size={15} color={activeView === 'EXTRACTED' ? 'var(--accent-teal)' : 'currentColor'} />
-          <span>📋 Auto-Extracted Stream Clips ({clips.length})</span>
+          <span>Auto-Extracted Stream Clips ({clips.length})</span>
         </button>
       </div>
 

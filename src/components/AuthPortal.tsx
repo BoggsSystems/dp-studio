@@ -3,7 +3,7 @@ import { Lock, Mail, User as UserIcon, ArrowRight, Sparkles } from 'lucide-react
 import { useAuth } from '../context/AuthContext';
 
 export default function AuthPortal() {
-  const { login, register } = useAuth();
+  const { login, register, loginAsDemo } = useAuth();
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -328,6 +328,62 @@ export default function AuthPortal() {
                 <ArrowRight size={14} />
               </>
             )}
+          </button>
+
+          {/* Quick Access for Local Development & Testing */}
+          <div style={{ position: 'relative', margin: '20px 0 12px', textAlign: 'center' }}>
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center' }}>
+              <div style={{ width: '100%', borderTop: '1px solid var(--border-subtle)' }} />
+            </div>
+            <div style={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
+              <span style={{ background: 'var(--bg-surface)', padding: '0 8px', fontSize: '11px', color: 'var(--text-muted)' }}>
+                OR QUICK TESTING
+              </span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => loginAsDemo('jeff@opportunity-system.com', 'Jeff Boggs')}
+            className="btn btn-secondary"
+            style={{
+              width: '100%',
+              padding: '10px',
+              fontSize: '13px',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              background: 'rgba(99, 102, 241, 0.12)',
+              border: '1px solid rgba(99, 102, 241, 0.3)',
+              color: '#818cf8',
+            }}
+          >
+            <Sparkles size={14} />
+            <span>Enter Studio as Creator (Jeff Boggs)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              window.location.search = '?invite=demo_ros_test';
+            }}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: '#94a3b8',
+              fontSize: '12px',
+              cursor: 'pointer',
+              marginTop: '6px',
+              textDecoration: 'underline',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '4px',
+            }}
+          >
+            Test Ros's Magic Invite & Tour Flow →
           </button>
         </form>
 

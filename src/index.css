@@ -10,11 +10,14 @@
   --bg-surface-elevated: #1e293b;
   --bg-surface-hover: #263449;
   --bg-card: rgba(22, 32, 50, 0.7);
+  --bg-canvas: #070a10;
 
   /* Borders & Dividers */
   --border-subtle: rgba(148, 163, 184, 0.12);
   --border-medium: rgba(148, 163, 184, 0.22);
   --border-strong: rgba(148, 163, 184, 0.35);
+  --border-light: rgba(148, 163, 184, 0.28);
+  --border-hairline: rgba(255, 255, 255, 0.08);
 
   /* Typography */
   --text-primary: #f8fafc;
@@ -30,6 +33,7 @@
   --accent-emerald: #10b981;
   --accent-amber: #f59e0b;
   --accent-rose: #f43f5e;
+  --accent-red: #ef4444;
 
   /* Status Colors */
   --status-online: #10b981;

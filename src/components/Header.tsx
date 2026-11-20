@@ -12,7 +12,8 @@ import {
   User as UserIcon,
   ChevronDown,
   ShoppingBag,
-  BarChart3
+  BarChart3,
+  UserPlus
 } from 'lucide-react';
 import { Project } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -28,6 +29,8 @@ interface HeaderProps {
   isSaving: boolean;
   onNewProject: () => void;
   onOpenAuth: () => void;
+  onOpenInvite?: () => void;
+  onOpenIntro?: () => void;
 }
 
 export default function Header({
@@ -39,6 +42,8 @@ export default function Header({
   isSaving,
   onNewProject,
   onOpenAuth,
+  onOpenInvite,
+  onOpenIntro,
 }: HeaderProps) {
   const { user, logout } = useAuth();
 
@@ -184,6 +189,32 @@ export default function Header({
                 <span>Deploy & Embed</span>
               </button>
             </>
+          )}
+
+          {onOpenIntro && (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={onOpenIntro}
+              title="Studio Tour & Introduction"
+              style={{ padding: '6px 10px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px' }}
+            >
+              <HelpCircle size={13} color="var(--accent-blue, #6366f1)" />
+              <span>Tour</span>
+            </button>
+          )}
+
+          {user && onOpenInvite && (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={onOpenInvite}
+              title="Invite Collaborator via Resend"
+              style={{ padding: '6px 10px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px' }}
+            >
+              <UserPlus size={13} color="var(--accent-teal, #14b8a6)" />
+              <span>Invite</span>
+            </button>
           )}
 
           {/* User Authentication Menu */}

@@ -155,7 +155,7 @@ export default function ProjectWizardModal({
         category: isShort ? 'Shorts' : 'Technology & SaaS',
         channel: 'about',
         mediaType: format,
-        thumbnailBadge: isShort ? '⚡ 9:16 Short' : '🎬 16:9 VOD',
+        thumbnailBadge: isShort ? '9:16 Short' : '16:9 VOD',
         masterVodUrl: resolvedVideoUrl || (isShort ? '' : 'https://pub-2af6e082fcb44c58add86361dad9d14b.r2.dev/raw_videos/opportunity_os_showcase.mp4'),
         hlsManifestUrl: (!isShort && resolvedVideoUrl?.endsWith('.m3u8')) ? resolvedVideoUrl : undefined,
         status: isShort ? 'DRAFT' : 'READY',
@@ -186,7 +186,7 @@ export default function ProjectWizardModal({
           thumbnailStyle: 'VIRAL_WHITE',
           thumbnailFontSize: 54,
           thumbnailPosition: 45,
-          thumbnailBadge: '⚡ MUST WATCH',
+          thumbnailBadge: 'FEATURED',
           thumbnailStrokeWidth: 14,
         } : undefined,
       };
@@ -220,7 +220,7 @@ export default function ProjectWizardModal({
           thumbnailStyle: 'VIRAL_WHITE',
           thumbnailFontSize: 54,
           thumbnailPosition: 45,
-          thumbnailBadge: '⚡ MUST WATCH',
+          thumbnailBadge: 'FEATURED',
           status: 'DRAFT',
           distributions: {
             aboutPage: { status: 'DRAFT' },
@@ -322,10 +322,10 @@ export default function ProjectWizardModal({
                 {step === 1 && 'Create New Shoppable Experience'}
                 {step === 2 &&
                   (format === 'VOD'
-                    ? '🎬 Upload 16:9 Master Video'
+                    ? 'Upload 16:9 Master Video'
                     : format === 'SHORT'
-                    ? '⚡ Upload 9:16 Video Asset'
-                    : '📡 Schedule Live Shopping Event')}
+                    ? 'Upload 9:16 Video Asset'
+                    : 'Schedule Live Shopping Event')}
               </h2>
               <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
                 Step {step} of 2 • {step === 1 ? 'Choose Experience Format' : 'Asset Ingestion & AI Auto-Match'}
@@ -820,7 +820,7 @@ export default function ProjectWizardModal({
                 ) : (
                   <>
                     <Sparkles size={14} />
-                    <span>Launch Studio 🚀</span>
+                    <span>Launch Studio</span>
                   </>
                 )}
               </button>

@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { Sliders, Mic, MicOff, Monitor, Volume2, VolumeX } from 'lucide-react';
 import { studioMixer, AudioLevels } from '../../services/StudioAudioMixer';
 
 export default function AudioMixerDock() {
@@ -67,7 +68,7 @@ export default function AudioMixerDock() {
     <div className="glass-panel" style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '1.2rem' }}>🎛️</span>
+          <Sliders size={18} color="var(--accent-teal, #14b8a6)" />
           <h2 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#f8fafc' }}>STUDIO AUDIO MIXER ENGINE</h2>
           <span style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', padding: '2px 8px', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 700 }}>
             48 kHz Stereo Bus Active
@@ -94,7 +95,15 @@ export default function AudioMixerDock() {
                   fontSize: '0.85rem'
                 }}
               >
-                {isMicMuted ? '🔇 MUTED' : '🎙️ MIC'}
+                {isMicMuted ? (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <MicOff size={13} /> MUTED
+                  </span>
+                ) : (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <Mic size={13} /> MIC
+                  </span>
+                )}
               </button>
               <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#f8fafc' }}>Broadcaster Mic</span>
             </div>
@@ -133,7 +142,15 @@ export default function AudioMixerDock() {
                   fontSize: '0.85rem'
                 }}
               >
-                {isDesktopMuted ? '🔇 MUTED' : '🖥️ SYSTEM'}
+                {isDesktopMuted ? (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <VolumeX size={13} /> MUTED
+                  </span>
+                ) : (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <Monitor size={13} /> SYSTEM
+                  </span>
+                )}
               </button>
               <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#f8fafc' }}>Mac Desktop Audio</span>
             </div>
@@ -159,8 +176,9 @@ export default function AudioMixerDock() {
         <div style={{ background: 'rgba(15, 23, 42, 0.7)', padding: '12px 14px', borderRadius: '10px', border: '1px solid var(--border-glass)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ background: 'rgba(168, 85, 247, 0.2)', border: '1px solid #a855f7', color: '#c084fc', borderRadius: '6px', padding: '4px 8px', fontSize: '0.8rem', fontWeight: 700 }}>
-                🔊 MASTER
+              <span style={{ background: 'rgba(168, 85, 247, 0.2)', border: '1px solid #a855f7', color: '#c084fc', borderRadius: '6px', padding: '4px 8px', fontSize: '0.8rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                <Volume2 size={13} />
+                <span>MASTER</span>
               </span>
               <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#f8fafc' }}>Broadcast Mix Out</span>
             </div>
