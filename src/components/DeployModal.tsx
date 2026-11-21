@@ -129,8 +129,9 @@ export default function DeployModal({ project, onClose }: DeployModalProps) {
               <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(56, 189, 248, 0.06)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
                 <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
                   {edgeManifestUrl ? (
-                    <span style={{ color: 'var(--status-online)' }}>
-                      ⚡ Edge Manifest live on Cloudflare CDN: {edgeManifestUrl}
+                    <span style={{ color: 'var(--status-online)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      <Zap size={12} color="var(--status-online)" />
+                      <span>Edge Manifest live on Cloudflare CDN: {edgeManifestUrl}</span>
                     </span>
                   ) : (
                     <span>Cloudflare Edge Manifest ensures global &lt;30ms cold-start streaming.</span>

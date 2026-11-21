@@ -20,6 +20,9 @@ import {
   Database,
   Lock,
   Flame,
+  Activity,
+  Film,
+  HardDrive,
 } from 'lucide-react';
 import { siteConfig, PricingTier } from '../../config/siteConfig';
 
@@ -627,15 +630,25 @@ export default function LandingPage({ onGetStarted, onSignIn }: LandingPageProps
                   </div>
 
                   {/* Quota Highlights */}
-                  <div style={{ padding: '12px', background: 'rgba(0, 0, 0, 0.25)', borderRadius: 'var(--radius-sm)', marginBottom: '20px', border: '1px solid var(--border-subtle)' }}>
-                    <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--accent-teal-light)', marginBottom: '4px' }}>
-                      🎯 {tier.playsPerMonth}
+                  <div style={{ padding: '12px 14px', background: 'rgba(0, 0, 0, 0.35)', borderRadius: 'var(--radius-sm)', marginBottom: '20px', border: '1px solid var(--border-subtle)' }}>
+                    <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--accent-teal-light)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Activity size={13} color="var(--accent-teal)" style={{ flexShrink: 0 }} />
+                      <span>{tier.playsPerMonth}</span>
                     </div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                      📁 {tier.hostedVideos} • ⚡ {tier.storage}
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <Film size={12} color="#94a3b8" style={{ flexShrink: 0 }} />
+                        {tier.hostedVideos}
+                      </span>
+                      <span style={{ color: 'var(--border-medium)' }}>•</span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <HardDrive size={12} color="#94a3b8" style={{ flexShrink: 0 }} />
+                        {tier.storage}
+                      </span>
                     </div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                      📡 {tier.liveStreaming}
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <Radio size={12} color="#94a3b8" style={{ flexShrink: 0 }} />
+                      <span>{tier.liveStreaming}</span>
                     </div>
                   </div>
 
