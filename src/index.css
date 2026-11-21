@@ -147,6 +147,16 @@ body {
   box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
 }
 
+.shopvideo-logo-disc {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), filter 0.2s ease;
+}
+
+.brand-badge:hover .shopvideo-logo-disc,
+.shopvideo-brand-lockup:hover .shopvideo-logo-disc {
+  transform: scale(1.06);
+  filter: drop-shadow(0 0 12px rgba(56, 189, 248, 0.45));
+}
+
 .brand-title {
   font-size: 17px;
   font-weight: 700;

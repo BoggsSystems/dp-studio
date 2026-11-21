@@ -25,6 +25,7 @@ import {
   HardDrive,
 } from 'lucide-react';
 import { siteConfig, PricingTier } from '../../config/siteConfig';
+import { ShopVideoLogo } from '../icons/ShopVideoLogo';
 
 interface LandingPageProps {
   onGetStarted: (planId?: string) => void;
@@ -64,21 +65,8 @@ export default function LandingPage({ onGetStarted, onSignIn }: LandingPageProps
       >
         <div style={{ maxWidth: '1240px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           {/* Brand Logo */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }} onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-            <div
-              style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '10px',
-                background: 'linear-gradient(135deg, var(--accent-blue), var(--accent-teal))',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 0 16px rgba(37, 99, 235, 0.4)',
-              }}
-            >
-              <Play size={18} fill="#ffffff" color="#ffffff" style={{ marginLeft: '2px' }} />
-            </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }} onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+            <ShopVideoLogo size={38} />
             <div>
               <span style={{ fontSize: '18px', fontWeight: 800, letterSpacing: '-0.02em', color: '#ffffff' }}>
                 ShopVideo
@@ -924,19 +912,7 @@ export default function LandingPage({ onGetStarted, onSignIn }: LandingPageProps
       <footer style={{ borderTop: '1px solid var(--border-subtle)', padding: '40px 24px 30px', background: 'rgba(10, 14, 23, 0.95)' }}>
         <div style={{ maxWidth: '1240px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div
-              style={{
-                width: '28px',
-                height: '28px',
-                borderRadius: '8px',
-                background: 'linear-gradient(135deg, var(--accent-blue), var(--accent-teal))',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Play size={14} fill="#ffffff" color="#ffffff" style={{ marginLeft: '1px' }} />
-            </div>
+            <ShopVideoLogo size={28} />
             <span style={{ fontSize: '15px', fontWeight: 700, color: '#ffffff' }}>
               ShopVideo<span style={{ color: 'var(--accent-teal)' }}>.tv</span>
             </span>

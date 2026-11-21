@@ -20,6 +20,7 @@ import {
 import { Project } from '../types';
 import { useAuth } from '../context/AuthContext';
 import BillingModal from './BillingModal';
+import { ShopVideoLogo } from './icons/ShopVideoLogo';
 
 export type StudioTab = 'projects' | 'vod' | 'products' | 'live' | 'campaigns' | 'clips' | 'quiz' | 'analytics';
 
@@ -61,9 +62,7 @@ export default function Header({
             style={{ cursor: 'pointer' }}
             onClick={() => setActiveTab('projects')}
           >
-            <div className="brand-icon">
-              <span>SV</span>
-            </div>
+            <ShopVideoLogo size={36} />
             <div>
               <div className="brand-title">ShopVideo Studio</div>
               <div className="brand-subtitle">shopvideo.tv • Interactive Video Engine</div>
