@@ -1,8 +1,8 @@
 /**
- * DigitPop Platform Configuration
+ * ShopVideo.tv Platform Configuration
  * Centralized brand, domain, and commercial pricing configuration.
  * All customer-facing text, URLs, and plan tiers are decoupled to ensure
- * seamless re-branding and custom domain portability.
+ * seamless custom domain and brand consistency.
  */
 
 export interface PricingTier {
@@ -38,15 +38,18 @@ export interface FAQItem {
 
 export const siteConfig = {
   brand: {
-    name: import.meta.env.VITE_BRAND_NAME || 'DigitPop',
+    name: import.meta.env.VITE_BRAND_NAME || 'ShopVideo',
+    domainSuffix: '.tv',
+    fullName: 'ShopVideo.tv',
     tagline: 'Next-Gen Interactive Shoppable Video Hosting & Live Streaming',
     headline: 'Turn Any Video Into An Interactive 1-Click Storefront',
     subheadline:
-      'Ultra-fast global video hosting, frame-synchronized product drawers, and 1-click checkout. Boost engagement by 34% with zero buffering, zero revenue share, and zero surprise overages.',
-    domain: import.meta.env.VITE_APP_DOMAIN || 'localhost:4205',
-    supportEmail: import.meta.env.VITE_SUPPORT_EMAIL || 'support@digitpop.tv',
+      'Ultra-fast global video hosting, frame-synchronized product drawers, and 1-click checkout powered by shopvideo.tv. Boost engagement by 34% with zero buffering, zero revenue share, and zero surprise overages.',
+    domain: import.meta.env.VITE_APP_DOMAIN || 'shopvideo.tv',
+    supportEmail: import.meta.env.VITE_SUPPORT_EMAIL || 'support@shopvideo.tv',
     playerCdnUrl: import.meta.env.VITE_PLAYER_URL || 'http://localhost:4201',
     serverApiUrl: import.meta.env.VITE_API_URL || 'http://localhost:9000',
+    studioUrl: import.meta.env.VITE_STUDIO_URL || 'http://localhost:4205',
   },
 
   trustBadges: [
@@ -81,9 +84,9 @@ export const siteConfig = {
         'Up to 5 hosted videos',
         'Timeline Pins & Shoppable Drawers',
         'Shopify & Amazon catalog links',
-        'Standard DigitPop player embed',
+        'Standard ShopVideo player embed',
         'Basic views & click analytics',
-        'DigitPop player watermark',
+        'ShopVideo.tv watermark',
       ],
     },
     {
@@ -103,7 +106,7 @@ export const siteConfig = {
       features: [
         '15,000 engaged video plays / mo',
         'Up to 50 hosted videos',
-        'DigitPop Watermark Removed',
+        'ShopVideo Watermark Removed',
         'Stripe 1-Click Native Checkout',
         'Split-Panel Co-Pilot Product Rail',
         'Pause-to-Inspect Freeze Frame',
@@ -195,16 +198,16 @@ export const siteConfig = {
     
     // Customization & Branding
     { category: 'Branding & Embeds', feature: 'Universal 1-Line Script Embed', free: true, growth: true, pro: true, enterprise: true },
-    { category: 'Branding & Embeds', feature: 'Remove DigitPop Watermark', free: false, growth: true, pro: true, enterprise: true },
+    { category: 'Branding & Embeds', feature: 'Remove ShopVideo Watermark', free: false, growth: true, pro: true, enterprise: true },
     { category: 'Branding & Embeds', feature: 'Custom Domain Player CDN', free: false, growth: false, pro: false, enterprise: true },
     { category: 'Branding & Embeds', feature: 'Team Member Seats', free: '1', growth: '1', pro: '3', enterprise: 'Unlimited' },
   ] as FeatureComparisonRow[],
 
   faq: [
     {
-      question: 'How is DigitPop different from Tolstoy or Videowise?',
+      question: 'How is ShopVideo.tv different from Tolstoy or Videowise?',
       answer:
-        'Competitors charge for passive "impressions" — meaning every time a page loads or someone scrolls past a widget, your monthly quota is burned. DigitPop only counts engaged plays (>3 seconds watched). Furthermore, we bundle full high-performance video hosting and live studio broadcasting without forcing you to pay $1,300+/month like Bambuser.',
+        'Competitors charge for passive "impressions" — meaning every time a page loads or someone scrolls past a widget, your monthly quota is burned. ShopVideo.tv only counts engaged plays (>3 seconds watched). Furthermore, we bundle full high-performance video hosting and live studio broadcasting without forcing you to pay $1,300+/month like Bambuser.',
     },
     {
       question: 'Do you charge a percentage of sales (GMV fee)?',
@@ -217,9 +220,9 @@ export const siteConfig = {
         'With our Viral Spike Protection, we never cut off or degrade your videos mid-campaign. You receive automated notifications at 80% and 100% capacity, and any excess traffic is billed at a transparent rate of just $15 per 10,000 extra engaged plays (over 50% cheaper than industry averages).',
     },
     {
-      question: 'Can I embed DigitPop videos onto Shopify, Webflow, or custom sites?',
+      question: 'Can I embed ShopVideo videos onto Shopify, Webflow, or custom sites?',
       answer:
-        'Yes. You can embed our interactive shoppable video player anywhere with a single line of JavaScript (<script>) or an iframe. We also offer a modern React 18 component package (@digitpop/player-react) for custom headless storefronts.',
+        'Yes. You can embed our interactive shoppable video player anywhere with a single line of JavaScript (<script>) or an iframe. We also offer a modern React 18 component package (@shopvideo/player-react) for custom headless storefronts.',
     },
     {
       question: 'Can I cancel or change my plan anytime?',

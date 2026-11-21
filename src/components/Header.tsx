@@ -58,11 +58,11 @@ export default function Header({
             onClick={() => setActiveTab('projects')}
           >
             <div className="brand-icon">
-              <span>DP</span>
+              <span>SV</span>
             </div>
             <div>
-              <div className="brand-title">DigitPop Studio</div>
-              <div className="brand-subtitle">AI-Native Shoppable Video Engine</div>
+              <div className="brand-title">ShopVideo Studio</div>
+              <div className="brand-subtitle">shopvideo.tv • Interactive Video Engine</div>
             </div>
           </div>
 

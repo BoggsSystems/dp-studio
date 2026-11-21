@@ -78,7 +78,7 @@ export default function AuthPortal({ initialMode = 'login', selectedPlan, onBack
             onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
           >
             <ArrowLeft size={14} />
-            <span>Back to DigitPop</span>
+            <span>Back to ShopVideo.tv</span>
           </button>
         )}
 
@@ -120,7 +120,7 @@ export default function AuthPortal({ initialMode = 'login', selectedPlan, onBack
               boxShadow: '0 4px 16px rgba(13, 148, 136, 0.3)',
             }}
           >
-            DP
+            SV
           </div>
           <h1
             style={{
@@ -131,10 +131,10 @@ export default function AuthPortal({ initialMode = 'login', selectedPlan, onBack
               marginBottom: '6px',
             }}
           >
-            DigitPop Studio
+            ShopVideo Studio
           </h1>
           <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-            AI-Native Shoppable Video & Live Stream Engine
+            shopvideo.tv • Interactive Shoppable Video Engine
           </p>
         </div>
 

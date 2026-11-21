@@ -17,7 +17,7 @@ export default function DeployModal({ project, onClose }: DeployModalProps) {
   const playerUrl = `${playerBase}/ad/${project.id}`;
   const scriptSnippet = `<script src="${playerBase}/v1.js" data-project="${project.id}" async></script>`;
   const iframeSnippet = `<iframe\n  width="100%"\n  height="540"\n  src="${playerUrl}"\n  title="${project.name}"\n  frameborder="0"\n  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"\n  allowfullscreen\n></iframe>`;
-  const reactSnippet = `import { DigitPopPlayer } from '@digitpop/player-react';\n\nexport default function ShoppableFeature() {\n  return (\n    <DigitPopPlayer\n      projectId="${project.id}"\n      mode="responsive"\n      onProductClick={(product) => console.log('1-Click checkout:', product)}\n    />\n  );\n}`;
+  const reactSnippet = `import { ShopVideoPlayer } from '@shopvideo/player-react';\n\nexport default function ShoppableFeature() {\n  return (\n    <ShopVideoPlayer\n      projectId="${project.id}"\n      mode="responsive"\n      onProductClick={(product) => console.log('1-Click checkout:', product)}\n    />\n  );\n}`;
 
   const handleCopy = (text: string, type: string) => {
     navigator.clipboard.writeText(text);

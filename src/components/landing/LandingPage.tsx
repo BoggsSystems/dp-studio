@@ -78,9 +78,12 @@ export default function LandingPage({ onGetStarted, onSignIn }: LandingPageProps
             </div>
             <div>
               <span style={{ fontSize: '18px', fontWeight: 800, letterSpacing: '-0.02em', color: '#ffffff' }}>
-                {siteConfig.brand.name}
+                ShopVideo
               </span>
-              <span style={{ fontSize: '10px', marginLeft: '6px', padding: '2px 6px', background: 'rgba(37, 99, 235, 0.15)', color: 'var(--accent-teal)', borderRadius: '4px', border: '1px solid rgba(56, 189, 248, 0.25)', fontWeight: 600 }}>
+              <span style={{ fontSize: '18px', fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--accent-teal)' }}>
+                .tv
+              </span>
+              <span style={{ fontSize: '10px', marginLeft: '8px', padding: '2px 6px', background: 'rgba(37, 99, 235, 0.15)', color: 'var(--accent-teal)', borderRadius: '4px', border: '1px solid rgba(56, 189, 248, 0.25)', fontWeight: 600 }}>
                 VIDEO PLATFORM
               </span>
             </div>
@@ -377,7 +380,7 @@ export default function LandingPage({ onGetStarted, onSignIn }: LandingPageProps
                 border: '1px solid var(--border-subtle)',
               }}
             >
-              https://yourstore.com/watch-and-shop
+              https://shopvideo.tv/demo
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ fontSize: '10px', color: 'var(--status-online)', fontWeight: 600 }}>LIVE DEMO</span>
@@ -388,7 +391,7 @@ export default function LandingPage({ onGetStarted, onSignIn }: LandingPageProps
           <div style={{ width: '100%', aspectRatio: activeDemoMode === 'desktop' ? '16/9' : '9/16', position: 'relative', background: '#000000' }}>
             <iframe
               src={demoUrl}
-              title="DigitPop Interactive Shoppable Video Demo"
+              title="ShopVideo.tv Interactive Shoppable Video Demo"
               style={{ width: '100%', height: '100%', border: 'none' }}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
@@ -422,7 +425,7 @@ export default function LandingPage({ onGetStarted, onSignIn }: LandingPageProps
         <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '50px' }}>
             <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--accent-teal)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px' }}>
-              Why DigitPop
+              Why ShopVideo.tv
             </div>
             <h2 style={{ fontSize: 'clamp(26px, 3.5vw, 38px)', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: '12px' }}>
               The Complete Video Hosting & Commerce Stack
@@ -922,10 +925,10 @@ export default function LandingPage({ onGetStarted, onSignIn }: LandingPageProps
               <Play size={14} fill="#ffffff" color="#ffffff" style={{ marginLeft: '1px' }} />
             </div>
             <span style={{ fontSize: '15px', fontWeight: 700, color: '#ffffff' }}>
-              {siteConfig.brand.name}
+              ShopVideo<span style={{ color: 'var(--accent-teal)' }}>.tv</span>
             </span>
             <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: '8px' }}>
-              © {new Date().getFullYear()} Boggs Systems Corporation. All rights reserved.
+              © {new Date().getFullYear()} ShopVideo.tv (Boggs Systems Corporation). All rights reserved.
             </span>
           </div>
 
