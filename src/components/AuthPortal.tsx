@@ -1,10 +1,16 @@
 import { useState } from 'react';
-import { Lock, Mail, User as UserIcon, ArrowRight, Sparkles } from 'lucide-react';
+import { Lock, Mail, User as UserIcon, ArrowRight, ArrowLeft, Sparkles, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-export default function AuthPortal() {
+interface AuthPortalProps {
+  initialMode?: 'login' | 'register';
+  selectedPlan?: string;
+  onBackToLanding?: () => void;
+}
+
+export default function AuthPortal({ initialMode = 'login', selectedPlan, onBackToLanding }: AuthPortalProps) {
   const { login, register, loginAsDemo } = useAuth();
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [mode, setMode] = useState<'login' | 'register'>(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
@@ -52,6 +58,50 @@ export default function AuthPortal() {
           padding: '36px',
         }}
       >
+        {onBackToLanding && (
+          <button
+            onClick={onBackToLanding}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--text-muted)',
+              fontSize: '12px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              cursor: 'pointer',
+              marginBottom: '16px',
+              padding: 0,
+              transition: 'color 0.2s',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text-primary)')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+          >
+            <ArrowLeft size={14} />
+            <span>Back to DigitPop</span>
+          </button>
+        )}
+
+        {selectedPlan && mode === 'register' && (
+          <div
+            style={{
+              padding: '10px 14px',
+              background: 'rgba(37, 99, 235, 0.12)',
+              border: '1px solid rgba(56, 189, 248, 0.3)',
+              borderRadius: 'var(--radius-md)',
+              marginBottom: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
+          >
+            <CheckCircle2 size={16} color="var(--accent-teal)" style={{ flexShrink: 0 }} />
+            <div style={{ fontSize: '12px', color: 'var(--accent-teal-light)', lineHeight: 1.4 }}>
+              <strong>14-Day Free Trial:</strong> {selectedPlan.toUpperCase()} plan selected. No charge today.
+            </div>
+          </div>
+        )}
+
         {/* Brand Header */}
         <div style={{ textAlign: 'center', marginBottom: '28px' }}>
           <div

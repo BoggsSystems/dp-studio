@@ -17,6 +17,7 @@ import LivestreamHub from './components/live/LivestreamHub';
 import OnAirStudio from './components/live/OnAirStudio';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import AuthPortal from './components/AuthPortal';
+import LandingPage from './components/landing/LandingPage';
 import ToastContainer from './components/ToastContainer';
 import { toast } from './services/toast';
 import { Project, ProductGroup, AiTagDetection, Campaign, StreamSession, Product, FormattedShortProject } from './types';
@@ -128,6 +129,10 @@ function StudioApp() {
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [isDeployOpen, setIsDeployOpen] = useState<boolean>(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [authView, setAuthView] = useState<{ isOpen: boolean; mode: 'login' | 'register'; plan?: string }>({
+    isOpen: false,
+    mode: 'login',
+  });
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isCapturingThumbnail, setIsCapturingThumbnail] = useState<boolean>(false);
   const [thumbnailToast, setThumbnailToast] = useState<string | null>(null);
@@ -459,7 +464,21 @@ function StudioApp() {
   }
 
   if (!user) {
-    return <AuthPortal />;
+    if (authView.isOpen) {
+      return (
+        <AuthPortal
+          initialMode={authView.mode}
+          selectedPlan={authView.plan}
+          onBackToLanding={() => setAuthView({ isOpen: false, mode: 'login' })}
+        />
+      );
+    }
+    return (
+      <LandingPage
+        onSignIn={() => setAuthView({ isOpen: true, mode: 'login' })}
+        onGetStarted={(plan) => setAuthView({ isOpen: true, mode: 'register', plan })}
+      />
+    );
   }
 
   if (!project) {
