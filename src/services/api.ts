@@ -612,6 +612,75 @@ export const api = {
     return this.uploadVideoDirectR2(file, projectId, onProgress);
   },
 
+  // --- Stripe Billing & Subscriptions ---
+  async getSubscriptionStatus(): Promise<{
+    planTier: 'FREE_TRIAL' | 'GROWTH' | 'PRO' | 'ENTERPRISE';
+    videoCount: number;
+    videoLimit: number;
+    watermark: boolean;
+    hasBillingCustomer: boolean;
+    subscription: { id: string; status: string; currentPeriodEnd: string } | null;
+  }> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/billing/subscription`, {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch {
+      return {
+        planTier: 'FREE_TRIAL',
+        videoCount: 0,
+        videoLimit: 5,
+        watermark: true,
+        hasBillingCustomer: false,
+        subscription: null,
+      };
+    }
+  },
+
+  async createCheckoutSession(
+    planTier: 'GROWTH' | 'PRO',
+    interval: 'month' | 'year' = 'month',
+    returnUrl?: string
+  ): Promise<{ checkoutUrl: string; sessionId: string }> {
+    const res = await fetch(`${API_BASE_URL}/api/billing/create-checkout-session`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify({
+        planTier,
+        interval,
+        returnUrl: returnUrl || window.location.origin,
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || `Failed to create checkout session (HTTP ${res.status})`);
+    }
+    return await res.json();
+  },
+
+  async createPortalSession(returnUrl?: string): Promise<{ portalUrl: string }> {
+    const res = await fetch(`${API_BASE_URL}/api/billing/create-portal-session`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify({
+        returnUrl: returnUrl || window.location.origin,
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || `Failed to create customer portal session (HTTP ${res.status})`);
+    }
+    return await res.json();
+  },
+
   // --- AI Autopilot Scanner ---
   async scanVideoWithAi(videoUrl: string): Promise<AiTagDetection[]> {
     try {

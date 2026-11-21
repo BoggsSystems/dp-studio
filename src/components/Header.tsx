@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { 
   Film, 
   Sparkles, 
@@ -13,10 +14,12 @@ import {
   ChevronDown,
   ShoppingBag,
   BarChart3,
-  UserPlus
+  UserPlus,
+  CreditCard
 } from 'lucide-react';
 import { Project } from '../types';
 import { useAuth } from '../context/AuthContext';
+import BillingModal from './BillingModal';
 
 export type StudioTab = 'projects' | 'vod' | 'products' | 'live' | 'campaigns' | 'clips' | 'quiz' | 'analytics';
 
@@ -46,6 +49,7 @@ export default function Header({
   onOpenIntro,
 }: HeaderProps) {
   const { user, logout } = useAuth();
+  const [showBilling, setShowBilling] = useState(false);
 
   return (
     <header className="studio-header">
@@ -204,6 +208,26 @@ export default function Header({
             </button>
           )}
 
+          {user && (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setShowBilling(true)}
+              title="Manage Subscription & Billing"
+              style={{
+                padding: '6px 10px',
+                fontSize: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                borderColor: 'rgba(56, 189, 248, 0.3)',
+              }}
+            >
+              <CreditCard size={13} color="#38bdf8" />
+              <span>Plans & Billing</span>
+            </button>
+          )}
+
           {user && onOpenInvite && (
             <button
               type="button"
@@ -286,6 +310,7 @@ export default function Header({
           )}
         </div>
       </div>
+      {showBilling && <BillingModal onClose={() => setShowBilling(false)} />}
     </header>
   );
 }
