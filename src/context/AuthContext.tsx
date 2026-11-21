@@ -18,7 +18,14 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    try {
+      const saved = localStorage.getItem('dp_studio_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('dp_studio_token'));
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isNewInviteUser, setIsNewInviteUser] = useState<boolean>(false);
@@ -31,10 +38,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (inviteToken) {
       setIsLoading(true);
+      // Clean up previous user's catalog and workspace cache
+      localStorage.removeItem('dp_studio_catalog_products');
+      localStorage.removeItem('dp_studio_projects');
+      localStorage.removeItem('dp_studio_project');
+
       api.acceptInvite(inviteToken)
         .then((res) => {
           if (res.token && res.user) {
             localStorage.setItem('dp_studio_token', res.token);
+            localStorage.setItem('dp_studio_user', JSON.stringify(res.user));
             setToken(res.token);
             setUser(res.user);
             setIsNewInviteUser(true);
@@ -46,7 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.warn('Backend invite accept failed (likely local offline dev mode):', err);
           // Graceful fallback: authenticate with URL name/email or fallback
           const invitedEmail = urlParams.get('email') || (inviteToken.includes('jeff') ? 'jeff_boggs@hotmail.com' : 'ros@opportunity-system.com');
-          const invitedName = urlParams.get('name') || (inviteToken.includes('jeff') ? 'Jeff Boggs' : 'Ros');
+          const invitedName = urlParams.get('name') || (inviteToken.includes('jeff') ? 'Jeffrey Boggs' : 'Ros');
           const mockUser: User = {
             id: 'usr_invite_' + Date.now(),
             email: invitedEmail,
@@ -55,6 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           };
           const mockToken = 'demo_token_' + Date.now();
           localStorage.setItem('dp_studio_token', mockToken);
+          localStorage.setItem('dp_studio_user', JSON.stringify(mockUser));
           setToken(mockToken);
           setUser(mockUser);
           setIsNewInviteUser(true);
@@ -67,14 +81,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // 2. Normal token validation
     if (token) {
+      const savedUserStr = localStorage.getItem('dp_studio_user');
+      if (savedUserStr) {
+        try {
+          const parsedUser = JSON.parse(savedUserStr);
+          if (parsedUser && parsedUser.id) {
+            setUser(parsedUser);
+            setIsLoading(false);
+            return;
+          }
+        } catch {}
+      }
+
       if (token.startsWith('demo_token_')) {
         const isRos = token.includes('ros');
-        setUser({
+        const fallbackUser: User = {
           id: isRos ? 'usr_ros' : 'usr_creator',
           email: isRos ? 'ros@opportunity-system.com' : 'creator@opportunity-system.com',
           fullName: isRos ? 'Ros' : 'Studio Creator',
           role: 'PUBLISHER',
-        });
+        };
+        setUser(fallbackUser);
+        localStorage.setItem('dp_studio_user', JSON.stringify(fallbackUser));
         setIsLoading(false);
         return;
       }
@@ -83,6 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .then((userData) => {
           if (userData) {
             setUser(userData);
+            localStorage.setItem('dp_studio_user', JSON.stringify(userData));
           } else {
             logout();
           }
@@ -98,6 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const res = await api.login(email, pass);
     if (res.token && res.user) {
       localStorage.setItem('dp_studio_token', res.token);
+      localStorage.setItem('dp_studio_user', JSON.stringify(res.user));
       setToken(res.token);
       setUser(res.user);
     }
@@ -107,6 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const res = await api.register(email, pass, fullName);
     if (res.token && res.user) {
       localStorage.setItem('dp_studio_token', res.token);
+      localStorage.setItem('dp_studio_user', JSON.stringify(res.user));
       setToken(res.token);
       setUser(res.user);
     }
@@ -121,12 +152,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
     const demoToken = 'demo_token_' + Date.now();
     localStorage.setItem('dp_studio_token', demoToken);
+    localStorage.setItem('dp_studio_user', JSON.stringify(demoUser));
     setToken(demoToken);
     setUser(demoUser);
   };
 
   const logout = () => {
     localStorage.removeItem('dp_studio_token');
+    localStorage.removeItem('dp_studio_user');
+    localStorage.removeItem('dp_studio_catalog_products');
+    localStorage.removeItem('dp_studio_projects');
+    localStorage.removeItem('dp_studio_project');
     setToken(null);
     setUser(null);
     setIsNewInviteUser(false);

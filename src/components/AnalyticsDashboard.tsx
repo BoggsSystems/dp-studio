@@ -31,6 +31,7 @@ import {
   ChannelMetricSummary
 } from '../types';
 import { api } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 interface AnalyticsDashboardProps {
   projects: Project[];
@@ -45,6 +46,8 @@ export default function AnalyticsDashboard({
   onSelectProject,
   onNavigateShorts,
 }: AnalyticsDashboardProps) {
+  const { user } = useAuth();
+
   // Top view toggle: 'videos' or 'products'
   const [activeTab, setActiveTab] = useState<'videos' | 'products'>('videos');
   
@@ -73,9 +76,9 @@ export default function AnalyticsDashboard({
     try {
       setIsRefreshing(true);
       const [overviewData, projsData, prodsData] = await Promise.all([
-        api.getAnalyticsOverview(),
-        api.getProjectsAnalyticsSummary(),
-        api.getProductsAnalyticsSummary(),
+        api.getAnalyticsOverview(user?.id),
+        api.getProjectsAnalyticsSummary(user?.id),
+        api.getProductsAnalyticsSummary(user?.id),
       ]);
 
       setOverview(overviewData);
@@ -87,7 +90,7 @@ export default function AnalyticsDashboard({
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     loadData();

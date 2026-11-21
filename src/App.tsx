@@ -177,7 +177,7 @@ function StudioApp() {
       setCampaigns(camps);
     });
 
-    api.getProducts().then((prods) => {
+    api.getProducts(user?.id).then((prods) => {
       setCatalogProducts(prods);
     });
   }, [user]);

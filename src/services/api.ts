@@ -99,35 +99,35 @@ export const api = {
   },
 
   // --- Central Products & Catalog ---
-  async getProducts(): Promise<Product[]> {
+  async getProducts(userId?: string): Promise<Product[]> {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/products`, {
+      const url = new URL(`${API_BASE_URL}/api/products`);
+      if (userId) url.searchParams.set('userId', userId);
+      const res = await fetch(url.toString(), {
         headers: getAuthHeaders(),
       });
       if (res.ok) {
         const serverProducts = await res.json();
-        if (Array.isArray(serverProducts) && serverProducts.length > 0) {
+        if (Array.isArray(serverProducts)) {
           return serverProducts.map((p: any) => ({
             ...p,
             price: Number(p.price || 0),
           }));
         }
       }
-
     } catch (e) {
-      console.warn('Backend products endpoint offline, falling back to local catalog store');
+      console.warn('Backend products endpoint offline, checking local store:', e);
     }
 
-    const local = localStorage.getItem(LOCAL_PRODUCTS_KEY);
+    const cacheKey = userId ? `${LOCAL_PRODUCTS_KEY}_${userId}` : LOCAL_PRODUCTS_KEY;
+    const local = localStorage.getItem(cacheKey);
     if (local) {
       try {
         return JSON.parse(local);
       } catch {}
     }
 
-    const defaultCatalog = getDefaultCatalog();
-    localStorage.setItem(LOCAL_PRODUCTS_KEY, JSON.stringify(defaultCatalog));
-    return defaultCatalog;
+    return [];
   },
 
   async createProduct(product: Partial<Product>): Promise<Product> {
