@@ -492,12 +492,124 @@ export const api = {
     };
   },
 
+  /**
+   * High-Performance Direct-to-R2 Video Upload
+   * Uses AWS SigV4 Presigned PUT URLs to stream video data straight from browser to Cloudflare R2
+   * with zero server memory footprint, real-time progress metering, and automated HLS triggers.
+   */
+  async uploadVideoDirectR2(
+    file: File,
+    projectId?: string,
+    onProgress?: (progress: { percent: number; loadedBytes: number; totalBytes: number; loadedMb: string; totalMb: string } | number) => void
+  ): Promise<{ url: string; key: string }> {
+    try {
+      // 1. Obtain presigned PUT URL from API
+      const presignRes = await fetch(`${API_BASE_URL}/api/videos/presigned-url`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
+        },
+        body: JSON.stringify({
+          filename: file.name,
+          contentType: file.type || 'video/mp4',
+          projectId,
+        }),
+      });
+
+      if (!presignRes.ok) {
+        throw new Error(`Presign endpoint returned HTTP ${presignRes.status}`);
+      }
+
+      const presignData = await presignRes.json();
+      if (!presignData.success || !presignData.data?.uploadUrl) {
+        throw new Error(presignData.message || 'Invalid presigned URL response');
+      }
+
+      const { uploadUrl, publicUrl, key } = presignData.data;
+
+      // 2. Direct PUT to Cloudflare R2
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('PUT', uploadUrl, true);
+        xhr.setRequestHeader('Content-Type', file.type || 'video/mp4');
+
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable && onProgress) {
+            const percent = Math.min(99, Math.round((e.loaded / e.total) * 100));
+            const loadedMb = (e.loaded / (1024 * 1024)).toFixed(1);
+            const totalMb = (e.total / (1024 * 1024)).toFixed(1);
+            try {
+              (onProgress as any)({
+                percent,
+                loadedBytes: e.loaded,
+                totalBytes: e.total,
+                loadedMb,
+                totalMb,
+              });
+            } catch {
+              (onProgress as any)(percent);
+            }
+          }
+        };
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve();
+          } else {
+            reject(new Error(`Direct R2 upload failed with HTTP ${xhr.status}`));
+          }
+        };
+
+        xhr.onerror = () => reject(new Error('Network error during direct R2 upload'));
+        xhr.ontimeout = () => reject(new Error('Direct R2 upload timed out'));
+        xhr.send(file);
+      });
+
+      // 3. Complete and register upload on API
+      const completeRes = await fetch(`${API_BASE_URL}/api/videos/complete-upload`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
+        },
+        body: JSON.stringify({
+          key,
+          originalFilename: file.name,
+          projectId,
+        }),
+      });
+
+      if (completeRes.ok) {
+        const completeData = await completeRes.json();
+        if (onProgress) {
+          const totalMb = (file.size / (1024 * 1024)).toFixed(1);
+          try {
+            (onProgress as any)({ percent: 100, loadedBytes: file.size, totalBytes: file.size, loadedMb: totalMb, totalMb });
+          } catch {
+            (onProgress as any)(100);
+          }
+        }
+        return {
+          url: completeData.data?.videoUrl || publicUrl,
+          key,
+        };
+      }
+
+      return { url: publicUrl, key };
+    } catch (directErr: any) {
+      console.warn(`[ShopVideo Ingress] Direct R2 upload failed (${directErr.message}), falling back to parallel chunked ingress...`);
+      return this.uploadMedia(file, 'vods', onProgress);
+    }
+  },
+
   async uploadVideoChunks(
     file: File,
     pathPrefix: string = 'vods',
-    onProgress?: (progress: { percent: number; loadedBytes: number; totalBytes: number; loadedMb: string; totalMb: string } | number) => void
+    onProgress?: (progress: { percent: number; loadedBytes: number; totalBytes: number; loadedMb: string; totalMb: string } | number) => void,
+    projectId?: string
   ): Promise<{ url: string; key: string }> {
-    return this.uploadMedia(file, pathPrefix, onProgress);
+    return this.uploadVideoDirectR2(file, projectId, onProgress);
   },
 
   // --- AI Autopilot Scanner ---

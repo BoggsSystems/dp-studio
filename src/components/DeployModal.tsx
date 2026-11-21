@@ -13,10 +13,11 @@ export default function DeployModal({ project, onClose }: DeployModalProps) {
   const [isSyncingEdge, setIsSyncingEdge] = useState(false);
   const [edgeManifestUrl, setEdgeManifestUrl] = useState<string | null>(null);
 
-  const playerBase = (import.meta.env.VITE_PLAYER_URL || 'http://localhost:4201').replace(/\/+$/, '');
+  const apiBase = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
+  const playerBase = (import.meta.env.VITE_PLAYER_URL || 'https://player.shopvideo.tv').replace(/\/+$/, '');
   const playerUrl = `${playerBase}/ad/${project.id}`;
-  const scriptSnippet = `<script src="${playerBase}/v1.js" data-project="${project.id}" async></script>`;
-  const iframeSnippet = `<iframe\n  width="100%"\n  height="540"\n  src="${playerUrl}"\n  title="${project.name}"\n  frameborder="0"\n  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"\n  allowfullscreen\n></iframe>`;
+  const scriptSnippet = `<script src="${playerBase}/embed.js" data-shopvideo-id="${project.id}" async></script>`;
+  const iframeSnippet = `<iframe\n  width="100%"\n  height="540"\n  src="${playerUrl}?embed=1"\n  title="${project.name}"\n  frameborder="0"\n  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"\n  allowfullscreen\n></iframe>`;
   const reactSnippet = `import { ShopVideoPlayer } from '@shopvideo/player-react';\n\nexport default function ShoppableFeature() {\n  return (\n    <ShopVideoPlayer\n      projectId="${project.id}"\n      mode="responsive"\n      onProductClick={(product) => console.log('1-Click checkout:', product)}\n    />\n  );\n}`;
 
   const handleCopy = (text: string, type: string) => {
@@ -28,8 +29,11 @@ export default function DeployModal({ project, onClose }: DeployModalProps) {
   const handleSyncEdgeManifest = async () => {
     setIsSyncingEdge(true);
     try {
-      const res = await fetch(`/api/videos/publish-edge-manifest/${project.id}`, {
+      const res = await fetch(`${apiBase}/api/videos/publish-edge-manifest/${project.id}`, {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
       if (res.ok) {
         const data = await res.json();
