@@ -6,7 +6,6 @@ import {
   Share2, 
   Save, 
   Radio, 
-  Target, 
   FolderGit2, 
   LogIn, 
   User as UserIcon,
@@ -144,21 +143,7 @@ export default function Header({
             <span>Products</span>
           </button>
 
-          <button
-            className={`tab-btn ${activeTab === 'campaigns' ? 'active' : ''}`}
-            onClick={() => setActiveTab('campaigns')}
-          >
-            <Target size={14} />
-            <span>Campaigns</span>
-          </button>
-
-          <button
-            className={`tab-btn ${activeTab === 'quiz' ? 'active' : ''}`}
-            onClick={() => setActiveTab('quiz')}
-          >
-            <HelpCircle size={14} />
-            <span>Quizzes</span>
-          </button>
+          {/* Note: Campaigns and Quizzes temporarily hidden for creator onboarding polish */}
 
           <button
             className={`tab-btn ${activeTab === 'analytics' ? 'active' : ''}`}
