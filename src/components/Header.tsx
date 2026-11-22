@@ -9,7 +9,6 @@ import {
   Target, 
   FolderGit2, 
   LogIn, 
-  LogOut, 
   User as UserIcon,
   ChevronDown,
   ShoppingBag,
@@ -20,6 +19,7 @@ import {
 import { Project } from '../types';
 import { useAuth } from '../context/AuthContext';
 import BillingModal from './BillingModal';
+import AccountMenu from './AccountMenu';
 import { ShopVideoLogo } from './icons/ShopVideoLogo';
 
 export type StudioTab = 'projects' | 'vod' | 'products' | 'live' | 'campaigns' | 'clips' | 'quiz' | 'analytics';
@@ -242,60 +242,14 @@ export default function Header({
 
           {/* User Authentication Menu */}
           {user ? (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                padding: '4px 10px',
-                background: 'var(--bg-canvas)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: 'var(--radius-sm)',
-              }}
-            >
-              <div
-                style={{
-                  width: '24px',
-                  height: '24px',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, var(--accent-teal), var(--accent-blue))',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  color: '#fff',
-                }}
-              >
-                {(user.fullName || user.email).charAt(0).toUpperCase()}
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {user.fullName || user.email.split('@')[0]}
-                </span>
-                <span style={{ fontSize: '9px', color: 'var(--accent-teal)', fontWeight: 700, textTransform: 'uppercase' }}>
-                  {user.role}
-                </span>
-              </div>
-
-              <button
-                type="button"
-                onClick={logout}
-                title="Sign Out"
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--text-muted)',
-                  cursor: 'pointer',
-                  padding: '2px',
-                  display: 'flex',
-                  alignItems: 'center',
-                }}
-              >
-                <LogOut size={13} />
-              </button>
-            </div>
+            <AccountMenu
+              user={user}
+              logout={logout}
+              onOpenBilling={() => setShowBilling(true)}
+              onOpenInvite={onOpenInvite}
+              onOpenIntro={onOpenIntro}
+              onOpenDeploy={onOpenDeploy}
+            />
           ) : (
             <button
               type="button"
