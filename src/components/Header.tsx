@@ -26,7 +26,7 @@ export type StudioTab = 'projects' | 'vod' | 'products' | 'live' | 'campaigns' |
 interface HeaderProps {
   activeTab: StudioTab;
   setActiveTab: (tab: StudioTab) => void;
-  project: Project;
+  project: Project | null;
   onSave: () => void;
   onOpenDeploy: () => void;
   isSaving: boolean;
@@ -68,31 +68,35 @@ export default function Header({
             </div>
           </div>
 
-          <div style={{ height: '24px', width: '1px', background: 'var(--border-subtle)' }} />
+          {project && (
+            <>
+              <div style={{ height: '24px', width: '1px', background: 'var(--border-subtle)' }} />
 
-          {/* Current Project Info */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '4px 10px',
-              background: 'var(--bg-canvas)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: 'var(--radius-sm)',
-              cursor: 'pointer',
-            }}
-            onClick={() => setActiveTab('projects')}
-            title="Click to view all projects"
-          >
-            <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
-              {project.name || 'Untitled Project'}
-            </span>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-              ({project.productGroups?.length || 0} Pins)
-            </span>
-            <ChevronDown size={13} color="var(--text-muted)" />
-          </div>
+              {/* Current Project Info */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '4px 10px',
+                  background: 'var(--bg-canvas)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-sm)',
+                  cursor: 'pointer',
+                }}
+                onClick={() => setActiveTab('projects')}
+                title="Click to view all projects"
+              >
+                <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                  {project.name || 'Untitled Project'}
+                </span>
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                  ({project.productGroups?.length || 0} Pins)
+                </span>
+                <ChevronDown size={13} color="var(--text-muted)" />
+              </div>
+            </>
+          )}
         </div>
 
         {/* Tab Switcher */}
@@ -161,7 +165,7 @@ export default function Header({
             <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)' }}>R2 EDGE</span>
           </div>
 
-          {activeTab === 'vod' && (
+          {activeTab === 'vod' && project && (
             <>
               <button className="btn btn-secondary" onClick={onNewProject} title="Start New Project" style={{ padding: '6px 10px', fontSize: '12px' }}>
                 <span>New</span>

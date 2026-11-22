@@ -191,15 +191,7 @@ function StudioApp() {
           setSelectedGroupId(projs[0].productGroups[0].id);
         }
       } else {
-        const newP: Project = {
-          id: `proj_${Date.now()}`,
-          name: 'My First Shoppable Video',
-          status: 'PROCESSING',
-          isActive: true,
-          productGroups: [],
-        };
-        setProjects([newP]);
-        setProject(newP);
+        setProject(null);
       }
     });
 
@@ -507,16 +499,7 @@ function StudioApp() {
     );
   }
 
-  if (!project) {
-    return (
-      <div className="studio-root" style={{ alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ color: 'var(--text-muted)' }}>Loading DigitPop Studio...</div>
-      </div>
-    );
-  }
-
-
-  const selectedGroup = (project.productGroups || []).find((g) => g.id === selectedGroupId) || null;
+  const selectedGroup = (project?.productGroups || []).find((g) => g.id === selectedGroupId) || null;
 
   return (
     <div className="studio-root">
@@ -629,112 +612,121 @@ function StudioApp() {
 
             {/* SHOPPABLE VOD TIMELINE EDITOR TAB */}
             {activeTab === 'vod' && (
-              <div className="studio-grid-2col">
-                {/* Left Column: Media Player, Timeline Scrubber, AI Scanner */}
-                <div>
-                  <VideoUploadZone
-                    videoUrl={project.masterVodUrl}
-                    thumbnailUrl={project.thumbnailUrl}
-                    onVideoLoaded={handleVideoLoaded}
-                  />
+              project ? (
+                <div className="studio-grid-2col">
+                  {/* Left Column: Media Player, Timeline Scrubber, AI Scanner */}
+                  <div>
+                    <VideoUploadZone
+                      videoUrl={project.masterVodUrl}
+                      thumbnailUrl={project.thumbnailUrl}
+                      onVideoLoaded={handleVideoLoaded}
+                    />
 
-                  {/* Main Player Display */}
-                  {project.masterVodUrl && (
-                    <div
-                      style={{
-                        position: 'relative',
-                        width: '100%',
-                        aspectRatio: '16/9',
-                        background: '#000000',
-                        borderRadius: 'var(--radius-md)',
-                        overflow: 'hidden',
-                        border: '1px solid var(--border-medium)',
-                        boxShadow: 'var(--shadow-md)',
-                      }}
-                    >
-                      <video
-                        ref={videoElementRef}
-                        src={project.masterVodUrl}
-                        style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                        onTimeUpdate={handleTimeUpdate}
-                        onPlay={() => setIsPlaying(true)}
-                        onPause={() => setIsPlaying(false)}
-                        onLoadedData={() => {
-                          if (!project.thumbnailUrl && videoElementRef.current) {
-                            handleAutoCaptureInitialThumbnail();
-                          }
+                    {/* Main Player Display */}
+                    {project.masterVodUrl && (
+                      <div
+                        style={{
+                          position: 'relative',
+                          width: '100%',
+                          aspectRatio: '16/9',
+                          background: '#000000',
+                          borderRadius: 'var(--radius-md)',
+                          overflow: 'hidden',
+                          border: '1px solid var(--border-medium)',
+                          boxShadow: 'var(--shadow-md)',
                         }}
-                        controls={false}
-                      />
-
-                      {/* Active Pin Overlay Indicator */}
-                      {selectedGroup && Math.abs(currentTime - selectedGroup.timestampSeconds) < 4.0 && (
-                        <div
-                          style={{
-                            position: 'absolute',
-                            top: '16px',
-                            right: '16px',
-                            background: 'rgba(15, 23, 42, 0.88)',
-                            backdropFilter: 'blur(8px)',
-                            border: '1px solid var(--accent-teal)',
-                            padding: '10px 14px',
-                            borderRadius: 'var(--radius-sm)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '10px',
-                            color: '#ffffff',
-                            boxShadow: '0 4px 14px rgba(0,0,0,0.5)',
-                            animation: 'fadeIn 0.2s ease',
+                      >
+                        <video
+                          ref={videoElementRef}
+                          src={project.masterVodUrl}
+                          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                          onTimeUpdate={handleTimeUpdate}
+                          onPlay={() => setIsPlaying(true)}
+                          onPause={() => setIsPlaying(false)}
+                          onLoadedData={() => {
+                            if (!project.thumbnailUrl && videoElementRef.current) {
+                              handleAutoCaptureInitialThumbnail();
+                            }
                           }}
-                        >
-                          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent-teal)' }} />
-                          <div>
-                            <div style={{ fontSize: '12px', fontWeight: 700 }}>{selectedGroup.title}</div>
-                            <div style={{ fontSize: '11px', color: 'var(--accent-teal-light)' }}>
-                              ${Number(selectedGroup.products?.[0]?.price || 0).toFixed(2)} • 1-Click Buy Active
+                          controls={false}
+                        />
 
+                        {/* Active Pin Overlay Indicator */}
+                        {selectedGroup && Math.abs(currentTime - selectedGroup.timestampSeconds) < 4.0 && (
+                          <div
+                            style={{
+                              position: 'absolute',
+                              top: '16px',
+                              right: '16px',
+                              background: 'rgba(15, 23, 42, 0.88)',
+                              backdropFilter: 'blur(8px)',
+                              border: '1px solid var(--accent-teal)',
+                              padding: '10px 14px',
+                              borderRadius: 'var(--radius-sm)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '10px',
+                              color: '#ffffff',
+                              boxShadow: '0 4px 14px rgba(0,0,0,0.5)',
+                              animation: 'fadeIn 0.2s ease',
+                            }}
+                          >
+                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent-teal)' }} />
+                            <div>
+                              <div style={{ fontSize: '12px', fontWeight: 700 }}>{selectedGroup.title}</div>
+                              <div style={{ fontSize: '11px', color: 'var(--accent-teal-light)' }}>
+                                ${Number(selectedGroup.products?.[0]?.price || 0).toFixed(2)} • 1-Click Buy Active
+
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                        )}
+                      </div>
+                    )}
 
-                  {/* Timeline Scrubber with 1-Click Frame Capture */}
-                  <TimelineScrubber
-                    currentTime={currentTime}
-                    duration={duration}
-                    isPlaying={isPlaying}
-                    onPlayPause={handlePlayPause}
-                    onSeek={handleSeek}
-                    productGroups={project.productGroups || []}
-                    selectedGroupId={selectedGroupId}
-                    onSelectGroup={(id) => setSelectedGroupId(id)}
-                    onAddPinAtCurrentTime={handleAddPinAtCurrentTime}
-                    onCaptureThumbnail={handleCaptureThumbnail}
-                    isCapturingThumbnail={isCapturingThumbnail}
-                  />
+                    {/* Timeline Scrubber with 1-Click Frame Capture */}
+                    <TimelineScrubber
+                      currentTime={currentTime}
+                      duration={duration}
+                      isPlaying={isPlaying}
+                      onPlayPause={handlePlayPause}
+                      onSeek={handleSeek}
+                      productGroups={project.productGroups || []}
+                      selectedGroupId={selectedGroupId}
+                      onSelectGroup={(id) => setSelectedGroupId(id)}
+                      onAddPinAtCurrentTime={handleAddPinAtCurrentTime}
+                      onCaptureThumbnail={handleCaptureThumbnail}
+                      isCapturingThumbnail={isCapturingThumbnail}
+                    />
 
-                  {/* AI Autopilot Scanner */}
-                  <AiAutopilotPanel
-                    videoUrl={project.masterVodUrl}
-                    onAdoptDetection={handleAdoptAiDetection}
-                    onAdoptAllDetections={handleAdoptAllAiDetections}
-                  />
+                    {/* AI Autopilot Scanner */}
+                    <AiAutopilotPanel
+                      videoUrl={project.masterVodUrl}
+                      onAdoptDetection={handleAdoptAiDetection}
+                      onAdoptAllDetections={handleAdoptAllAiDetections}
+                    />
+                  </div>
+
+                  {/* Right Column: Product Group & Basket Configuration */}
+                  <div>
+                    <ProductBasketEditor
+                      selectedGroup={selectedGroup}
+                      onUpdateGroup={handleUpdateGroup}
+                      onDeleteGroup={handleDeleteGroup}
+                      currentTime={currentTime}
+                      catalogProducts={catalogProducts}
+                      onCatalogUpdated={setCatalogProducts}
+                    />
+                  </div>
                 </div>
-
-                {/* Right Column: Product Group & Basket Configuration */}
-                <div>
-                  <ProductBasketEditor
-                    selectedGroup={selectedGroup}
-                    onUpdateGroup={handleUpdateGroup}
-                    onDeleteGroup={handleDeleteGroup}
-                    currentTime={currentTime}
-                    catalogProducts={catalogProducts}
-                    onCatalogUpdated={setCatalogProducts}
-                  />
+              ) : (
+                <div style={{ textAlign: 'center', padding: '64px 20px', color: 'var(--text-muted)' }}>
+                  <p style={{ fontSize: '15px', color: 'var(--text-secondary)', marginBottom: '14px' }}>No video project selected.</p>
+                  <button className="btn btn-primary" onClick={() => setActiveTab('projects')}>
+                    Choose from Projects Catalog
+                  </button>
                 </div>
-              </div>
+              )
             )}
 
             {/* CENTRAL PRODUCTS CATALOG TAB */}
@@ -749,7 +741,7 @@ function StudioApp() {
             {activeTab === 'live' && (
               <LivestreamHub
                 onEnterOnAirStudio={(session) => setActiveLiveSession(session)}
-                availableProductGroups={project.productGroups || []}
+                availableProductGroups={project?.productGroups || []}
               />
             )}
 
@@ -808,7 +800,7 @@ function StudioApp() {
       )}
 
       {/* Modals */}
-      {isDeployOpen && <DeployModal project={project} onClose={() => setIsDeployOpen(false)} />}
+      {isDeployOpen && project && <DeployModal project={project} onClose={() => setIsDeployOpen(false)} />}
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
       <InviteCollaboratorModal isOpen={isInviteModalOpen} onClose={() => setIsInviteModalOpen(false)} />
       <StudioIntroductionModal
