@@ -1,14 +1,17 @@
 import { useState } from 'react';
-import { Lock, Mail, User as UserIcon, ArrowRight, ArrowLeft, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Lock, Mail, User as UserIcon, ArrowRight, ArrowLeft, Sparkles, CheckCircle2, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { api } from '../services/api';
+import { ShopVideoLogo } from './icons/ShopVideoLogo';
 
 interface AuthPortalProps {
   initialMode?: 'login' | 'register';
   selectedPlan?: string;
+  selectedInterval?: 'monthly' | 'annual';
   onBackToLanding?: () => void;
 }
 
-export default function AuthPortal({ initialMode = 'login', selectedPlan, onBackToLanding }: AuthPortalProps) {
+export default function AuthPortal({ initialMode = 'login', selectedPlan, selectedInterval = 'annual', onBackToLanding }: AuthPortalProps) {
   const { login, register, loginAsDemo } = useAuth();
   const [mode, setMode] = useState<'login' | 'register'>(initialMode);
   const [email, setEmail] = useState('');
@@ -16,6 +19,8 @@ export default function AuthPortal({ initialMode = 'login', selectedPlan, onBack
   const [fullName, setFullName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRedirectingToStripe, setIsRedirectingToStripe] = useState(false);
+  const [redirectMsg, setRedirectMsg] = useState<string>('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,13 +32,69 @@ export default function AuthPortal({ initialMode = 'login', selectedPlan, onBack
         await login(email, password);
       } else {
         await register(email, password, fullName);
+
+        const normalizedTier = selectedPlan?.toUpperCase();
+        if (normalizedTier === 'GROWTH' || normalizedTier === 'PRO') {
+          setIsRedirectingToStripe(true);
+          setRedirectMsg(`Account created! Connecting to Stripe to activate your 14-day free trial on the ${normalizedTier} plan...`);
+          try {
+            const intervalParam = selectedInterval === 'monthly' ? 'month' : 'year';
+            const res = await api.createCheckoutSession(
+              normalizedTier as 'GROWTH' | 'PRO',
+              intervalParam,
+              `${window.location.origin}/?billing=success`
+            );
+            if (res && res.checkoutUrl) {
+              window.location.href = res.checkoutUrl;
+              return;
+            }
+          } catch (checkoutErr: any) {
+            console.warn('Direct checkout redirect failed, continuing to studio:', checkoutErr);
+            setIsRedirectingToStripe(false);
+          }
+        }
       }
     } catch (err: any) {
       setError(err.message || 'Authentication failed. Please verify your credentials.');
-    } finally {
       setIsSubmitting(false);
+      setIsRedirectingToStripe(false);
+    } finally {
+      if (!isRedirectingToStripe) {
+        setIsSubmitting(false);
+      }
     }
   };
+
+  if (isRedirectingToStripe) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          width: '100vw',
+          background: 'radial-gradient(ellipse at 50% 20%, rgba(37, 99, 235, 0.2), var(--bg-primary) 70%)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '24px',
+          textAlign: 'center',
+        }}
+      >
+        <div style={{ marginBottom: '24px' }}>
+          <ShopVideoLogo size={64} pulse={true} />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+          <Loader2 size={20} color="var(--accent-teal)" style={{ animation: 'spin 1s linear infinite' }} />
+          <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#ffffff', margin: 0 }}>
+            Preparing Your 14-Day Free Trial...
+          </h2>
+        </div>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '14px', maxWidth: '420px', lineHeight: 1.5 }}>
+          {redirectMsg || 'Redirecting you to Stripe secure checkout. No charge today.'}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -104,23 +165,8 @@ export default function AuthPortal({ initialMode = 'login', selectedPlan, onBack
 
         {/* Brand Header */}
         <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-          <div
-            style={{
-              width: '48px',
-              height: '48px',
-              borderRadius: '12px',
-              background: 'linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-teal) 100%)',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 800,
-              fontSize: '18px',
-              color: '#fff',
-              marginBottom: '14px',
-              boxShadow: '0 4px 16px rgba(13, 148, 136, 0.3)',
-            }}
-          >
-            SV
+          <div style={{ display: 'inline-flex', marginBottom: '14px' }}>
+            <ShopVideoLogo size={48} />
           </div>
           <h1
             style={{

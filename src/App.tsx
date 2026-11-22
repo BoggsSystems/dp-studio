@@ -129,15 +129,40 @@ function StudioApp() {
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [isDeployOpen, setIsDeployOpen] = useState<boolean>(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
-  const [authView, setAuthView] = useState<{ isOpen: boolean; mode: 'login' | 'register'; plan?: string }>({
+  const [authView, setAuthView] = useState<{
+    isOpen: boolean;
+    mode: 'login' | 'register';
+    plan?: string;
+    interval?: 'monthly' | 'annual';
+  }>({
     isOpen: false,
     mode: 'login',
   });
+  const [billingBanner, setBillingBanner] = useState<{ type: 'success' | 'cancel'; message: string } | null>(null);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isCapturingThumbnail, setIsCapturingThumbnail] = useState<boolean>(false);
   const [thumbnailToast, setThumbnailToast] = useState<string | null>(null);
 
   const videoElementRef = useRef<HTMLVideoElement>(null);
+
+  // Check URL for billing redirect results
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const billing = params.get('billing');
+    if (billing === 'success') {
+      setBillingBanner({
+        type: 'success',
+        message: '🎉 Congratulations! Your 14-day free trial is now active. High-velocity quotas are enabled and player watermarks are removed.',
+      });
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (billing === 'cancel') {
+      setBillingBanner({
+        type: 'cancel',
+        message: 'Stripe checkout was cancelled. You are currently on the Free Trial tier.',
+      });
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
 
   // Automatically trigger introduction if user arrived via invite or hasn't completed tour
   useEffect(() => {
@@ -469,6 +494,7 @@ function StudioApp() {
         <AuthPortal
           initialMode={authView.mode}
           selectedPlan={authView.plan}
+          selectedInterval={authView.interval}
           onBackToLanding={() => setAuthView({ isOpen: false, mode: 'login' })}
         />
       );
@@ -476,7 +502,7 @@ function StudioApp() {
     return (
       <LandingPage
         onSignIn={() => setAuthView({ isOpen: true, mode: 'login' })}
-        onGetStarted={(plan) => setAuthView({ isOpen: true, mode: 'register', plan })}
+        onGetStarted={(plan, interval) => setAuthView({ isOpen: true, mode: 'register', plan, interval })}
       />
     );
   }
@@ -494,6 +520,40 @@ function StudioApp() {
 
   return (
     <div className="studio-root">
+      {billingBanner && (
+        <div
+          style={{
+            padding: '12px 24px',
+            background: billingBanner.type === 'success' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+            borderBottom: `1px solid ${billingBanner.type === 'success' ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)'}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            color: '#ffffff',
+            fontSize: '13px',
+            zIndex: 1000,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span>{billingBanner.message}</span>
+          </div>
+          <button
+            onClick={() => setBillingBanner(null)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#ffffff',
+              cursor: 'pointer',
+              fontSize: '15px',
+              padding: '2px 8px',
+              borderRadius: '4px',
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* If inside OnAirStudio fullscreen broadcast console, replace top layout */}
       {activeLiveSession ? (
         <main className="studio-main" style={{ padding: '16px' }}>

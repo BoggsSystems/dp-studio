@@ -28,7 +28,7 @@ import { siteConfig, PricingTier } from '../../config/siteConfig';
 import { ShopVideoLogo } from '../icons/ShopVideoLogo';
 
 interface LandingPageProps {
-  onGetStarted: (planId?: string) => void;
+  onGetStarted: (planId?: string, interval?: 'monthly' | 'annual') => void;
   onSignIn: () => void;
 }
 
@@ -109,7 +109,7 @@ export default function LandingPage({ onGetStarted, onSignIn }: LandingPageProps
               Sign In
             </button>
             <button
-              onClick={() => onGetStarted('growth')}
+              onClick={() => onGetStarted('growth', billingCycle)}
               className="btn btn-primary"
               style={{
                 fontSize: '13px',
@@ -211,7 +211,7 @@ export default function LandingPage({ onGetStarted, onSignIn }: LandingPageProps
           {/* CTA Group */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '14px', flexWrap: 'wrap', marginBottom: '40px' }}>
             <button
-              onClick={() => onGetStarted('growth')}
+              onClick={() => onGetStarted('growth', billingCycle)}
               className="btn btn-primary"
               style={{
                 padding: '14px 28px',
@@ -653,7 +653,7 @@ export default function LandingPage({ onGetStarted, onSignIn }: LandingPageProps
 
                 {/* Card CTA */}
                 <button
-                  onClick={() => onGetStarted(tier.id)}
+                  onClick={() => onGetStarted(tier.id, billingCycle)}
                   className={`btn ${tier.buttonVariant === 'primary' ? 'btn-primary' : tier.buttonVariant === 'secondary' ? 'btn-secondary' : 'btn-outline'}`}
                   style={{
                     width: '100%',
@@ -890,7 +890,7 @@ export default function LandingPage({ onGetStarted, onSignIn }: LandingPageProps
             Launch your first interactive shoppable video in under 5 minutes. No credit card required.
           </p>
           <button
-            onClick={() => onGetStarted('growth')}
+            onClick={() => onGetStarted('growth', billingCycle)}
             className="btn btn-primary"
             style={{
               padding: '14px 32px',
