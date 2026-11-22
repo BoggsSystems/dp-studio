@@ -15,6 +15,7 @@ import { Product } from '../types';
 import { api } from '../services/api';
 import { toast } from '../services/toast';
 import CreateProductModal from './CreateProductModal';
+import { resolveProductImageUrl, handleImageError } from '../utils/imageUtils';
 
 interface ProductPickerModalProps {
   isOpen: boolean;
@@ -283,8 +284,10 @@ export default function ProductPickerModal({
 
                       {/* Image */}
                       <img
-                        src={product.imageUrl || product.imageUrls?.[0]}
+                        src={resolveProductImageUrl(product.imageUrl || product.imageUrls?.[0])}
                         alt={product.title}
+                        referrerPolicy="no-referrer"
+                        onError={handleImageError}
                         style={{ width: '42px', height: '42px', borderRadius: '4px', objectFit: 'cover' }}
                       />
 
@@ -352,7 +355,13 @@ export default function ProductPickerModal({
             {scrapedProduct && (
               <div style={{ background: 'var(--bg-canvas)', padding: '14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-medium)' }}>
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '12px' }}>
-                  <img src={scrapedProduct.imageUrl} alt="Preview" style={{ width: '56px', height: '56px', objectFit: 'cover', borderRadius: 'var(--radius-sm)' }} />
+                  <img 
+                    src={resolveProductImageUrl(scrapedProduct.imageUrl)} 
+                    alt="Preview" 
+                    referrerPolicy="no-referrer"
+                    onError={handleImageError}
+                    style={{ width: '56px', height: '56px', objectFit: 'cover', borderRadius: 'var(--radius-sm)' }} 
+                  />
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>{scrapedProduct.title}</div>
                     <div style={{ fontSize: '12px', fontWeight: 700, color: '#10B981' }}>${Number(scrapedProduct.price || 0).toFixed(2)} USD</div>

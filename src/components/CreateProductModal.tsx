@@ -25,6 +25,7 @@ import {
 import { Product, CheckoutType } from '../types';
 import { api } from '../services/api';
 import { toast } from '../services/toast';
+import { resolveProductImageUrl, PRODUCT_PLACEHOLDER_IMAGE, handleImageError } from '../utils/imageUtils';
 
 interface CreateProductModalProps {
   isOpen: boolean;
@@ -150,7 +151,7 @@ export default function CreateProductModal({
     if (initialValues?.imageUrl) {
       return [initialValues.imageUrl];
     }
-    return SAMPLE_PRESETS[0].imageUrls;
+    return initialValues?.id ? [] : SAMPLE_PRESETS[0].imageUrls;
   });
   const [activePreviewIdx, setActivePreviewIdx] = useState<number>(0);
   const [customUrlInput, setCustomUrlInput] = useState('');
@@ -180,7 +181,7 @@ export default function CreateProductModal({
       } else if (initialValues?.imageUrl) {
         setImageUrls([initialValues.imageUrl]);
       } else {
-        setImageUrls(SAMPLE_PRESETS[0].imageUrls);
+        setImageUrls(initialValues?.id ? [] : SAMPLE_PRESETS[0].imageUrls);
       }
       setActivePreviewIdx(0);
     }
@@ -275,8 +276,7 @@ export default function CreateProductModal({
 
   const handleRemoveImage = (index: number) => {
     setImageUrls((prev) => {
-      const next = prev.filter((_, idx) => idx !== index);
-      return next.length > 0 ? next : [SAMPLE_PRESETS[0].imageUrl];
+      return prev.filter((_, idx) => idx !== index);
     });
     if (activePreviewIdx >= index && activePreviewIdx > 0) {
       setActivePreviewIdx((prev) => prev - 1);
@@ -306,7 +306,7 @@ export default function CreateProductModal({
       return;
     }
 
-    const primaryImg = imageUrls[0] || SAMPLE_PRESETS[0].imageUrl;
+    const primaryImg = imageUrls[0] || (initialValues?.imageUrl ? initialValues.imageUrl : PRODUCT_PLACEHOLDER_IMAGE);
     let resultProd: Product;
 
     if (initialValues?.id) {
@@ -361,7 +361,7 @@ export default function CreateProductModal({
   };
 
   const parsedPrice = parseFloat(price) || 0;
-  const currentPreviewUrl = imageUrls[activePreviewIdx] || imageUrls[0] || SAMPLE_PRESETS[0].imageUrl;
+  const currentPreviewUrl = imageUrls[activePreviewIdx] || imageUrls[0] || (initialValues?.id ? PRODUCT_PLACEHOLDER_IMAGE : SAMPLE_PRESETS[0].imageUrl);
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -752,8 +752,10 @@ export default function CreateProductModal({
                           onClick={() => setActivePreviewIdx(idx)}
                         >
                           <img 
-                            src={url} 
+                            src={resolveProductImageUrl(url)} 
                             alt={`Photo ${idx + 1}`} 
+                            referrerPolicy="no-referrer"
+                            onError={handleImageError}
                             style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
                           />
 
@@ -1063,12 +1065,11 @@ export default function CreateProductModal({
                   {/* Card Image Container with Gallery Navigation */}
                   <div style={{ position: 'relative', width: '100%', height: '170px', background: '#000', overflow: 'hidden' }}>
                     <img
-                      src={currentPreviewUrl}
+                      src={resolveProductImageUrl(currentPreviewUrl)}
                       alt={title || 'Product preview'}
+                      referrerPolicy="no-referrer"
                       style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'all 0.2s ease' }}
-                      onError={(e) => {
-                        (e.target as HTMLElement).setAttribute('src', SAMPLE_PRESETS[0].imageUrl);
-                      }}
+                      onError={handleImageError}
                     />
 
                     {/* Source Tag Badge */}
@@ -1196,7 +1197,13 @@ export default function CreateProductModal({
                             transition: 'all 0.15s ease'
                           }}
                         >
-                          <img src={url} alt="dot" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <img 
+                            src={resolveProductImageUrl(url)} 
+                            alt="dot" 
+                            referrerPolicy="no-referrer"
+                            onError={handleImageError}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                          />
                         </div>
                       ))}
                     </div>

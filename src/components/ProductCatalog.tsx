@@ -20,6 +20,7 @@ import { api } from '../services/api';
 import CreateProductModal from './CreateProductModal';
 import ConfirmModal from './ConfirmModal';
 import { toast } from '../services/toast';
+import { resolveProductImageUrl, handleImageError } from '../utils/imageUtils';
 
 interface ProductCatalogProps {
   products: Product[];
@@ -255,12 +256,11 @@ export default function ProductCatalog({
               {/* Thumbnail and badges */}
               <div style={{ position: 'relative', width: '100%', height: '160px', borderRadius: 'var(--radius-sm)', overflow: 'hidden', background: '#000' }}>
                 <img 
-                  src={product.imageUrl} 
+                  src={resolveProductImageUrl(product.imageUrl)} 
                   alt={product.title}
+                  referrerPolicy="no-referrer"
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  onError={(e) => {
-                    (e.target as HTMLElement).setAttribute('src', 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&auto=format&fit=crop&q=80');
-                  }}
+                  onError={handleImageError}
                 />
                 <div style={{ position: 'absolute', top: '8px', left: '8px' }}>
                   {getSourceBadge(product.source)}
@@ -393,8 +393,10 @@ export default function ProductCatalog({
               <div style={{ background: 'var(--bg-canvas)', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-medium)', marginTop: '14px' }}>
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                   <img 
-                    src={resolvedPreview.imageUrl} 
+                    src={resolveProductImageUrl(resolvedPreview.imageUrl)} 
                     alt="Preview" 
+                    referrerPolicy="no-referrer"
+                    onError={handleImageError}
                     style={{ width: '64px', height: '64px', objectFit: 'cover', borderRadius: 'var(--radius-sm)' }} 
                   />
                   <div style={{ flex: 1 }}>

@@ -4,7 +4,7 @@ const API_BASE_URL = (
   import.meta.env.VITE_API_URL ||
   (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
     ? 'http://localhost:9000'
-    : 'https://digitpop.opportunity-system.com')
+    : 'https://api.shopvideo.tv')
 ).replace(/\/+$/, '');
 const R2_PUBLIC_DOMAIN = 'https://pub-2af6e082fcb44c58add86361dad9d14b.r2.dev';
 const LOCAL_PRODUCTS_KEY = 'dp_studio_catalog_products';
@@ -1844,10 +1844,9 @@ function getMockProjects(): Project[] {
               title: 'AI-Native Software Engineering: The New Physics of Software Velocity',
               price: 9.99,
               currency: 'USD',
-              imageUrl: 'https://m.media-amazon.com/images/I/71-xK7vVlLL._SL1500_.jpg',
+              imageUrl: 'https://pub-2af6e082fcb44c58add86361dad9d14b.r2.dev/products/ai-native-software-engineering-cover.jpg',
               imageUrls: [
-                'https://m.media-amazon.com/images/I/71-xK7vVlLL._SL1500_.jpg',
-                '/images/ai-native-software-engineering-cover.jpg',
+                'https://pub-2af6e082fcb44c58add86361dad9d14b.r2.dev/products/ai-native-software-engineering-cover.jpg',
               ],
               externalUrl: 'https://www.amazon.com/dp/B0GN3G2HTQ',
               checkoutType: 'AMAZON',
@@ -1862,8 +1861,8 @@ function getMockProjects(): Project[] {
               title: 'Miortior Smart RGB LED Corner Floor Lamp',
               price: 39.99,
               currency: 'USD',
-              imageUrl: '/images/miortior-corner-floor-lamp.jpg',
-              imageUrls: ['/images/miortior-corner-floor-lamp.jpg'],
+              imageUrl: 'https://pub-2af6e082fcb44c58add86361dad9d14b.r2.dev/products/miortior-corner-floor-lamp.jpg',
+              imageUrls: ['https://pub-2af6e082fcb44c58add86361dad9d14b.r2.dev/products/miortior-corner-floor-lamp.jpg'],
               externalUrl: 'https://www.amazon.com/dp/B0C2HDKZD7',
               checkoutType: 'AMAZON',
               buttonTextOverride: 'Buy on Amazon ($39.99)',

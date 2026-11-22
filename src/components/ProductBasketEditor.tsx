@@ -14,6 +14,7 @@ import {
 import { ProductGroup, Product, ViewingMode } from '../types';
 import ProductPickerModal from './ProductPickerModal';
 import CreateProductModal from './CreateProductModal';
+import { resolveProductImageUrl, handleImageError } from '../utils/imageUtils';
 
 interface ProductBasketEditorProps {
   selectedGroup: ProductGroup | null;
@@ -263,8 +264,10 @@ export default function ProductBasketEditor({
               >
                 {(product.imageUrl || product.imageUrls?.[0]) ? (
                   <img
-                    src={product.imageUrl || product.imageUrls?.[0]}
+                    src={resolveProductImageUrl(product.imageUrl || product.imageUrls?.[0])}
                     alt={product.title}
+                    referrerPolicy="no-referrer"
+                    onError={handleImageError}
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
                 ) : (
