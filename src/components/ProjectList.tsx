@@ -14,6 +14,7 @@ interface ProjectListProps {
   onDeleteProject?: (projectId: string) => void;
   onOpenShort?: (short?: FormattedShortProject) => void;
   onOpenLiveStudio?: (session: StreamSession) => void;
+  onOpenPreProduction?: () => void;
   availableProducts?: Product[];
 }
 
@@ -33,6 +34,7 @@ export default function ProjectList({
   onDeleteProject,
   onOpenShort,
   onOpenLiveStudio,
+  onOpenPreProduction,
   availableProducts = [],
 }: ProjectListProps) {
   const [isWizardOpen, setIsWizardOpen] = useState(false);
@@ -227,6 +229,25 @@ export default function ProjectList({
               </button>
             </div>
 
+            {onOpenPreProduction && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={onOpenPreProduction}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  background: 'rgba(56, 189, 248, 0.12)',
+                  border: '1px solid rgba(56, 189, 248, 0.3)',
+                  color: '#38bdf8',
+                }}
+              >
+                <Smartphone size={15} />
+                <span>Script & Prompter</span>
+              </button>
+            )}
+
             <button
               type="button"
               className="btn btn-primary"
@@ -328,6 +349,29 @@ export default function ProjectList({
                 <span>Create Video Project</span>
               </button>
 
+              {onOpenPreProduction && (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={onOpenPreProduction}
+                  style={{
+                    padding: '11px 20px',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    borderRadius: '8px',
+                    background: 'rgba(56, 189, 248, 0.12)',
+                    border: '1px solid rgba(56, 189, 248, 0.35)',
+                    color: '#38bdf8',
+                  }}
+                >
+                  <Smartphone size={15} />
+                  <span>Script & Prompter</span>
+                </button>
+              )}
+
               <button
                 type="button"
                 className="btn btn-secondary"
@@ -358,7 +402,7 @@ export default function ProjectList({
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(3, 1fr)',
+                gridTemplateColumns: 'repeat(4, 1fr)',
                 gap: '12px',
                 marginTop: '36px',
                 width: '100%',
@@ -367,6 +411,26 @@ export default function ProjectList({
                 textAlign: 'left',
               }}
             >
+              <div
+                onClick={onOpenPreProduction}
+                style={{
+                  padding: '12px',
+                  borderRadius: '10px',
+                  background: 'rgba(56, 189, 248, 0.05)',
+                  border: '1px solid rgba(56, 189, 248, 0.2)',
+                  cursor: onOpenPreProduction ? 'pointer' : 'default',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', color: '#38bdf8', fontSize: '12px', fontWeight: 600 }}>
+                  <Smartphone size={13} />
+                  <span>Script & Prompter</span>
+                </div>
+                <p style={{ margin: 0, fontSize: '11px', color: '#94a3b8', lineHeight: 1.4 }}>
+                  AI recipe prep, stage cues & mobile teleprompter.
+                </p>
+              </div>
+
               <div style={{ padding: '12px', borderRadius: '10px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.04)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', color: '#93c5fd', fontSize: '12px', fontWeight: 600 }}>
                   <Film size={13} />

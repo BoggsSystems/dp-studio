@@ -110,15 +110,13 @@ export default function Header({
             <span>Projects & Hub</span>
           </button>
 
-          {(project || activeTab === 'preproduction') && (
-            <button
-              className={`tab-btn ${activeTab === 'preproduction' ? 'active' : ''}`}
-              onClick={() => setActiveTab('preproduction')}
-            >
-              <Smartphone size={14} color={activeTab === 'preproduction' ? 'var(--accent-teal)' : '#38bdf8'} />
-              <span>Script & Prompter</span>
-            </button>
-          )}
+          <button
+            className={`tab-btn ${activeTab === 'preproduction' ? 'active' : ''}`}
+            onClick={() => setActiveTab('preproduction')}
+          >
+            <Smartphone size={14} color={activeTab === 'preproduction' ? 'var(--accent-teal)' : '#38bdf8'} />
+            <span>Script & Prompter</span>
+          </button>
 
           {activeTab === 'vod' && (
             <button

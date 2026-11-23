@@ -164,17 +164,28 @@ Don't wait—tap the product bubble directly on your screen to order before they
 
   // Launch Mobile Teleprompter Session
   const handleLaunchMobileShoot = async () => {
-    if (!project) {
-      toast.error('Please select or create a project first.');
-      return;
+    let currentProject = project;
+    if (!currentProject) {
+      try {
+        currentProject = await api.saveProject({
+          name: 'New Shoppable Video Shoot',
+          status: 'DRAFT',
+          isActive: true,
+          productGroups: [],
+        });
+        onProjectUpdate(currentProject);
+      } catch (err) {
+        console.warn('Auto-create project fallback:', err);
+      }
     }
+    const targetProjectId = currentProject?.id || `proj_${Date.now()}`;
 
     const selectedProds = catalogProducts.filter((p) => selectedProductIds.includes(p.id));
 
     try {
       toast.info('Initializing phone recording bridge...');
       const sessionRes = await api.createRecordingSession({
-        projectId: project.id,
+        projectId: targetProjectId,
         scriptText,
         products: selectedProds,
         targetWpm,
@@ -192,14 +203,26 @@ Don't wait—tap the product bubble directly on your screen to order before they
 
   // Save Script to Project
   const handleSaveDraft = async () => {
-    if (!project) return;
     try {
       const updatedMeta = {
-        ...(project.metadata || {}),
+        ...(project?.metadata || {}),
         preproductionScript: scriptText,
         preproductionTargetWpm: targetWpm,
         preproductionProductIds: selectedProductIds,
       };
+
+      if (!project) {
+        const newProj = await api.saveProject({
+          name: 'New Shoppable Video Shoot',
+          status: 'DRAFT',
+          isActive: true,
+          productGroups: [],
+          metadata: updatedMeta,
+        });
+        onProjectUpdate(newProj);
+        toast.success('Project created and script saved!');
+        return;
+      }
 
       const updatedProject: Project = {
         ...project,
@@ -216,7 +239,13 @@ Don't wait—tap the product bubble directly on your screen to order before they
 
   // Handle take received from phone bridge
   const handleTakeReceived = (data: { videoUrl: string; durationSeconds: number; cuePins?: any[] }) => {
-    if (!project) return;
+    const baseProject: Project = project || {
+      id: `proj_${Date.now()}`,
+      name: 'New Shoppable Video Shoot',
+      status: 'READY',
+      isActive: true,
+      productGroups: [],
+    };
 
     // Convert cuePins to project productGroups
     const selectedProds = catalogProducts.filter((p) => selectedProductIds.includes(p.id));
@@ -224,7 +253,7 @@ Don't wait—tap the product bubble directly on your screen to order before they
       const prod = selectedProds.find((p) => p.id === cp.productId) || selectedProds[0];
       return {
         id: `group_cue_${Date.now()}_${idx}`,
-        projectId: project.id,
+        projectId: baseProject.id,
         title: prod?.title || 'Featured Product',
         timestampSeconds: cp.timestampSeconds || 0,
         viewingMode: 'TAP_TO_REVEAL',
@@ -234,10 +263,10 @@ Don't wait—tap the product bubble directly on your screen to order before they
     });
 
     const updatedProject: Project = {
-      ...project,
+      ...baseProject,
       masterVodUrl: data.videoUrl,
       durationSeconds: data.durationSeconds,
-      productGroups: newGroups.length > 0 ? newGroups : project.productGroups,
+      productGroups: newGroups.length > 0 ? newGroups : baseProject.productGroups,
     };
 
     onProjectUpdate(updatedProject);

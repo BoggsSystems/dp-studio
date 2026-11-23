@@ -649,6 +649,9 @@ function StudioApp() {
                 onOpenLiveStudio={(session) => {
                   setActiveLiveSession(session);
                 }}
+                onOpenPreProduction={() => {
+                  setActiveTab('preproduction');
+                }}
               />
             )}
 
