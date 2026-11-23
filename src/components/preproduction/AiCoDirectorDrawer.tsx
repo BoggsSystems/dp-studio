@@ -30,6 +30,191 @@ interface AiCoDirectorDrawerProps {
   currentScript: string;
 }
 
+// Helper to render markdown content with high-contrast formatting (replacing raw **, *, ``, ###)
+function renderInlineTokens(text: string): React.ReactNode[] {
+  const regex = /(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`|\[SHOW_PRODUCT:[^\]]+\]|\[PAUSE[^\]]*\]|\[CALL_TO_ACTION[^\]]*\])/g;
+  const parts = text.split(regex);
+  return parts.map((part, index) => {
+    if (!part) return null;
+    if (part.startsWith('**') && part.endsWith('**') && part.length >= 4) {
+      return (
+        <strong key={index} style={{ color: '#ffffff', fontWeight: 700 }}>
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    if (part.startsWith('*') && part.endsWith('*') && part.length >= 2) {
+      return (
+        <em key={index} style={{ color: '#cbd5e1', fontStyle: 'italic' }}>
+          {part.slice(1, -1)}
+        </em>
+      );
+    }
+    if (part.startsWith('`') && part.endsWith('`') && part.length >= 2) {
+      return (
+        <code
+          key={index}
+          style={{
+            background: 'rgba(255, 255, 255, 0.1)',
+            padding: '1px 5px',
+            borderRadius: '4px',
+            fontSize: '12px',
+            color: '#38bdf8',
+            fontFamily: 'monospace',
+          }}
+        >
+          {part.slice(1, -1)}
+        </code>
+      );
+    }
+    if (part.startsWith('[') && part.endsWith(']')) {
+      return (
+        <span
+          key={index}
+          style={{
+            background: 'rgba(99, 102, 241, 0.18)',
+            border: '1px solid rgba(129, 140, 248, 0.4)',
+            color: '#c7d2fe',
+            padding: '1px 6px',
+            borderRadius: '6px',
+            fontSize: '11px',
+            fontWeight: 600,
+            fontFamily: 'monospace',
+            display: 'inline-block',
+            margin: '0 2px',
+          }}
+        >
+          {part}
+        </span>
+      );
+    }
+    return <span key={index}>{part}</span>;
+  });
+}
+
+function renderFormattedMarkdown(content: string): React.ReactNode {
+  const lines = content.split('\n');
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+      {lines.map((line, idx) => {
+        const trimmed = line.trim();
+        if (!trimmed) {
+          return <div key={idx} style={{ height: '6px' }} />;
+        }
+
+        // Headings
+        if (trimmed.startsWith('### ')) {
+          return (
+            <div
+              key={idx}
+              style={{
+                fontSize: '14px',
+                fontWeight: 700,
+                color: '#38bdf8',
+                marginTop: idx > 0 ? '6px' : '0px',
+                marginBottom: '2px',
+                letterSpacing: '-0.01em',
+              }}
+            >
+              {renderInlineTokens(trimmed.slice(4))}
+            </div>
+          );
+        }
+        if (trimmed.startsWith('## ')) {
+          return (
+            <div
+              key={idx}
+              style={{
+                fontSize: '15px',
+                fontWeight: 700,
+                color: '#f8fafc',
+                marginTop: idx > 0 ? '8px' : '0px',
+                marginBottom: '2px',
+              }}
+            >
+              {renderInlineTokens(trimmed.slice(3))}
+            </div>
+          );
+        }
+        if (trimmed.startsWith('# ')) {
+          return (
+            <div
+              key={idx}
+              style={{
+                fontSize: '16px',
+                fontWeight: 800,
+                color: '#f8fafc',
+                marginTop: idx > 0 ? '10px' : '0px',
+                marginBottom: '4px',
+              }}
+            >
+              {renderInlineTokens(trimmed.slice(2))}
+            </div>
+          );
+        }
+
+        // Bullet lists
+        if (trimmed.startsWith('* ') || trimmed.startsWith('- ')) {
+          return (
+            <div
+              key={idx}
+              style={{
+                display: 'flex',
+                gap: '8px',
+                alignItems: 'baseline',
+                paddingLeft: '4px',
+                lineHeight: 1.5,
+              }}
+            >
+              <span style={{ color: '#38bdf8', fontSize: '10px', flexShrink: 0 }}>•</span>
+              <div style={{ flex: 1 }}>{renderInlineTokens(trimmed.slice(2))}</div>
+            </div>
+          );
+        }
+
+        // Numbered lists (e.g. "1. **The Hook:** ...")
+        const numMatch = trimmed.match(/^(\d+)\.\s+(.*)/);
+        if (numMatch) {
+          const number = numMatch[1];
+          const text = numMatch[2];
+          return (
+            <div
+              key={idx}
+              style={{
+                display: 'flex',
+                gap: '8px',
+                alignItems: 'baseline',
+                paddingLeft: '4px',
+                lineHeight: 1.5,
+              }}
+            >
+              <span
+                style={{
+                  color: '#818cf8',
+                  fontWeight: 700,
+                  fontSize: '12px',
+                  minWidth: '16px',
+                  flexShrink: 0,
+                }}
+              >
+                {number}.
+              </span>
+              <div style={{ flex: 1 }}>{renderInlineTokens(text)}</div>
+            </div>
+          );
+        }
+
+        // Normal paragraph/text line
+        return (
+          <div key={idx} style={{ lineHeight: 1.6 }}>
+            {renderInlineTokens(trimmed)}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function AiCoDirectorDrawer({
   isOpen,
   onClose,
@@ -313,10 +498,9 @@ export default function AiCoDirectorDrawer({
                     color: '#f8fafc',
                     fontSize: '13px',
                     lineHeight: 1.6,
-                    whiteSpace: 'pre-wrap',
                   }}
                 >
-                  {m.content}
+                  {renderFormattedMarkdown(m.content)}
                 </div>
 
                 {/* Suggested Shoppable Products */}
