@@ -12,13 +12,15 @@ import {
   Layers, 
   Zap, 
   AlertCircle,
-  FileText 
+  FileText,
+  Video 
 } from 'lucide-react';
 import { Product, Project, ProductGroup } from '../../types';
 import { api } from '../../services/api';
 import { toast } from '../../services/toast';
 import MobileBridgeModal from './MobileBridgeModal';
 import AiCoDirectorDrawer from './AiCoDirectorDrawer';
+import DesktopPrompterModal from '../teleprompter/DesktopPrompterModal';
 
 interface PreProductionStudioProps {
   project: Project | null;
@@ -66,8 +68,9 @@ If you're tired of filling out endless career portals, check the link right here
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
   const [activeMode, setActiveMode] = useState<'co-director' | 'script-writer'>('co-director');
 
-  // 3. Mobile Bridge Modal State
+  // 3. Mobile Bridge & Desktop Prompter Modal State
   const [bridgeModalOpen, setBridgeModalOpen] = useState(false);
+  const [desktopPrompterOpen, setDesktopPrompterOpen] = useState(false);
   const [activeSession, setActiveSession] = useState<{ token: string; shortCode: string } | null>(null);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -389,6 +392,28 @@ Don't wait—tap the product bubble directly on your screen to order before they
           </button>
 
           <button
+            onClick={() => setDesktopPrompterOpen(true)}
+            style={{
+              background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+              border: '1px solid rgba(129, 140, 248, 0.4)',
+              color: '#ffffff',
+              padding: '10px 18px',
+              borderRadius: '10px',
+              fontSize: '13px',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              cursor: 'pointer',
+              boxShadow: '0 4px 16px rgba(99, 102, 241, 0.35)',
+            }}
+            title="Practice reading your script on desktop at target WPM with optical guidelines and optional webcam"
+          >
+            <Video size={16} />
+            <span>Practice on Desktop</span>
+          </button>
+
+          <button
             onClick={handleLaunchMobileShoot}
             style={{
               background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)',
@@ -406,7 +431,7 @@ Don't wait—tap the product bubble directly on your screen to order before they
             }}
           >
             <Smartphone size={17} />
-            <span>Shoot on Phone with Teleprompter</span>
+            <span>Shoot on Phone</span>
           </button>
         </div>
       </div>
@@ -750,6 +775,21 @@ Don't wait—tap the product bubble directly on your screen to order before they
           sessionToken={activeSession.token}
           shortCode={activeSession.shortCode}
           onTakeReceived={handleTakeReceived}
+        />
+      )}
+
+      {/* Desktop Prompter Practice & Recording Modal */}
+      {desktopPrompterOpen && (
+        <DesktopPrompterModal
+          isOpen={desktopPrompterOpen}
+          onClose={() => setDesktopPrompterOpen(false)}
+          script={scriptText}
+          targetWpm={targetWpm}
+          catalogProducts={catalogProducts}
+          selectedProductIds={selectedProductIds}
+          onUseTakeInProject={(videoUrl, durationSeconds) => {
+            handleTakeReceived({ videoUrl, durationSeconds });
+          }}
         />
       )}
     </div>
