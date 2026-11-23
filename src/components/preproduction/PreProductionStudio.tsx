@@ -17,6 +17,7 @@ import { Product, Project, ProductGroup } from '../../types';
 import { api } from '../../services/api';
 import { toast } from '../../services/toast';
 import MobileBridgeModal from './MobileBridgeModal';
+import AiCoDirectorDrawer from './AiCoDirectorDrawer';
 
 interface PreProductionStudioProps {
   project: Project | null;
@@ -62,6 +63,7 @@ If you're tired of filling out endless career portals, check the link right here
   const [targetWpm, setTargetWpm] = useState<number>(140);
   const [scriptTone, setScriptTone] = useState<'VIRAL_HOOK' | 'PRODUCT_DEMO' | 'URGENT_DROP'>('VIRAL_HOOK');
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
+  const [isAiDrawerOpen, setIsAiDrawerOpen] = useState(true);
 
   // 3. Mobile Bridge Modal State
   const [bridgeModalOpen, setBridgeModalOpen] = useState(false);
@@ -86,6 +88,13 @@ If you're tired of filling out endless career portals, check the link right here
       }
       return [...prev, productId];
     });
+  };
+
+  const handleToggleProductFromCoDirector = (prod: Product) => {
+    if (!catalogProducts.some((p) => p.id === prod.id)) {
+      catalogProducts.push(prod);
+    }
+    toggleProduct(prod.id);
   };
 
   // Insert cue tags at cursor position
@@ -261,6 +270,26 @@ Don't wait—tap the product bubble directly on your screen to order before they
         {/* Action Buttons */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <button
+            onClick={() => setIsAiDrawerOpen(!isAiDrawerOpen)}
+            style={{
+              background: isAiDrawerOpen ? 'rgba(99, 102, 241, 0.2)' : 'rgba(99, 102, 241, 0.08)',
+              border: '1px solid rgba(129, 140, 248, 0.4)',
+              color: '#c7d2fe',
+              padding: '10px 18px',
+              borderRadius: '10px',
+              fontSize: '13px',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              cursor: 'pointer',
+            }}
+          >
+            <Sparkles size={15} color="#818cf8" />
+            <span>{isAiDrawerOpen ? 'Hide Co-Director' : 'AI Co-Director'}</span>
+          </button>
+
+          <button
             onClick={handleSaveDraft}
             style={{
               background: 'rgba(255, 255, 255, 0.06)',
@@ -303,7 +332,7 @@ Don't wait—tap the product bubble directly on your screen to order before they
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: '24px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isAiDrawerOpen ? '320px 1fr 380px' : '360px 1fr', gap: '24px' }}>
         {/* Left Column: Product Selection & Stage Settings */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* Product Basket Picker */}
@@ -617,6 +646,19 @@ Don't wait—tap the product bubble directly on your screen to order before they
             <span>{wordCount} words</span>
           </div>
         </div>
+
+        {/* Right Column: AI Co-Director & Shoppable Merchandiser Console */}
+        {isAiDrawerOpen && (
+          <AiCoDirectorDrawer
+            isOpen={isAiDrawerOpen}
+            onClose={() => setIsAiDrawerOpen(false)}
+            catalogProducts={catalogProducts}
+            selectedProductIds={selectedProductIds}
+            onToggleProduct={handleToggleProductFromCoDirector}
+            onApplyScript={(newScript) => setScriptText(newScript)}
+            currentScript={scriptText}
+          />
+        )}
       </div>
 
       {/* Mobile Bridge Modal */}

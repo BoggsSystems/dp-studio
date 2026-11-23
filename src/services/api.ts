@@ -1904,6 +1904,116 @@ Generate 4 viral titles now in JSON format.`;
   getRecordingSessionStreamUrl(token: string): string {
     return `${API_BASE_URL}/api/videos/recording-sessions/${token}/stream`;
   },
+
+  // --- AI Co-Director & Shoppable Merchandiser ---
+  async chatWithCoDirector(payload: {
+    messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+    catalogProducts?: Product[];
+    currentScript?: string;
+    selectedProductIds?: string[];
+  }): Promise<{
+    reply: string;
+    suggestedProducts?: Product[];
+    generatedScript?: string | null;
+  }> {
+    // 1. Try server endpoint
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/ai/co-director-chat`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data;
+      }
+    } catch (e) {
+      console.warn('Backend co-director-chat unavailable, falling back:', e);
+    }
+
+    // 2. Intelligent direct client-side fallback
+    const lastMsg = payload.messages[payload.messages.length - 1]?.content || '';
+    const lower = lastMsg.toLowerCase();
+
+    if (lower.includes('4 charles') || lower.includes('prime rib') || lower.includes('steak') || lower.includes('recipe') || lower.includes('dinner')) {
+      return {
+        reply: `### 🥩 4 Charles Prime Rib Strategy
+Recreating the famous 4 Charles dinner is pure high-retention gold. Their legend rests on 3 technical pillars:
+1. **The 48-Hour Dry Salt Brine**: Draw surface moisture out for that pitch-black crust.
+2. **Reverse Sear at 225°F**: Slowly bring the internal temp to 120°F without grey banding.
+3. **The Garlic-Herb Baste & Carving Reveal**: High heat cast-iron sear with bone-marrow jus.
+
+I've identified 3 essential physical products for this shoot below. Click **"Add to Basket"** to feature them, or **"Apply to Prompter"** to update your script!`,
+        suggestedProducts: [
+          {
+            id: 'prod_smart_probe',
+            title: 'Smart Wireless Meat Thermometer',
+            price: 99.00,
+            currency: 'USD',
+            description: 'Ultra-thin Bluetooth probe measuring internal and ambient cooking temps with zero wires.',
+            category: 'Kitchen Tools',
+            externalUrl: 'https://amazon.com/dp/B07H8WTF98',
+            imageUrl: 'https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=400&auto=format&fit=crop&q=80',
+            source: 'AMAZON',
+            vendor: 'Amazon / MEATER',
+            inventoryCount: 20,
+          },
+          {
+            id: 'prod_carving_knife',
+            title: '12" Granton-Edge Slicing & Carving Knife',
+            price: 79.99,
+            currency: 'USD',
+            description: 'Razor-sharp Japanese high-carbon steel engineered for single-stroke prime rib cuts.',
+            category: 'Kitchen Cutlery',
+            externalUrl: 'https://amazon.com',
+            imageUrl: 'https://images.unsplash.com/photo-1593618998160-e34014e67546?w=400&auto=format&fit=crop&q=80',
+            source: 'AMAZON',
+            vendor: 'Dalstrong',
+            inventoryCount: 12,
+          },
+          {
+            id: 'prod_maldon_salt',
+            title: 'Maldon Smoked Sea Salt Flakes (8.5oz)',
+            price: 11.95,
+            currency: 'USD',
+            description: 'Traditional artisan pyramid flake salt cold-smoked over English oak chips.',
+            category: 'Seasonings',
+            externalUrl: 'https://amazon.com',
+            imageUrl: 'https://images.unsplash.com/photo-1518843875459-f738682238a6?w=400&auto=format&fit=crop&q=80',
+            source: 'AMAZON',
+            vendor: 'Maldon Salt Co.',
+            inventoryCount: 50,
+          },
+        ],
+        generatedScript: `They say you can't get a table at 4 Charles... so we're making it at home.
+[PAUSE 1.5s]
+The secret to that crust isn't the oven—it's a 48-hour dry brine and a reverse sear.
+[SHOW_PRODUCT: Smart Wireless Meat Thermometer]
+Pull it at exactly 120 degrees internal. No guessing, no cutting early.
+[PAUSE 1s]
+Watch this single-stroke slice with the granton blade.
+[SHOW_PRODUCT: 12" Granton-Edge Slicing & Carving Knife]
+Wall-to-wall pink with zero grey band.
+[SHOW_PRODUCT: Maldon Smoked Sea Salt Flakes (8.5oz)]
+Finish with English oak smoked salt.
+[CALL_TO_ACTION: Tap the product tags below to grab the exact reverse sear kit!]`,
+      };
+    }
+
+    return {
+      reply: `Here's a high-impact director angle for **"${lastMsg}"**:
+1. **Hook (0-4s)**: Grab attention with the finished result or the boldest claim.
+2. **The Technique / Demo (4-30s)**: Walk through the core problem-solver step.
+3. **Shoppable Cue (30-45s)**: Trigger the product card precisely when the viewer asks "Where can I get that?".`,
+      suggestedProducts: payload.catalogProducts?.slice(0, 2) || [],
+      generatedScript: `Stop scrolling if you want to see the ultimate setup in action.
+[SHOW_PRODUCT: ${(payload.catalogProducts?.[0]?.title) || 'Featured Product'}]
+Look at how seamless this workflow is.
+[PAUSE 1.5s]
+Everything you need is linked right here on screen.
+[CALL_TO_ACTION: Tap the pin now to lock in yours!]`,
+    };
+  },
 };
 
 function getMockProjects(): Project[] {

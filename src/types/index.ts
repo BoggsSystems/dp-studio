@@ -30,6 +30,7 @@ export interface Product {
   stripePriceId?: string;
   externalUrl?: string;
   description?: string;
+  category?: string;
   variants?: ProductVariant[];
   source?: 'CUSTOM' | 'SHOPIFY' | 'AMAZON' | 'STRIPE';
   vendor?: string;
@@ -308,6 +309,15 @@ export interface ProductAggregatedSummary {
   overallCtrPercent: number;
   featuredVideosCount: number;
   videos: ProductAggregatedVideoBreakdown[];
+}
+
+export interface CoDirectorMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  suggestedProducts?: Product[];
+  generatedScript?: string | null;
+  timestamp: string;
 }
 
 
