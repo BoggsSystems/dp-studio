@@ -636,6 +636,10 @@ export const api = {
     planTier: 'FREE_TRIAL' | 'GROWTH' | 'PRO' | 'ENTERPRISE';
     videoCount: number;
     videoLimit: number;
+    storageUsedGb: number;
+    storageLimitGb: number;
+    playsUsed: number;
+    playsLimit: number;
     watermark: boolean;
     hasBillingCustomer: boolean;
     subscription: { id: string; status: string; currentPeriodEnd: string } | null;
@@ -651,6 +655,10 @@ export const api = {
         planTier: 'FREE_TRIAL',
         videoCount: 0,
         videoLimit: 5,
+        storageUsedGb: 0,
+        storageLimitGb: 10,
+        playsUsed: 0,
+        playsLimit: 1000,
         watermark: true,
         hasBillingCustomer: false,
         subscription: null,

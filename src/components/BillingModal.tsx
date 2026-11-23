@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Check, Zap, CreditCard, ExternalLink, Sparkles, Shield, AlertCircle } from 'lucide-react';
+import { X, Check, Zap, CreditCard, ExternalLink, Sparkles, Shield, AlertCircle, HardDrive, Play, Film } from 'lucide-react';
 import { api } from '../services/api';
 
 interface BillingModalProps {
@@ -16,6 +16,10 @@ export default function BillingModal({ onClose, initialPlan }: BillingModalProps
     planTier: string;
     videoCount: number;
     videoLimit: number;
+    storageUsedGb: number;
+    storageLimitGb: number;
+    playsUsed: number;
+    playsLimit: number;
     watermark: boolean;
     hasBillingCustomer: boolean;
   } | null>(null);
@@ -61,6 +65,10 @@ export default function BillingModal({ onClose, initialPlan }: BillingModalProps
   const currentTier = subscriptionData?.planTier || 'FREE_TRIAL';
   const videoCount = subscriptionData?.videoCount || 0;
   const videoLimit = subscriptionData?.videoLimit || 5;
+  const storageUsedGb = subscriptionData?.storageUsedGb || 0;
+  const storageLimitGb = subscriptionData?.storageLimitGb || 10;
+  const playsUsed = subscriptionData?.playsUsed || 0;
+  const playsLimit = subscriptionData?.playsLimit || 1000;
 
   return (
     <div className="modal-backdrop" onClick={onClose} style={{ zIndex: 1200 }}>
@@ -148,34 +156,114 @@ export default function BillingModal({ onClose, initialPlan }: BillingModalProps
               backgroundColor: 'rgba(255,255,255,0.03)',
               border: '1px solid rgba(255,255,255,0.08)',
               marginBottom: '24px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: '12px',
             }}
           >
-            <div>
-              <div style={{ fontSize: '12px', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                Hosted Video Quota
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '12px',
+                marginBottom: '16px',
+                paddingBottom: '12px',
+                borderBottom: '1px solid rgba(255,255,255,0.06)',
+              }}
+            >
+              <div>
+                <div style={{ fontSize: '11px', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Plan Quota & Resource Usage
+                </div>
+                <div style={{ fontSize: '15px', fontWeight: 700, color: '#f9fafb', marginTop: '2px' }}>
+                  {currentTier.replace('_', ' ')} Allocation
+                </div>
               </div>
-              <div style={{ fontSize: '18px', fontWeight: 700, color: '#f9fafb', marginTop: '2px' }}>
-                {videoCount} <span style={{ fontSize: '14px', color: '#6b7280' }}>/ {videoLimit} videos used</span>
-              </div>
+
+              {subscriptionData?.hasBillingCustomer && (
+                <button
+                  className="btn btn-secondary"
+                  onClick={handleOpenPortal}
+                  disabled={loadingPortal}
+                  style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <CreditCard size={14} />
+                  {loadingPortal ? 'Opening Portal...' : 'Manage Invoices & Cards'}
+                  <ExternalLink size={12} />
+                </button>
+              )}
             </div>
 
-            {subscriptionData?.hasBillingCustomer && (
-              <button
-                className="btn btn-secondary"
-                onClick={handleOpenPortal}
-                disabled={loadingPortal}
-                style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
-              >
-                <CreditCard size={14} />
-                {loadingPortal ? 'Opening Portal...' : 'Manage Invoices & Cards'}
-                <ExternalLink size={12} />
-              </button>
-            )}
+            {/* 3-Metric Resource Meters */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '14px' }}>
+              {/* Metric 1: Hosted Videos */}
+              <div style={{ padding: '10px 14px', borderRadius: '8px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                  <span style={{ fontSize: '11px', color: '#9ca3af', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <Film size={12} color="#38bdf8" /> Hosted Videos
+                  </span>
+                  <span style={{ fontSize: '11px', fontWeight: 600, color: '#f3f4f6' }}>
+                    {videoCount} / {videoLimit}
+                  </span>
+                </div>
+                <div style={{ width: '100%', height: '5px', borderRadius: '3px', background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+                  <div
+                    style={{
+                      height: '100%',
+                      width: `${Math.min(100, Math.round((videoCount / videoLimit) * 100))}%`,
+                      background: 'linear-gradient(90deg, #0284c7, #38bdf8)',
+                      borderRadius: '3px',
+                      transition: 'width 0.3s ease',
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Metric 2: Cloud Storage */}
+              <div style={{ padding: '10px 14px', borderRadius: '8px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                  <span style={{ fontSize: '11px', color: '#9ca3af', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <HardDrive size={12} color="#10b981" /> Storage Quota
+                  </span>
+                  <span style={{ fontSize: '11px', fontWeight: 600, color: '#f3f4f6' }}>
+                    {storageUsedGb} / {storageLimitGb} GB
+                  </span>
+                </div>
+                <div style={{ width: '100%', height: '5px', borderRadius: '3px', background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+                  <div
+                    style={{
+                      height: '100%',
+                      width: `${Math.min(100, Math.round((storageUsedGb / storageLimitGb) * 100))}%`,
+                      background: 'linear-gradient(90deg, #059669, #10b981)',
+                      borderRadius: '3px',
+                      transition: 'width 0.3s ease',
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Metric 3: Monthly Plays */}
+              <div style={{ padding: '10px 14px', borderRadius: '8px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                  <span style={{ fontSize: '11px', color: '#9ca3af', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <Play size={12} color="#f59e0b" /> Monthly Plays
+                  </span>
+                  <span style={{ fontSize: '11px', fontWeight: 600, color: '#f3f4f6' }}>
+                    {playsUsed.toLocaleString()} / {playsLimit.toLocaleString()}
+                  </span>
+                </div>
+                <div style={{ width: '100%', height: '5px', borderRadius: '3px', background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+                  <div
+                    style={{
+                      height: '100%',
+                      width: `${Math.min(100, Math.round((playsUsed / playsLimit) * 100))}%`,
+                      background: 'linear-gradient(90deg, #d97706, #f59e0b)',
+                      borderRadius: '3px',
+                      transition: 'width 0.3s ease',
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Monthly / Annual Toggle */}

@@ -20,7 +20,9 @@ import {
   Search,
   Package,
   Layers,
-  Film
+  Film,
+  HardDrive,
+  Play
 } from 'lucide-react';
 import {
   Project,
@@ -68,6 +70,15 @@ export default function AnalyticsDashboard({
   const [projectsSummary, setProjectsSummary] = useState<ProjectAnalyticsSummary[]>([]);
   const [productsSummary, setProductsSummary] = useState<ProductAggregatedSummary[]>([]);
   const [distribution, setDistribution] = useState<ProjectDistributionResponse | null>(null);
+  const [subscriptionQuota, setSubscriptionQuota] = useState<{
+    planTier: string;
+    videoCount: number;
+    videoLimit: number;
+    storageUsedGb: number;
+    storageLimitGb: number;
+    playsUsed: number;
+    playsLimit: number;
+  } | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
@@ -75,15 +86,17 @@ export default function AnalyticsDashboard({
   const loadData = useCallback(async () => {
     try {
       setIsRefreshing(true);
-      const [overviewData, projsData, prodsData] = await Promise.all([
+      const [overviewData, projsData, prodsData, subData] = await Promise.all([
         api.getAnalyticsOverview(user?.id),
         api.getProjectsAnalyticsSummary(user?.id),
         api.getProductsAnalyticsSummary(user?.id),
+        api.getSubscriptionStatus().catch(() => null),
       ]);
 
       setOverview(overviewData);
       setProjectsSummary(projsData);
       setProductsSummary(prodsData);
+      if (subData) setSubscriptionQuota(subData);
     } catch (err) {
       console.error('Failed to load analytics summaries:', err);
     } finally {
@@ -361,7 +374,68 @@ export default function AnalyticsDashboard({
               </div>
             </div>
           ) : (
-            /* Executive KPI Rollup across ALL videos */
+            <>
+              {/* Plan Quota Consumption Banner */}
+              {subscriptionQuota && !drillDownProjectId && (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+                gap: '14px',
+                padding: '16px 20px',
+                background: 'rgba(15, 23, 42, 0.65)',
+                border: '1px solid rgba(56, 189, 248, 0.2)',
+                borderRadius: 'var(--radius-md)',
+                marginBottom: '22px',
+              }}
+            >
+              {/* Monthly Plays Quota */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '11.5px', color: 'var(--text-muted)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Play size={13} color="#f59e0b" /> Monthly Plays Allocation ({subscriptionQuota.planTier.replace('_', ' ')})
+                  </span>
+                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#f3f4f6' }}>
+                    {subscriptionQuota.playsUsed.toLocaleString()} / {subscriptionQuota.playsLimit.toLocaleString()}
+                  </span>
+                </div>
+                <div style={{ width: '100%', height: '6px', borderRadius: '3px', background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+                  <div
+                    style={{
+                      height: '100%',
+                      width: `${Math.min(100, Math.round((subscriptionQuota.playsUsed / subscriptionQuota.playsLimit) * 100))}%`,
+                      background: 'linear-gradient(90deg, #d97706, #f59e0b)',
+                      borderRadius: '3px',
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Cloud Storage Quota */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '11.5px', color: 'var(--text-muted)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <HardDrive size={13} color="#10b981" /> Cloud Storage Consumed
+                  </span>
+                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#f3f4f6' }}>
+                    {subscriptionQuota.storageUsedGb} GB / {subscriptionQuota.storageLimitGb} GB
+                  </span>
+                </div>
+                <div style={{ width: '100%', height: '6px', borderRadius: '3px', background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+                  <div
+                    style={{
+                      height: '100%',
+                      width: `${Math.min(100, Math.round((subscriptionQuota.storageUsedGb / subscriptionQuota.storageLimitGb) * 100))}%`,
+                      background: 'linear-gradient(90deg, #059669, #10b981)',
+                      borderRadius: '3px',
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Executive KPI Rollup across ALL videos */}
             <div style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
@@ -485,6 +559,7 @@ export default function AnalyticsDashboard({
                 </div>
               </div>
             </div>
+          </>
           )}
 
           {/* If NOT drilled down: Render the All Videos Performance Table */}
