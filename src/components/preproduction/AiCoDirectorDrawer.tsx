@@ -13,6 +13,7 @@ import {
   X, 
   Lightbulb, 
   Flame, 
+  Coffee,
   ExternalLink 
 } from 'lucide-react';
 import { Product, CoDirectorMessage } from '../../types';
@@ -203,6 +204,25 @@ export default function AiCoDirectorDrawer({
         >
           <Flame size={12} />
           <span>🥩 4 Charles Prime Rib</span>
+        </button>
+
+        <button
+          onClick={() => handleSend('Brainstorm a high-retention shoppable video reviewing Tim Hortons coffee, featuring the Original Blend ground tin and Keurig pods to sell on screen.')}
+          style={{
+            background: 'rgba(239, 68, 68, 0.1)',
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+            color: '#fca5a5',
+            padding: '5px 10px',
+            borderRadius: '16px',
+            fontSize: '11px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '5px',
+          }}
+        >
+          <Coffee size={12} />
+          <span>☕ Tim Hortons Coffee</span>
         </button>
 
         <button

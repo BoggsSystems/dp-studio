@@ -11,7 +11,8 @@ import {
   HelpCircle, 
   Layers, 
   Zap, 
-  AlertCircle 
+  AlertCircle,
+  FileText 
 } from 'lucide-react';
 import { Product, Project, ProductGroup } from '../../types';
 import { api } from '../../services/api';
@@ -63,7 +64,7 @@ If you're tired of filling out endless career portals, check the link right here
   const [targetWpm, setTargetWpm] = useState<number>(140);
   const [scriptTone, setScriptTone] = useState<'VIRAL_HOOK' | 'PRODUCT_DEMO' | 'URGENT_DROP'>('VIRAL_HOOK');
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
-  const [isAiDrawerOpen, setIsAiDrawerOpen] = useState(true);
+  const [activeMode, setActiveMode] = useState<'co-director' | 'script-writer'>('co-director');
 
   // 3. Mobile Bridge Modal State
   const [bridgeModalOpen, setBridgeModalOpen] = useState(false);
@@ -296,27 +297,76 @@ Don't wait—tap the product bubble directly on your screen to order before they
           </p>
         </div>
 
-        {/* Action Buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <button
-            onClick={() => setIsAiDrawerOpen(!isAiDrawerOpen)}
+        {/* Action Buttons & Tab Bar */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          {/* Studio Mode Tabs */}
+          <div
             style={{
-              background: isAiDrawerOpen ? 'rgba(99, 102, 241, 0.2)' : 'rgba(99, 102, 241, 0.08)',
-              border: '1px solid rgba(129, 140, 248, 0.4)',
-              color: '#c7d2fe',
-              padding: '10px 18px',
-              borderRadius: '10px',
-              fontSize: '13px',
-              fontWeight: 600,
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
-              cursor: 'pointer',
+              gap: '4px',
+              background: 'rgba(15, 23, 42, 0.8)',
+              padding: '4px',
+              borderRadius: '12px',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
             }}
           >
-            <Sparkles size={15} color="#818cf8" />
-            <span>{isAiDrawerOpen ? 'Hide Co-Director' : 'AI Co-Director'}</span>
-          </button>
+            <button
+              onClick={() => setActiveMode('co-director')}
+              style={{
+                background: activeMode === 'co-director' ? 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)' : 'transparent',
+                color: activeMode === 'co-director' ? '#ffffff' : '#94a3b8',
+                border: 'none',
+                padding: '8px 16px',
+                borderRadius: '8px',
+                fontSize: '13px',
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                boxShadow: activeMode === 'co-director' ? '0 2px 8px rgba(99, 102, 241, 0.35)' : 'none',
+              }}
+            >
+              <Sparkles size={15} />
+              <span>AI Co-Director & Merchandiser</span>
+            </button>
+
+            <button
+              onClick={() => setActiveMode('script-writer')}
+              style={{
+                background: activeMode === 'script-writer' ? 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)' : 'transparent',
+                color: activeMode === 'script-writer' ? '#ffffff' : '#94a3b8',
+                border: 'none',
+                padding: '8px 16px',
+                borderRadius: '8px',
+                fontSize: '13px',
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                boxShadow: activeMode === 'script-writer' ? '0 2px 8px rgba(2, 132, 199, 0.35)' : 'none',
+              }}
+            >
+              <FileText size={15} />
+              <span>Teleprompter Script Writer</span>
+              <span
+                style={{
+                  fontSize: '11px',
+                  background: activeMode === 'script-writer' ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.08)',
+                  color: activeMode === 'script-writer' ? '#ffffff' : '#94a3b8',
+                  padding: '1px 6px',
+                  borderRadius: '10px',
+                  marginLeft: '4px',
+                }}
+              >
+                {estimatedSeconds}s
+              </span>
+            </button>
+          </div>
 
           <button
             onClick={handleSaveDraft}
@@ -361,7 +411,7 @@ Don't wait—tap the product bubble directly on your screen to order before they
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: isAiDrawerOpen ? '320px 1fr 380px' : '360px 1fr', gap: '24px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: '24px' }}>
         {/* Left Column: Product Selection & Stage Settings */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* Product Basket Picker */}
@@ -519,17 +569,31 @@ Don't wait—tap the product bubble directly on your screen to order before they
           </div>
         </div>
 
-        {/* Right Column: Interactive Script Editor & AI Writer */}
-        <div
-          style={{
-            background: 'var(--bg-surface, #0f172a)',
-            border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
-            borderRadius: '14px',
-            padding: '24px',
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-        >
+        {/* Right Column: Active Tab Mode */}
+        {activeMode === 'co-director' ? (
+          <AiCoDirectorDrawer
+            isOpen={true}
+            onClose={() => setActiveMode('script-writer')}
+            catalogProducts={catalogProducts}
+            selectedProductIds={selectedProductIds}
+            onToggleProduct={handleToggleProductFromCoDirector}
+            onApplyScript={(newScript) => {
+              setScriptText(newScript);
+              setActiveMode('script-writer');
+            }}
+            currentScript={scriptText}
+          />
+        ) : (
+          <div
+            style={{
+              background: 'var(--bg-surface, #0f172a)',
+              border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
+              borderRadius: '14px',
+              padding: '24px',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
           {/* AI Script Assistant Bar */}
           <div
             style={{
@@ -675,18 +739,6 @@ Don't wait—tap the product bubble directly on your screen to order before they
             <span>{wordCount} words</span>
           </div>
         </div>
-
-        {/* Right Column: AI Co-Director & Shoppable Merchandiser Console */}
-        {isAiDrawerOpen && (
-          <AiCoDirectorDrawer
-            isOpen={isAiDrawerOpen}
-            onClose={() => setIsAiDrawerOpen(false)}
-            catalogProducts={catalogProducts}
-            selectedProductIds={selectedProductIds}
-            onToggleProduct={handleToggleProductFromCoDirector}
-            onApplyScript={(newScript) => setScriptText(newScript)}
-            currentScript={scriptText}
-          />
         )}
       </div>
 

@@ -1935,6 +1935,67 @@ Generate 4 viral titles now in JSON format.`;
     const lastMsg = payload.messages[payload.messages.length - 1]?.content || '';
     const lower = lastMsg.toLowerCase();
 
+    if (lower.includes('tim hortons') || lower.includes('coffee') || lower.includes('espresso') || lower.includes('latte')) {
+      return {
+        reply: `### ☕ Tim Hortons Coffee Strategy
+Coffee reviews and morning routine speedruns are massive high-conversion formats. For Tim Hortons, the biggest wins come from selling the actual packaged coffee:
+1. **The Classic Morning Brew**: Highlighting that signature smooth medium roast taste.
+2. **K-Cup Convenience**: Showcasing single-serve Keurig pods for instant home brewing.
+3. **French Vanilla Treat**: Mentioning the famous sweet French Vanilla cappuccino mix.
+
+I've linked the 3 top-selling Tim Hortons coffee packages directly below so viewers can tap and buy right on screen!`,
+        suggestedProducts: [
+          {
+            id: 'prod_tims_ground_coffee',
+            title: 'Tim Hortons Original Blend Medium Roast Ground Coffee (32.8 oz Tin)',
+            price: 15.98,
+            currency: 'USD',
+            description: '100% Arabica signature medium roast ground coffee in a stay-fresh sealed can.',
+            category: 'Grocery & Coffee',
+            externalUrl: 'https://amazon.com/dp/B002R8DW4G',
+            imageUrl: 'https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=400&auto=format&fit=crop&q=80',
+            source: 'AMAZON',
+            vendor: 'Amazon / Tim Hortons',
+            inventoryCount: 99,
+          },
+          {
+            id: 'prod_tims_kcups',
+            title: 'Tim Hortons Original Blend Keurig K-Cup Pods (72 Count)',
+            price: 36.49,
+            currency: 'USD',
+            description: 'Single-serve Keurig 2.0 compatible pods brewed fresh in seconds.',
+            category: 'Grocery & Coffee',
+            externalUrl: 'https://amazon.com/dp/B01BKBMS24',
+            imageUrl: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=400&auto=format&fit=crop&q=80',
+            source: 'AMAZON',
+            vendor: 'Amazon / Tim Hortons',
+            inventoryCount: 45,
+          },
+          {
+            id: 'prod_tims_french_vanilla',
+            title: 'Tim Hortons French Vanilla Cappuccino Mix (16 oz Canister)',
+            price: 8.99,
+            currency: 'USD',
+            description: 'Creamy, rich French vanilla hot beverage mix—just add hot water or milk.',
+            category: 'Grocery & Coffee',
+            externalUrl: 'https://amazon.com/dp/B009GEWQ20',
+            imageUrl: 'https://images.unsplash.com/photo-1534778101976-62847782c213?w=400&auto=format&fit=crop&q=80',
+            source: 'AMAZON',
+            vendor: 'Amazon / Tim Hortons',
+            inventoryCount: 30,
+          },
+        ],
+        generatedScript: `If you think you need a $10 cafe latte every morning, look at this.
+[SHOW_PRODUCT: Tim Hortons Original Blend Medium Roast Ground Coffee (32.8 oz Tin)]
+This is the legendary Tim Hortons Original Blend right at home.
+[PAUSE 1.5s]
+100% Arabica, perfectly balanced, and costs pennies per cup.
+[SHOW_PRODUCT: Tim Hortons Original Blend Keurig K-Cup Pods (72 Count)]
+If you're in a rush, pop in the K-Cup for instant drive-thru taste in 30 seconds.
+[CALL_TO_ACTION: Tap the product tags below to grab your tin or 72-pack on Amazon!]`,
+      };
+    }
+
     if (lower.includes('4 charles') || lower.includes('prime rib') || lower.includes('steak') || lower.includes('recipe') || lower.includes('dinner')) {
       return {
         reply: `### 🥩 4 Charles Prime Rib Strategy
