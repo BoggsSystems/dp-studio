@@ -13,7 +13,8 @@ import {
   ShoppingBag,
   BarChart3,
   UserPlus,
-  CreditCard
+  CreditCard,
+  Smartphone
 } from 'lucide-react';
 import { Project } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -21,7 +22,7 @@ import BillingModal from './BillingModal';
 import AccountMenu from './AccountMenu';
 import { ShopVideoLogo } from './icons/ShopVideoLogo';
 
-export type StudioTab = 'projects' | 'vod' | 'products' | 'live' | 'campaigns' | 'clips' | 'quiz' | 'analytics';
+export type StudioTab = 'projects' | 'vod' | 'products' | 'live' | 'campaigns' | 'clips' | 'quiz' | 'analytics' | 'preproduction';
 
 interface HeaderProps {
   activeTab: StudioTab;
@@ -108,6 +109,16 @@ export default function Header({
             <FolderGit2 size={14} />
             <span>Projects & Hub</span>
           </button>
+
+          {(project || activeTab === 'preproduction') && (
+            <button
+              className={`tab-btn ${activeTab === 'preproduction' ? 'active' : ''}`}
+              onClick={() => setActiveTab('preproduction')}
+            >
+              <Smartphone size={14} color={activeTab === 'preproduction' ? 'var(--accent-teal)' : '#38bdf8'} />
+              <span>Script & Prompter</span>
+            </button>
+          )}
 
           {activeTab === 'vod' && (
             <button

@@ -1827,6 +1827,83 @@ Generate 4 viral titles now in JSON format.`;
       return { success: false };
     }
   },
+
+  // Alias for uploading video directly to Cloudflare R2
+  async uploadVideo(file: File, projectId?: string): Promise<{ url: string; key: string }> {
+    return this.uploadVideoDirectR2(file, projectId);
+  },
+
+  // --- Recording Sessions & Mobile Prompter Bridge ---
+  async createRecordingSession(payload: {
+    userId?: string;
+    projectId?: string;
+    scriptText?: string;
+    products?: any[];
+    targetWpm?: number;
+  }): Promise<{ token: string; shortCode: string; expiresAt: string; streamUrl: string; recordUrl: string }> {
+    const res = await fetch(`${API_BASE_URL}/api/videos/recording-sessions/create`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ message: 'Failed to create recording session' }));
+      throw new Error(err.message || `HTTP ${res.status}`);
+    }
+    return await res.json();
+  },
+
+  async getRecordingSession(token: string): Promise<any> {
+    const res = await fetch(`${API_BASE_URL}/api/videos/recording-sessions/${token}`, {
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ message: 'Session not found' }));
+      throw new Error(err.message || `HTTP ${res.status}`);
+    }
+    return await res.json();
+  },
+
+  async notifyPhoneConnected(token: string, device?: string): Promise<{ ok: boolean }> {
+    const res = await fetch(`${API_BASE_URL}/api/videos/recording-sessions/${token}/connect`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ device }),
+    });
+    return await res.json().catch(() => ({ ok: false }));
+  },
+
+  async notifyRecordingState(token: string, state: 'START' | 'STOP'): Promise<{ ok: boolean }> {
+    const res = await fetch(`${API_BASE_URL}/api/videos/recording-sessions/${token}/state`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ state }),
+    });
+    return await res.json().catch(() => ({ ok: false }));
+  },
+
+  async completeRecordingSession(
+    token: string,
+    payload: { videoUrl: string; durationSeconds: number; cuePins?: any[] }
+  ): Promise<{ ok: boolean; session?: any }> {
+    const res = await fetch(`${API_BASE_URL}/api/videos/recording-sessions/${token}/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ message: 'Failed to complete recording session' }));
+      throw new Error(err.message || `HTTP ${res.status}`);
+    }
+    return await res.json();
+  },
+
+  getRecordingSessionStreamUrl(token: string): string {
+    return `${API_BASE_URL}/api/videos/recording-sessions/${token}/stream`;
+  },
 };
 
 function getMockProjects(): Project[] {

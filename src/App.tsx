@@ -28,6 +28,8 @@ import PrivacyPolicy from './components/legal/PrivacyPolicy';
 import StudioIntroductionModal from './components/StudioIntroductionModal';
 import InviteCollaboratorModal from './components/InviteCollaboratorModal';
 import CompleteInviteModal from './components/CompleteInviteModal';
+import PreProductionStudio from './components/preproduction/PreProductionStudio';
+import MobilePrompterBooth from './components/record/MobilePrompterBooth';
 
 function buildFormattedShortFromProject(targetProj: Project): FormattedShortProject {
   const meta = (targetProj.metadata as any) || {};
@@ -835,6 +837,19 @@ function StudioApp() {
                 }}
               />
             )}
+
+            {/* PRE-PRODUCTION SCRIPT & TELEPROMPTER TAB */}
+            {activeTab === 'preproduction' && (
+              <PreProductionStudio
+                project={project}
+                catalogProducts={catalogProducts}
+                onProjectUpdate={(updated) => {
+                  setProject(updated);
+                  setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+                }}
+                onNavigateToTimeline={() => setActiveTab('vod')}
+              />
+            )}
           </main>
         </>
       )}
@@ -904,6 +919,29 @@ function StudioApp() {
 }
 
 export default function App() {
+  const [recordToken] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const path = window.location.pathname;
+    const params = new URLSearchParams(window.location.search);
+    if (path === '/record' || path.startsWith('/record/') || params.has('session')) {
+      const paramVal = params.get('session');
+      if (paramVal) return paramVal;
+      const cleanPath = path.replace(/^\/record\/?/, '').trim();
+      return cleanPath || null;
+    }
+    return null;
+  });
+
+  // Standalone Mobile Teleprompter Booth Viewfinder
+  if (recordToken) {
+    return (
+      <div style={{ width: '100vw', height: '100vh', overflow: 'hidden', background: '#000000' }}>
+        <MobilePrompterBooth sessionToken={recordToken} />
+        <ToastContainer />
+      </div>
+    );
+  }
+
   return (
     <AuthProvider>
       <StudioApp />
