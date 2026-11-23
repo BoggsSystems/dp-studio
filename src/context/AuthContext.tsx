@@ -8,6 +8,8 @@ interface AuthContextType {
   isLoading: boolean;
   isNewInviteUser: boolean;
   inviteError: string | null;
+  setToken: (token: string | null) => void;
+  setUser: (user: User | null) => void;
   setIsNewInviteUser: (val: boolean) => void;
   login: (email: string, pass: string) => Promise<void>;
   register: (email: string, pass: string, fullName?: string) => Promise<void>;
@@ -32,50 +34,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [inviteError, setInviteError] = useState<string | null>(null);
 
   useEffect(() => {
-    // 1. Check for ?invite=token in URL
+    // 1. If ?invite=token is in the URL, we skip automatic silent accept so CompleteInviteModal can prompt for password
     const urlParams = new URLSearchParams(window.location.search);
     const inviteToken = urlParams.get('invite');
 
     if (inviteToken) {
-      setIsLoading(true);
-      // Clean up previous user's catalog and workspace cache
+      // Clear previous cached workspace state
       localStorage.removeItem('dp_studio_catalog_products');
       localStorage.removeItem('dp_studio_projects');
       localStorage.removeItem('dp_studio_project');
-
-      api.acceptInvite(inviteToken)
-        .then((res) => {
-          if (res.token && res.user) {
-            localStorage.setItem('dp_studio_token', res.token);
-            localStorage.setItem('dp_studio_user', JSON.stringify(res.user));
-            setToken(res.token);
-            setUser(res.user);
-            setIsNewInviteUser(true);
-            const cleanUrl = window.location.pathname + (window.location.hash || '');
-            window.history.replaceState({}, document.title, cleanUrl);
-          }
-        })
-        .catch((err) => {
-          console.warn('Backend invite accept failed (likely local offline dev mode):', err);
-          // Graceful fallback: authenticate with URL name/email or fallback
-          const invitedEmail = urlParams.get('email') || (inviteToken.includes('jeff') ? 'jeff_boggs@hotmail.com' : 'ros@opportunity-system.com');
-          const invitedName = urlParams.get('name') || (inviteToken.includes('jeff') ? 'Jeffrey Boggs' : 'Ros');
-          const mockUser: User = {
-            id: 'usr_invite_' + Date.now(),
-            email: invitedEmail,
-            fullName: invitedName,
-            role: 'PUBLISHER',
-          };
-          const mockToken = 'demo_token_' + Date.now();
-          localStorage.setItem('dp_studio_token', mockToken);
-          localStorage.setItem('dp_studio_user', JSON.stringify(mockUser));
-          setToken(mockToken);
-          setUser(mockUser);
-          setIsNewInviteUser(true);
-          const cleanUrl = window.location.pathname + (window.location.hash || '');
-          window.history.replaceState({}, document.title, cleanUrl);
-        })
-        .finally(() => setIsLoading(false));
+      setIsLoading(false);
       return;
     }
 
@@ -176,6 +144,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         isNewInviteUser,
         inviteError,
+        setToken,
+        setUser,
         setIsNewInviteUser,
         login,
         register,

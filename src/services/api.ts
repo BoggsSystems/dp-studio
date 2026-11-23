@@ -58,11 +58,30 @@ export const api = {
     }
   },
 
-  async acceptInvite(token: string): Promise<{ user: User; token: string; isNewInvite: boolean }> {
+  async getInviteDetails(token: string): Promise<{
+    valid: boolean;
+    email: string;
+    fullName?: string;
+    invitedBy?: string;
+    role?: string;
+  }> {
+    const res = await fetch(`${API_BASE_URL}/api/invites/details?token=${encodeURIComponent(token)}`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ message: 'Invitation is invalid or has expired.' }));
+      throw new Error(err.message || `HTTP ${res.status}`);
+    }
+    return await res.json();
+  },
+
+  async acceptInvite(
+    token: string,
+    password?: string,
+    fullName?: string
+  ): Promise<{ user: User; token: string; isNewInvite: boolean }> {
     const res = await fetch(`${API_BASE_URL}/api/invites/accept`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token }),
+      body: JSON.stringify({ token, password, fullName }),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({ message: 'Failed to accept invitation.' }));

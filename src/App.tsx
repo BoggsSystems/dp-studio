@@ -27,6 +27,7 @@ import TermsOfService from './components/legal/TermsOfService';
 import PrivacyPolicy from './components/legal/PrivacyPolicy';
 import StudioIntroductionModal from './components/StudioIntroductionModal';
 import InviteCollaboratorModal from './components/InviteCollaboratorModal';
+import CompleteInviteModal from './components/CompleteInviteModal';
 
 function buildFormattedShortFromProject(targetProj: Project): FormattedShortProject {
   const meta = (targetProj.metadata as any) || {};
@@ -144,6 +145,45 @@ function StudioApp() {
   const [thumbnailToast, setThumbnailToast] = useState<string | null>(null);
 
   const videoElementRef = useRef<HTMLVideoElement>(null);
+
+  // Check URL for invite token to trigger password setup
+  const [pendingInvite, setPendingInvite] = useState<{
+    token: string;
+    email: string;
+    fullName?: string;
+    invitedBy?: string;
+    role?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const inviteToken = params.get('invite');
+    if (inviteToken) {
+      api.getInviteDetails(inviteToken)
+        .then((details) => {
+          setPendingInvite({
+            token: inviteToken,
+            email: details.email,
+            fullName: details.fullName,
+            invitedBy: details.invitedBy,
+            role: details.role,
+          });
+        })
+        .catch((err) => {
+          console.warn('Could not validate invite from server, using fallback:', err);
+          // Fallback if offline / dev
+          const email = params.get('email') || (inviteToken.includes('jeff') ? 'jeff_boggs@hotmail.com' : 'ros@opportunity-system.com');
+          const name = params.get('name') || (inviteToken.includes('jeff') ? 'Jeffrey Boggs' : 'Ros');
+          setPendingInvite({
+            token: inviteToken,
+            email,
+            fullName: name,
+            invitedBy: 'Jeffrey Boggs',
+            role: 'PUBLISHER',
+          });
+        });
+    }
+  }, []);
 
   // Check URL for billing redirect results
   useEffect(() => {
@@ -800,6 +840,25 @@ function StudioApp() {
       )}
 
       {/* Modals */}
+      {pendingInvite && (
+        <CompleteInviteModal
+          inviteToken={pendingInvite.token}
+          initialEmail={pendingInvite.email}
+          initialFullName={pendingInvite.fullName}
+          invitedBy={pendingInvite.invitedBy}
+          role={pendingInvite.role}
+          onSuccess={() => {
+            setPendingInvite(null);
+            const cleanUrl = window.location.pathname + (window.location.hash || '');
+            window.history.replaceState({}, document.title, cleanUrl);
+          }}
+          onCancel={() => {
+            setPendingInvite(null);
+            const cleanUrl = window.location.pathname + (window.location.hash || '');
+            window.history.replaceState({}, document.title, cleanUrl);
+          }}
+        />
+      )}
       {isDeployOpen && project && <DeployModal project={project} onClose={() => setIsDeployOpen(false)} />}
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
       <InviteCollaboratorModal isOpen={isInviteModalOpen} onClose={() => setIsInviteModalOpen(false)} />
