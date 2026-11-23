@@ -174,8 +174,8 @@ function StudioApp() {
         .catch((err) => {
           console.warn('Could not validate invite from server, using fallback:', err);
           // Fallback if offline / dev
-          const email = params.get('email') || (inviteToken.includes('jeff') ? 'jeff_boggs@hotmail.com' : 'ros@opportunity-system.com');
-          const name = params.get('name') || (inviteToken.includes('jeff') ? 'Jeffrey Boggs' : 'Ros');
+          const email = params.get('email') || (inviteToken.includes('jeff') ? 'jeff_boggs@hotmail.com' : (inviteToken.includes('ros') || inviteToken.includes('pen') ? 'pen.rosalyn@gmail.com' : 'pen.rosalyn@gmail.com'));
+          const name = params.get('name') || (inviteToken.includes('jeff') ? 'Jeffrey Boggs' : 'Rosalyn');
           setPendingInvite({
             token: inviteToken,
             email,
@@ -522,6 +522,35 @@ function StudioApp() {
     );
   }
 
+  // If user arrives with an invite token (?invite=...), show the Complete Invite modal immediately
+  if (pendingInvite) {
+    return (
+      <div className="studio-root" style={{ position: 'relative', minHeight: '100vh', background: '#0a0f1d' }}>
+        <LandingPage
+          onSignIn={() => setAuthView({ isOpen: true, mode: 'login' })}
+          onGetStarted={(plan, interval) => setAuthView({ isOpen: true, mode: 'register', plan, interval })}
+        />
+        <CompleteInviteModal
+          inviteToken={pendingInvite.token}
+          initialEmail={pendingInvite.email}
+          initialFullName={pendingInvite.fullName}
+          invitedBy={pendingInvite.invitedBy}
+          role={pendingInvite.role}
+          onSuccess={() => {
+            setPendingInvite(null);
+            const cleanUrl = window.location.pathname + (window.location.hash || '');
+            window.history.replaceState({}, document.title, cleanUrl);
+          }}
+          onCancel={() => {
+            setPendingInvite(null);
+            const cleanUrl = window.location.pathname + (window.location.hash || '');
+            window.history.replaceState({}, document.title, cleanUrl);
+          }}
+        />
+      </div>
+    );
+  }
+
   if (!user) {
     if (authView.isOpen) {
       return (
@@ -858,25 +887,6 @@ function StudioApp() {
       )}
 
       {/* Modals */}
-      {pendingInvite && (
-        <CompleteInviteModal
-          inviteToken={pendingInvite.token}
-          initialEmail={pendingInvite.email}
-          initialFullName={pendingInvite.fullName}
-          invitedBy={pendingInvite.invitedBy}
-          role={pendingInvite.role}
-          onSuccess={() => {
-            setPendingInvite(null);
-            const cleanUrl = window.location.pathname + (window.location.hash || '');
-            window.history.replaceState({}, document.title, cleanUrl);
-          }}
-          onCancel={() => {
-            setPendingInvite(null);
-            const cleanUrl = window.location.pathname + (window.location.hash || '');
-            window.history.replaceState({}, document.title, cleanUrl);
-          }}
-        />
-      )}
       {isDeployOpen && project && <DeployModal project={project} onClose={() => setIsDeployOpen(false)} />}
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
       <InviteCollaboratorModal isOpen={isInviteModalOpen} onClose={() => setIsInviteModalOpen(false)} />
