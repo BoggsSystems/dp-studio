@@ -426,6 +426,17 @@ export default function AuthPortal({ initialMode = 'login', selectedPlan, select
             )}
           </button>
 
+          <p style={{ margin: '10px 0 0', fontSize: '11px', color: 'var(--text-muted)', lineHeight: 1.4, textAlign: 'center' }}>
+            By continuing, you agree to ShopVideo's{' '}
+            <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-teal, #38bdf8)', textDecoration: 'underline' }}>
+              Terms of Service
+            </a>{' '}
+            and acknowledge our{' '}
+            <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-teal, #38bdf8)', textDecoration: 'underline' }}>
+              Privacy Policy
+            </a>.
+          </p>
+
           {/* Quick Access for Local Development & Testing */}
           <div style={{ position: 'relative', margin: '20px 0 12px', textAlign: 'center' }}>
             <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center' }}>

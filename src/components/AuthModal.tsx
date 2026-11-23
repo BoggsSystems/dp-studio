@@ -215,6 +215,17 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
               </div>
             )}
           </button>
+
+          <p style={{ margin: '14px 0 0', fontSize: '11px', color: 'var(--text-muted, #9ca3af)', lineHeight: 1.4, textAlign: 'center' }}>
+            By continuing, you agree to ShopVideo's{' '}
+            <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-blue, #38bdf8)', textDecoration: 'underline' }}>
+              Terms of Service
+            </a>{' '}
+            and acknowledge our{' '}
+            <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-blue, #38bdf8)', textDecoration: 'underline' }}>
+              Privacy Policy
+            </a>.
+          </p>
         </form>
       </div>
     </div>

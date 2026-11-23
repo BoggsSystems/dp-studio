@@ -52,25 +52,25 @@ export const PrivacyPolicy: React.FC<LegalPageProps> = ({ onBack }) => {
               </a>
             )}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: 'linear-gradient(135deg, #00F2FE, #4FACFE)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: '#000', fontSize: '14px' }}>
-                DP
+              <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: 'linear-gradient(135deg, #0284c7, #38bdf8)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: '#fff', fontSize: '13px' }}>
+                SV
               </div>
-              <span style={{ fontWeight: 700, fontSize: '16px', color: '#fff' }}>DigitPop Studio</span>
+              <span style={{ fontWeight: 700, fontSize: '16px', color: '#fff' }}>ShopVideo.tv</span>
             </div>
           </div>
-          <span style={{ fontSize: '12px', color: '#94A3B8' }}>Last Updated: September 18, 2026</span>
+          <span style={{ fontSize: '12px', color: '#94A3B8' }}>Last Updated: November 23, 2026</span>
         </div>
       </header>
 
       {/* Main Content */}
       <main style={{ maxWidth: '860px', margin: '0 auto', padding: '40px 24px 80px' }}>
         <div style={{ marginBottom: '32px' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', borderRadius: '20px', background: 'rgba(0,242,254,0.1)', border: '1px solid rgba(0,242,254,0.3)', color: '#00F2FE', fontSize: '12px', fontWeight: 700, marginBottom: '12px' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', borderRadius: '20px', background: 'rgba(56,189,248,0.1)', border: '1px solid rgba(56,189,248,0.3)', color: '#38bdf8', fontSize: '12px', fontWeight: 700, marginBottom: '12px' }}>
             <Shield size={13} /> Official Privacy Policy
           </div>
           <h1 style={{ fontSize: '32px', fontWeight: 800, color: '#FFFFFF', margin: '0 0 12px' }}>Privacy Policy</h1>
           <p style={{ fontSize: '15px', color: '#94A3B8', lineHeight: 1.6, margin: 0 }}>
-            At DigitPop Studio (part of Opportunity OS), we are committed to protecting the privacy, assets, and security of our creators and users. This Privacy Policy details the types of information we collect, how your data is utilized, and your rights regarding social media OAuth permissions.
+            At ShopVideo.tv (operated by DigitPop / Opportunity OS), we are committed to protecting the privacy, creative assets, and payment security of our creators and viewers. This Privacy Policy details how data is handled across our video hosting, streaming, interactive shoppable player, and subscription billing systems.
           </p>
         </div>
 
@@ -149,17 +149,48 @@ export const PrivacyPolicy: React.FC<LegalPageProps> = ({ onBack }) => {
           {/* Section 5 */}
           <section style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '24px' }}>
             <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#fff', marginTop: 0, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ color: '#00F2FE' }}>5.</span> Data Security & Token Storage
+              <span style={{ color: '#00F2FE' }}>5.</span> Payment Processing & Stripe Infrastructure
             </h2>
             <p>
-              All OAuth access and refresh tokens are stored securely in PostgreSQL with industry-standard encryption at rest and TLS 1.3 in transit. We implement strict token expiration lifecycles and automated refresh buffers.
+              Subscription billing, free trials, and payment transactions are handled through Stripe, Inc. (PCI-DSS Level 1 certified).
             </p>
+            <ul style={{ paddingLeft: '20px', margin: '12px 0' }}>
+              <li>
+                <strong>Card Data Security:</strong> ShopVideo.tv does not store, transmit, or process your raw credit card numbers or security CVV codes. All payment credentials are encrypted directly through Stripe.
+              </li>
+              <li>
+                <strong>Billing Portal:</strong> You can review invoices, update payment methods, or cancel recurring plans at any time via Stripe's self-serve Customer Portal accessible from within the Studio.
+              </li>
+            </ul>
           </section>
 
           {/* Section 6 */}
           <section style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '24px' }}>
             <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#fff', marginTop: 0, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ color: '#00F2FE' }}>6.</span> Your Rights & Data Deletion
+              <span style={{ color: '#00F2FE' }}>6.</span> Video Streaming Delivery & Edge Privacy
+            </h2>
+            <p>
+              Hosted shoppable videos and embed scripts are served through global edge content delivery networks (Cloudflare R2 and Fastly edge networks).
+            </p>
+            <p>
+              Viewer interactions (such as hotspot touches, drawer expansions, and product clicks) are processed in real-time for creator engagement analytics. We do not use cross-site tracking cookies to track individual viewers across unrelated websites.
+            </p>
+          </section>
+
+          {/* Section 7 */}
+          <section style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '24px' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#fff', marginTop: 0, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ color: '#00F2FE' }}>7.</span> Data Security & Token Storage
+            </h2>
+            <p>
+              All OAuth tokens and authentication credentials are encrypted at rest with AES-256 and transmitted exclusively via TLS 1.3 encryption. We implement automated token refresh cycles and role-based workspace permissions.
+            </p>
+          </section>
+
+          {/* Section 8 */}
+          <section style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '24px' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#fff', marginTop: 0, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ color: '#00F2FE' }}>8.</span> Your Rights & Data Deletion
             </h2>
             <p>
               You have the right to request access to, update, or permanently delete your account data, projects, and stored tokens at any time.
@@ -173,10 +204,10 @@ export const PrivacyPolicy: React.FC<LegalPageProps> = ({ onBack }) => {
             </p>
           </section>
 
-          {/* Section 7 */}
+          {/* Section 9 */}
           <section style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '24px' }}>
             <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#fff', marginTop: 0, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ color: '#00F2FE' }}>7.</span> Contact Information
+              <span style={{ color: '#00F2FE' }}>9.</span> Contact Information
             </h2>
             <p>
               If you have any questions, concerns, or requests regarding this Privacy Policy, please contact our privacy and security team:
@@ -185,7 +216,7 @@ export const PrivacyPolicy: React.FC<LegalPageProps> = ({ onBack }) => {
               Email: <a href="mailto:support@opportunity-system.com" style={{ color: '#00F2FE', textDecoration: 'none' }}>support@opportunity-system.com</a>
             </p>
             <p style={{ margin: 0, color: '#94A3B8', fontSize: '13px' }}>
-              Opportunity OS &bull; DigitPop Studio &bull; United States
+              ShopVideo.tv &bull; DigitPop &bull; Opportunity OS &bull; United States
             </p>
           </section>
         </div>

@@ -284,6 +284,17 @@ export default function CompleteInviteModal({
             💡 You will use this password alongside your email to sign in to ShopVideo Studio whenever you log out.
           </p>
 
+          <p style={{ margin: '8px 0 0', fontSize: '11px', color: '#9ca3af', lineHeight: 1.4, textAlign: 'center' }}>
+            By clicking Enter Studio, you agree to ShopVideo's{' '}
+            <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: '#38bdf8', textDecoration: 'underline' }}>
+              Terms of Service
+            </a>{' '}
+            and acknowledge our{' '}
+            <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: '#38bdf8', textDecoration: 'underline' }}>
+              Privacy Policy
+            </a>.
+          </p>
+
           <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
             <button
               type="button"
