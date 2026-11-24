@@ -20,7 +20,7 @@ import {
   Plus,
   Film
 } from 'lucide-react';
-import { Product, Project, ProductGroup } from '../../types';
+import { Product, Project, ProductGroup, CoDirectorMessage } from '../../types';
 import { api } from '../../services/api';
 import { toast } from '../../services/toast';
 import { resolveProductImageUrl, handleImageError } from '../../utils/imageUtils';
@@ -75,6 +75,16 @@ If you're tired of filling out endless career portals, check the link right here
   const [scriptTone, setScriptTone] = useState<'VIRAL_HOOK' | 'PRODUCT_DEMO' | 'URGENT_DROP'>('VIRAL_HOOK');
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
   const [activeMode, setActiveMode] = useState<'co-director' | 'script-writer'>('co-director');
+  const [coDirectorMessages, setCoDirectorMessages] = useState<CoDirectorMessage[]>(() => {
+    return (project?.metadata as any)?.preproductionCoDirectorChat || [
+      {
+        id: 'welcome',
+        role: 'assistant',
+        content: `👋 I\'m your **AI Creative Co-Director & Shoppable Merchandiser**.\n\nTell me what video you want to produce (e.g. *\"Deconstruct the 4 Charles Prime Rib dinner\"*, *\"Speedrun an unboxing of my desk setup\"*, or *\"A 30s TikTok routine\"*)—I\'ll help you prep the recipe, identify all the physical products you\'ll need to monetize, and draft the prompter script with dynamic stage cues!`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      },
+    ];
+  });
 
   useEffect(() => {
     if (project?.productGroups && project.productGroups.length > 0) {
@@ -93,6 +103,9 @@ If you're tired of filling out endless career portals, check the link right here
     }
     if (project && (project.metadata as any)?.preproductionTargetWpm) {
       setTargetWpm((project.metadata as any).preproductionTargetWpm);
+    }
+    if (project && (project.metadata as any)?.preproductionCoDirectorChat) {
+      setCoDirectorMessages((project.metadata as any).preproductionCoDirectorChat);
     }
   }, [project?.id]);
 
@@ -175,6 +188,7 @@ If you're tired of filling out endless career portals, check the link right here
           preproductionScript: scriptText,
           preproductionTargetWpm: targetWpm,
           preproductionProductIds: selectedProductIds,
+          preproductionCoDirectorChat: coDirectorMessages,
           scriptTone: scriptTone,
         },
       };
@@ -350,6 +364,7 @@ Don't wait—tap the product bubble directly on your screen to order before they
         preproductionScript: scriptText,
         preproductionTargetWpm: targetWpm,
         preproductionProductIds: selectedProductIds,
+        preproductionCoDirectorChat: coDirectorMessages,
       };
 
       if (!project) {
@@ -792,7 +807,7 @@ Don't wait—tap the product bubble directly on your screen to order before they
         </div>
 
         {/* Right Column: Active Tab Mode */}
-        {activeMode === 'co-director' ? (
+        <div style={{ flex: 1, minWidth: 0, display: activeMode === 'co-director' ? 'flex' : 'none', flexDirection: 'column' }}>
           <AiCoDirectorDrawer
             isOpen={true}
             onClose={() => setActiveMode('script-writer')}
@@ -804,18 +819,23 @@ Don't wait—tap the product bubble directly on your screen to order before they
               setActiveMode('script-writer');
             }}
             currentScript={scriptText}
+            messages={coDirectorMessages}
+            setMessages={setCoDirectorMessages}
           />
-        ) : (
-          <div
-            style={{
-              background: 'var(--bg-surface, #0f172a)',
-              border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
-              borderRadius: '14px',
-              padding: '24px',
-              display: 'flex',
-              flexDirection: 'column',
-            }}
-          >
+        </div>
+
+        <div
+          style={{
+            flex: 1,
+            minWidth: 0,
+            display: activeMode === 'script-writer' ? 'flex' : 'none',
+            flexDirection: 'column',
+            background: 'var(--bg-surface, #0f172a)',
+            border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
+            borderRadius: '14px',
+            padding: '24px',
+          }}
+        >
           {/* AI Script Assistant Bar */}
           <div
             style={{
@@ -961,7 +981,6 @@ Don't wait—tap the product bubble directly on your screen to order before they
             <span>{wordCount} words</span>
           </div>
         </div>
-        )}
       </div>
 
       {/* Mobile Bridge Modal */}

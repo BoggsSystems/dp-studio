@@ -32,6 +32,8 @@ interface AiCoDirectorDrawerProps {
   onToggleProduct: (product: Product) => void;
   onApplyScript: (script: string) => void;
   currentScript: string;
+  messages?: CoDirectorMessage[];
+  setMessages?: React.Dispatch<React.SetStateAction<CoDirectorMessage[]>>;
 }
 
 // Helper to render markdown content with high-contrast formatting (replacing raw **, *, ``, ###)
@@ -339,8 +341,10 @@ export default function AiCoDirectorDrawer({
   onToggleProduct,
   onApplyScript,
   currentScript,
+  messages: externalMessages,
+  setMessages: externalSetMessages,
 }: AiCoDirectorDrawerProps) {
-  const [messages, setMessages] = useState<CoDirectorMessage[]>([
+  const [internalMessages, setInternalMessages] = useState<CoDirectorMessage[]>([
     {
       id: 'welcome',
       role: 'assistant',
@@ -348,6 +352,10 @@ export default function AiCoDirectorDrawer({
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
+
+  const messages = externalMessages || internalMessages;
+  const setMessages = externalSetMessages || setInternalMessages;
+
   const [inputText, setInputText] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [expandedScriptIds, setExpandedScriptIds] = useState<Record<string, boolean>>({});
