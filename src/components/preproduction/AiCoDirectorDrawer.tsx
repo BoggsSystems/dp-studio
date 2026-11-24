@@ -14,7 +14,10 @@ import {
   Lightbulb, 
   Flame, 
   Coffee,
-  ExternalLink 
+  ExternalLink,
+  Maximize2,
+  Minimize2,
+  Copy
 } from 'lucide-react';
 import { Product, CoDirectorMessage } from '../../types';
 import { api } from '../../services/api';
@@ -347,6 +350,8 @@ export default function AiCoDirectorDrawer({
   ]);
   const [inputText, setInputText] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [expandedScriptIds, setExpandedScriptIds] = useState<Record<string, boolean>>({});
+  const [copiedScriptId, setCopiedScriptId] = useState<string | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -649,59 +654,124 @@ export default function AiCoDirectorDrawer({
                 )}
 
                 {/* Generated Script Preview */}
-                {m.generatedScript && (
-                  <div
-                    style={{
-                      background: 'rgba(129, 140, 248, 0.06)',
-                      border: '1px solid rgba(129, 140, 248, 0.25)',
-                      borderRadius: '10px',
-                      padding: '12px',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 700, color: '#818cf8', textTransform: 'uppercase' }}>
-                        <FileText size={13} />
-                        <span>Generated Prompter Script with Cues</span>
-                      </div>
-                      <button
-                        onClick={() => handleApplyScript(m.generatedScript!)}
-                        style={{
-                          background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-                          border: 'none',
-                          color: '#fff',
-                          padding: '4px 10px',
-                          borderRadius: '6px',
-                          fontSize: '11px',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                        }}
-                      >
-                        <span>Apply to Prompter</span>
-                        <ArrowRight size={12} />
-                      </button>
-                    </div>
+                {m.generatedScript && (() => {
+                  const isExpanded = !!expandedScriptIds[m.id];
+                  const isCopied = copiedScriptId === m.id;
 
+                  const handleCopyScript = () => {
+                    navigator.clipboard.writeText(m.generatedScript || '');
+                    setCopiedScriptId(m.id);
+                    toast.success('Script copied to clipboard');
+                    setTimeout(() => setCopiedScriptId(null), 2000);
+                  };
+
+                  return (
                     <div
                       style={{
-                        background: 'rgba(0, 0, 0, 0.35)',
-                        padding: '10px',
-                        borderRadius: '6px',
-                        fontSize: '12px',
-                        color: '#cbd5e1',
-                        lineHeight: 1.5,
-                        fontFamily: 'monospace',
-                        maxHeight: '140px',
-                        overflowY: 'auto',
-                        whiteSpace: 'pre-wrap',
+                        background: 'rgba(129, 140, 248, 0.07)',
+                        border: '1px solid rgba(129, 140, 248, 0.28)',
+                        borderRadius: '12px',
+                        padding: '14px',
+                        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.25)',
                       }}
                     >
-                      {m.generatedScript}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 700, color: '#818cf8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                          <FileText size={14} />
+                          <span>Generated Prompter Script with Cues</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <button
+                            type="button"
+                            onClick={() => setExpandedScriptIds((prev) => ({ ...prev, [m.id]: !prev[m.id] }))}
+                            style={{
+                              background: isExpanded ? 'rgba(56, 189, 248, 0.18)' : 'rgba(255, 255, 255, 0.08)',
+                              border: isExpanded ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid rgba(255, 255, 255, 0.12)',
+                              color: isExpanded ? '#38bdf8' : '#cbd5e1',
+                              padding: '5px 9px',
+                              borderRadius: '6px',
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              transition: 'all 0.15s ease',
+                            }}
+                            title={isExpanded ? 'Collapse preview' : 'Expand full script'}
+                          >
+                            {isExpanded ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
+                            <span>{isExpanded ? 'Collapse' : 'Expand Full'}</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={handleCopyScript}
+                            style={{
+                              background: 'rgba(255, 255, 255, 0.08)',
+                              border: '1px solid rgba(255, 255, 255, 0.12)',
+                              color: '#cbd5e1',
+                              padding: '5px 8px',
+                              borderRadius: '6px',
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                            }}
+                            title="Copy script to clipboard"
+                          >
+                            {isCopied ? <Check size={12} color="#34d399" /> : <Copy size={12} />}
+                            <span>{isCopied ? 'Copied' : 'Copy'}</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleApplyScript(m.generatedScript!)}
+                            style={{
+                              background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                              border: 'none',
+                              color: '#fff',
+                              padding: '5px 12px',
+                              borderRadius: '6px',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              boxShadow: '0 2px 8px rgba(99, 102, 241, 0.35)',
+                            }}
+                          >
+                            <span>Apply to Prompter</span>
+                            <ArrowRight size={12} />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          background: 'rgba(5, 10, 20, 0.75)',
+                          border: '1px solid rgba(255, 255, 255, 0.07)',
+                          padding: '14px 16px',
+                          borderRadius: '8px',
+                          fontSize: '13px',
+                          color: '#e2e8f0',
+                          lineHeight: 1.7,
+                          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                          maxHeight: isExpanded ? 'none' : '300px',
+                          overflowY: isExpanded ? 'visible' : 'auto',
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-word',
+                          transition: 'max-height 0.2s ease',
+                        }}
+                      >
+                        {m.generatedScript}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 <div style={{ fontSize: '10px', color: '#64748b', alignSelf: isUser ? 'flex-end' : 'flex-start' }}>
                   {m.timestamp}
