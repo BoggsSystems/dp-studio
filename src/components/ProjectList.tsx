@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Video, Play, Edit3, ExternalLink, Trash2, Layers, ShoppingBag, CheckCircle, Sparkles, Smartphone, CheckCircle2, Film, Radio, Loader2, FileText } from 'lucide-react';
+import { Plus, Video, Play, Edit3, ExternalLink, Trash2, Layers, ShoppingBag, CheckCircle, Sparkles, Smartphone, CheckCircle2, Film, Radio, Loader2, FileText, Search, X, LayoutGrid, List, ArrowUpDown, Filter, SlidersHorizontal } from 'lucide-react';
 import { Project, FormattedShortProject, StreamSession, Product } from '../types';
 import ProjectWizardModal from './ProjectWizardModal';
 import ConfirmModal from './ConfirmModal';
@@ -39,6 +39,10 @@ export default function ProjectList({
 }: ProjectListProps) {
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<'ALL' | 'VOD' | 'SHORTS' | 'SCRIPTS'>('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'title_asc' | 'title_desc' | 'pins_desc'>('newest');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'READY' | 'DRAFT' | 'SCRIPTING'>('ALL');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [savedShorts, setSavedShorts] = useState<FormattedShortProject[]>([]);
   const [deletingShortId, setDeletingShortId] = useState<string | null>(null);
   const [togglingPublishId, setTogglingPublishId] = useState<string | null>(null);
@@ -190,6 +194,65 @@ export default function ProjectList({
   const shortProjects = localProjects.filter((p) => isShortProject(p));
   const totalCount = localProjects.length;
 
+  const filteredAndSortedProjects = localProjects
+    .filter((proj) => {
+      // 1. Category Filter
+      if (categoryFilter === 'VOD' && (isShortProject(proj) || isScriptProject(proj))) return false;
+      if (categoryFilter === 'SHORTS' && !isShortProject(proj)) return false;
+      if (categoryFilter === 'SCRIPTS' && !isScriptProject(proj)) return false;
+
+      // 2. Status Filter
+      if (statusFilter === 'READY' && proj.status !== 'READY') return false;
+      if (statusFilter === 'DRAFT' && (proj.status === 'READY' || isScriptProject(proj))) return false;
+      if (statusFilter === 'SCRIPTING' && !isScriptProject(proj) && proj.status !== 'SCRIPTING') return false;
+
+      // 3. Search Query
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const nameMatch = (proj.name || '').toLowerCase().includes(q);
+        const descMatch = (proj.description || '').toLowerCase().includes(q);
+        const channelMatch = (proj.channel || '').toLowerCase().includes(q);
+        const categoryMatch = (proj.category || '').toLowerCase().includes(q);
+        const productMatch = proj.productGroups?.some((g) => {
+          if ((g.title || '').toLowerCase().includes(q)) return true;
+          return g.products?.some(
+            (p) =>
+              (p.title || '').toLowerCase().includes(q) ||
+              (p.description || '').toLowerCase().includes(q) ||
+              (p.vendor || '').toLowerCase().includes(q) ||
+              (p.category || '').toLowerCase().includes(q),
+          );
+        });
+        if (!nameMatch && !descMatch && !channelMatch && !categoryMatch && !productMatch) {
+          return false;
+        }
+      }
+
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'newest') {
+        const timeA = new Date(a.updatedAt || a.createdAt || 0).getTime();
+        const timeB = new Date(b.updatedAt || b.createdAt || 0).getTime();
+        return timeB - timeA;
+      }
+      if (sortBy === 'oldest') {
+        const timeA = new Date(a.updatedAt || a.createdAt || 0).getTime();
+        const timeB = new Date(b.updatedAt || b.createdAt || 0).getTime();
+        return timeA - timeB;
+      }
+      if (sortBy === 'title_asc') {
+        return (a.name || '').localeCompare(b.name || '');
+      }
+      if (sortBy === 'title_desc') {
+        return (b.name || '').localeCompare(a.name || '');
+      }
+      if (sortBy === 'pins_desc') {
+        return (b.productGroups?.length || 0) - (a.productGroups?.length || 0);
+      }
+      return 0;
+    });
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       {/* Top Banner / Header */}
@@ -278,13 +341,216 @@ export default function ProjectList({
           </div>
         </div>
 
+        {/* Search, Filter & Sort Toolbar */}
+        {localProjects.length > 0 && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '12px',
+              padding: '12px 16px',
+              marginTop: '16px',
+              background: 'rgba(15, 23, 42, 0.55)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: '12px',
+              backdropFilter: 'blur(10px)',
+            }}
+          >
+            {/* Search Box */}
+            <div
+              style={{
+                position: 'relative',
+                flex: '1 1 260px',
+                maxWidth: '440px',
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              <Search
+                size={14}
+                style={{
+                  position: 'absolute',
+                  left: '12px',
+                  color: 'var(--text-muted)',
+                  pointerEvents: 'none',
+                }}
+              />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search projects, scripts, or attached products..."
+                style={{
+                  width: '100%',
+                  padding: '7px 30px 7px 34px',
+                  fontSize: '12px',
+                  background: 'rgba(0, 0, 0, 0.4)',
+                  border: '1px solid var(--border-hairline)',
+                  borderRadius: '7px',
+                  color: '#fff',
+                  outline: 'none',
+                }}
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  style={{
+                    position: 'absolute',
+                    right: '8px',
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    padding: '2px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                  title="Clear search"
+                >
+                  <X size={13} />
+                </button>
+              )}
+            </div>
+
+            {/* Filter & Sort Controls */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                flexWrap: 'wrap',
+              }}
+            >
+              {/* Status Dropdown */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Status:
+                </span>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value as any)}
+                  style={{
+                    padding: '6px 10px',
+                    fontSize: '12px',
+                    borderRadius: '6px',
+                    background: 'rgba(0, 0, 0, 0.45)',
+                    border: '1px solid var(--border-hairline)',
+                    color: '#e2e8f0',
+                    outline: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <option value="ALL">All Statuses</option>
+                  <option value="READY">Published (Ready)</option>
+                  <option value="DRAFT">Drafts</option>
+                  <option value="SCRIPTING">Scripting</option>
+                </select>
+              </div>
+
+              {/* Sort Dropdown */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <ArrowUpDown size={13} color="var(--text-muted)" />
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Sort:
+                </span>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as any)}
+                  style={{
+                    padding: '6px 10px',
+                    fontSize: '12px',
+                    borderRadius: '6px',
+                    background: 'rgba(0, 0, 0, 0.45)',
+                    border: '1px solid var(--border-hairline)',
+                    color: '#e2e8f0',
+                    outline: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <option value="newest">Newest First</option>
+                  <option value="oldest">Oldest First</option>
+                  <option value="title_asc">Title (A – Z)</option>
+                  <option value="title_desc">Title (Z – A)</option>
+                  <option value="pins_desc">Most Products / Pins</option>
+                </select>
+              </div>
+
+              {/* Showing count & Clear */}
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>
+                  Showing <strong style={{ color: '#fff' }}>{filteredAndSortedProjects.length}</strong> of {totalCount}
+                </span>
+                {(searchQuery || statusFilter !== 'ALL' || categoryFilter !== 'ALL') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery('');
+                      setStatusFilter('ALL');
+                      setCategoryFilter('ALL');
+                    }}
+                    style={{
+                      padding: '3px 8px',
+                      fontSize: '11px',
+                      background: 'rgba(239, 68, 68, 0.12)',
+                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                      borderRadius: '5px',
+                      color: '#f87171',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      fontWeight: 600,
+                    }}
+                  >
+                    <X size={11} />
+                    <span>Reset</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Divider */}
+              <div style={{ width: '1px', height: '18px', background: 'var(--border-hairline)' }} />
+
+              {/* View Mode Toggle */}
+              <div
+                style={{
+                  display: 'flex',
+                  background: 'rgba(0, 0, 0, 0.4)',
+                  padding: '3px',
+                  borderRadius: '6px',
+                  border: '1px solid var(--border-subtle)',
+                  gap: '2px',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setViewMode('grid')}
+                  className={`btn ${viewMode === 'grid' ? 'btn--primary' : 'btn--ghost'}`}
+                  style={{ padding: '4px 8px', fontSize: '11px', display: 'flex', alignItems: 'center' }}
+                  title="Grid View"
+                >
+                  <LayoutGrid size={13} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('list')}
+                  className={`btn ${viewMode === 'list' ? 'btn--primary' : 'btn--ghost'}`}
+                  style={{ padding: '4px 8px', fontSize: '11px', display: 'flex', alignItems: 'center' }}
+                  title="Compact List View"
+                >
+                  <List size={13} />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Project Grid or Sleek Center CTA */}
-        {localProjects.filter((proj) => {
-          if (categoryFilter === 'VOD') return !isShortProject(proj) && !isScriptProject(proj);
-          if (categoryFilter === 'SHORTS') return isShortProject(proj);
-          if (categoryFilter === 'SCRIPTS') return isScriptProject(proj);
-          return true;
-        }).length === 0 ? (
+        {localProjects.length === 0 ? (
           <div
             style={{
               margin: '36px auto',
@@ -486,7 +752,59 @@ export default function ProjectList({
               </div>
             </div>
           </div>
-        ) : (
+        ) : filteredAndSortedProjects.length === 0 ? (
+          <div
+            style={{
+              margin: '36px auto',
+              maxWidth: '540px',
+              padding: '40px 24px',
+              background: 'rgba(15, 23, 42, 0.6)',
+              border: '1px solid var(--border-hairline)',
+              borderRadius: '16px',
+              textAlign: 'center',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+            }}
+          >
+            <div
+              style={{
+                width: '52px',
+                height: '52px',
+                borderRadius: '14px',
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid var(--border-hairline)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: '16px',
+              }}
+            >
+              <Search size={22} color="var(--text-muted)" />
+            </div>
+            <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#fff', margin: '0 0 8px 0' }}>
+              No projects match your criteria
+            </h3>
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '0 0 20px 0', maxWidth: '380px', lineHeight: 1.5 }}>
+              {searchQuery
+                ? `No projects found containing "${searchQuery}". Try adjusting your keywords or clearing active filters.`
+                : 'No projects found with the selected category and status filters.'}
+            </p>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => {
+                setSearchQuery('');
+                setStatusFilter('ALL');
+                setCategoryFilter('ALL');
+              }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}
+            >
+              <X size={13} />
+              <span>Reset All Filters</span>
+            </button>
+          </div>
+        ) : viewMode === 'grid' ? (
           <div
             style={{
               display: 'grid',
@@ -495,14 +813,7 @@ export default function ProjectList({
               marginTop: '16px',
             }}
           >
-            {localProjects
-              .filter((proj) => {
-                if (categoryFilter === 'VOD') return !isShortProject(proj) && !isScriptProject(proj);
-                if (categoryFilter === 'SHORTS') return isShortProject(proj);
-                if (categoryFilter === 'SCRIPTS') return isScriptProject(proj);
-                return true;
-              })
-              .map((proj) => {
+            {filteredAndSortedProjects.map((proj) => {
                 const isScript = isScriptProject(proj);
                 const isShort = isShortProject(proj);
                 const pinCount = proj.productGroups?.length || 0;
@@ -759,6 +1070,221 @@ export default function ProjectList({
                   </div>
                 );
               })}
+          </div>
+        ) : (
+          /* Compact Table / List View */
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px',
+              marginTop: '16px',
+            }}
+          >
+            {filteredAndSortedProjects.map((proj) => {
+              const isScript = isScriptProject(proj);
+              const isShort = isShortProject(proj);
+              const pinCount = proj.productGroups?.length || 0;
+              const basketCount = proj.baskets?.length || 0;
+              const thumbSrc = getResolvedThumbnailUrl(proj.thumbnailUrl);
+
+              const handleCardClick = () => {
+                if (isScript && onOpenPreProduction) {
+                  onOpenPreProduction(proj);
+                } else {
+                  onSelectProject(proj);
+                }
+              };
+
+              return (
+                <div
+                  key={proj.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '16px',
+                    padding: '12px 16px',
+                    background: 'var(--bg-canvas)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '8px',
+                    transition: 'all var(--transition-fast)',
+                  }}
+                >
+                  {/* Thumbnail */}
+                  <div
+                    style={{
+                      width: '84px',
+                      height: '50px',
+                      borderRadius: '6px',
+                      overflow: 'hidden',
+                      background: '#0a0f1d',
+                      flexShrink: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                    }}
+                    onClick={handleCardClick}
+                  >
+                    {thumbSrc ? (
+                      <img
+                        src={thumbSrc}
+                        alt={proj.name}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        onError={(e) => {
+                          (e.target as HTMLElement).style.display = 'none';
+                        }}
+                      />
+                    ) : (
+                      isScript ? (
+                        <FileText size={18} color="#38bdf8" />
+                      ) : isShort ? (
+                        <Smartphone size={18} color="var(--accent-teal)" />
+                      ) : (
+                        <Play size={18} color="var(--accent-teal)" />
+                      )
+                    )}
+                  </div>
+
+                  {/* Title & Description */}
+                  <div style={{ flex: '1 1 auto', minWidth: 0, cursor: 'pointer' }} onClick={handleCardClick}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '14px', fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {proj.name}
+                      </span>
+                      {/* Media badge */}
+                      <span
+                        style={{
+                          padding: '1px 6px',
+                          borderRadius: '4px',
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          background: isScript ? 'rgba(2, 132, 199, 0.25)' : isShort ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.08)',
+                          color: isScript ? '#38bdf8' : isShort ? '#a5b4fc' : '#e2e8f0',
+                          border: `1px solid ${isScript ? 'rgba(56, 189, 248, 0.3)' : isShort ? 'rgba(99, 102, 241, 0.3)' : 'rgba(255, 255, 255, 0.12)'}`,
+                        }}
+                      >
+                        {isScript ? 'Pre-Production' : isShort ? '9:16 Short' : '16:9 VOD'}
+                      </span>
+                      {/* Status badge */}
+                      <span
+                        style={{
+                          padding: '1px 7px',
+                          borderRadius: '10px',
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          background:
+                            proj.status === 'READY'
+                              ? 'rgba(16, 185, 129, 0.2)'
+                              : isScript || proj.status === 'SCRIPTING'
+                              ? 'rgba(56, 189, 248, 0.2)'
+                              : 'rgba(255, 184, 0, 0.2)',
+                          color:
+                            proj.status === 'READY'
+                              ? '#34d399'
+                              : isScript || proj.status === 'SCRIPTING'
+                              ? '#38bdf8'
+                              : '#fbbf24',
+                          border: `1px solid ${
+                            proj.status === 'READY'
+                              ? 'rgba(16, 185, 129, 0.35)'
+                              : isScript || proj.status === 'SCRIPTING'
+                              ? 'rgba(56, 189, 248, 0.35)'
+                              : 'rgba(255, 184, 0, 0.35)'
+                          }`,
+                        }}
+                      >
+                        {proj.status === 'READY'
+                          ? 'Published'
+                          : isScript || proj.status === 'SCRIPTING'
+                          ? 'Scripting'
+                          : 'Draft'}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {proj.description ||
+                        (isScript
+                          ? 'Pre-production script & teleprompter recording setup.'
+                          : isShort
+                          ? '9:16 Shoppable Short Video.'
+                          : 'Interactive shoppable video project.')}
+                    </div>
+                  </div>
+
+                  {/* Metrics */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0, fontSize: '11px', color: 'var(--text-secondary)' }}>
+                    <div style={{ background: 'var(--bg-surface)', padding: '3px 7px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Layers size={11} color={isScript ? '#38bdf8' : 'var(--accent-teal)'} />
+                      <span>{pinCount} {isScript ? 'Cues' : 'Pins'}</span>
+                    </div>
+                    <div style={{ background: 'var(--bg-surface)', padding: '3px 7px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <ShoppingBag size={11} color="var(--accent-emerald)" />
+                      <span>{basketCount} Baskets</span>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                    {isScript ? (
+                      <>
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          style={{ padding: '5px 9px', fontSize: '11px', color: '#38bdf8' }}
+                          onClick={handleCardClick}
+                          title="Mobile Prompter"
+                        >
+                          <Smartphone size={11} />
+                          <span>Prompter</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-primary"
+                          style={{ padding: '5px 9px', fontSize: '11px', background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)', border: 'none' }}
+                          onClick={handleCardClick}
+                          title="Continue Script"
+                        >
+                          <FileText size={11} />
+                          <span>Continue</span>
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          style={{ padding: '5px 9px', fontSize: '11px' }}
+                          onClick={() => handleOpenPlayer(proj)}
+                          title="Launch Player"
+                        >
+                          <Play size={11} />
+                          <span>Play</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-primary"
+                          style={{ padding: '5px 9px', fontSize: '11px' }}
+                          onClick={() => onSelectProject(proj)}
+                          title="Edit"
+                        >
+                          <Edit3 size={11} />
+                          <span>{isShort ? 'Shorts' : 'Edit'}</span>
+                        </button>
+                      </>
+                    )}
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{ padding: '5px 7px', fontSize: '11px', color: 'var(--text-muted)' }}
+                      onClick={(e) => handleDeleteVod(e, proj.id)}
+                      title="Delete Project"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
