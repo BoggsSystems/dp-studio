@@ -23,6 +23,7 @@ import {
 import { Product, Project, ProductGroup } from '../../types';
 import { api } from '../../services/api';
 import { toast } from '../../services/toast';
+import { resolveProductImageUrl, handleImageError } from '../../utils/imageUtils';
 import MobileBridgeModal from './MobileBridgeModal';
 import AiCoDirectorDrawer from './AiCoDirectorDrawer';
 import DesktopPrompterModal from '../teleprompter/DesktopPrompterModal';
@@ -681,8 +682,10 @@ Don't wait—tap the product bubble directly on your screen to order before they
                       }}
                     >
                       <img
-                        src={p.imageUrl || 'https://via.placeholder.com/60'}
+                        src={resolveProductImageUrl(p.imageUrl)}
                         alt={p.title}
+                        referrerPolicy="no-referrer"
+                        onError={handleImageError}
                         style={{ width: '44px', height: '44px', borderRadius: '6px', objectFit: 'cover', background: '#000' }}
                       />
                       <div style={{ flex: 1, minWidth: 0 }}>

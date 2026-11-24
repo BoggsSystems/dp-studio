@@ -19,6 +19,7 @@ import {
 import { Product, CoDirectorMessage } from '../../types';
 import { api } from '../../services/api';
 import { toast } from '../../services/toast';
+import { resolveProductImageUrl } from '../../utils/imageUtils';
 
 interface AiCoDirectorDrawerProps {
   isOpen: boolean;
@@ -258,8 +259,9 @@ function SuggestedProductRow({
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
         {hasValidImage ? (
           <img
-            src={resolvedImageUrl}
+            src={resolveProductImageUrl(resolvedImageUrl)}
             alt={prod.title}
+            referrerPolicy="no-referrer"
             onError={() => setImgFailed(true)}
             style={{ width: '36px', height: '36px', borderRadius: '6px', objectFit: 'cover', flexShrink: 0 }}
           />
