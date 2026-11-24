@@ -77,14 +77,14 @@ export interface Project {
   description?: string;
   category?: string;
   channel?: string;
-  mediaType?: 'VOD' | 'SHORT' | 'LIVE';
+  mediaType?: 'VOD' | 'SHORT' | 'LIVE' | 'SCRIPT';
   thumbnailBadge?: string;
   chapterRef?: string;
   masterVodUrl?: string;
   hlsManifestUrl?: string;
   thumbnailUrl?: string;
   durationSeconds?: number;
-  status: 'DRAFT' | 'PROCESSING' | 'READY' | 'FAILED';
+  status: 'DRAFT' | 'PROCESSING' | 'READY' | 'FAILED' | 'SCRIPTING';
   isActive: boolean;
   productGroups: ProductGroup[];
   baskets?: ProductBasket[];

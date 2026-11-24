@@ -10,13 +10,15 @@ import {
   AlertCircle,
   ArrowRight,
   Loader2,
+  FileText,
+  Smartphone,
 } from 'lucide-react';
 import { Project, Product, StreamSession } from '../types';
 import { api } from '../services/api';
 import { saveDraftVideoBlob } from '../services/videoStorage';
 import { toast } from '../services/toast';
 
-export type ExperienceFormat = 'VOD' | 'SHORT' | 'LIVE';
+export type ExperienceFormat = 'VOD' | 'SHORT' | 'LIVE' | 'SCRIPT';
 
 interface ProjectWizardModalProps {
   isOpen: boolean;
@@ -24,6 +26,7 @@ interface ProjectWizardModalProps {
   onProjectCreated: (project: Project) => void;
   onOpenShortStudio?: (draftId?: string) => void;
   onOpenLiveStudio?: (session: StreamSession) => void;
+  onOpenPreProduction?: (project: Project) => void;
   availableProducts?: Product[];
 }
 
@@ -33,6 +36,7 @@ export default function ProjectWizardModal({
   onProjectCreated,
   onOpenShortStudio,
   onOpenLiveStudio,
+  onOpenPreProduction,
   availableProducts = [],
 }: ProjectWizardModalProps) {
   // Ultra-Clean 2-Step Flow: Step 1 = Format Selection, Step 2 = Drop Asset & Launch
@@ -99,7 +103,14 @@ export default function ProjectWizardModal({
         const cleanName = selectedFile.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
         effectiveTitle = cleanName.charAt(0).toUpperCase() + cleanName.slice(1);
       } else {
-        effectiveTitle = format === 'SHORT' ? 'AI SHOPPABLE SHORT' : (format === 'LIVE' ? 'Live Shopping Stream' : 'Shoppable Video Experience');
+        effectiveTitle =
+          format === 'SCRIPT'
+            ? 'New Video Script & Pitch'
+            : format === 'SHORT'
+            ? 'AI SHOPPABLE SHORT'
+            : format === 'LIVE'
+            ? 'Live Shopping Stream'
+            : 'Shoppable Video Experience';
       }
     }
 
@@ -108,6 +119,38 @@ export default function ProjectWizardModal({
     setUploadPercent(0);
 
     try {
+      // 0. SCRIPT & SHOOT (PRE-PRODUCTION FIRST FLOW)
+      if (format === 'SCRIPT') {
+        setUploadStage('Initializing pre-production workspace...');
+        const scriptTitle = effectiveTitle || 'New Video Script & Pitch';
+        const newProjectPayload: Partial<Project> = {
+          name: scriptTitle,
+          description: 'Pre-production script with AI co-director cues and teleprompter sync.',
+          category: 'Scripting',
+          channel: 'preproduction',
+          mediaType: 'SCRIPT',
+          thumbnailBadge: 'Scripting',
+          masterVodUrl: '',
+          status: 'SCRIPTING',
+          isActive: true,
+          productGroups: [],
+          baskets: [],
+          metadata: {
+            preproductionScript: '',
+            preproductionTargetWpm: 140,
+            preproductionProductIds: [],
+          },
+        };
+        const created = await api.saveProject(newProjectPayload);
+        onProjectCreated(created);
+        toast.success(`Project "${created.name}" created! Opening Pre-Production Studio...`, 'Pre-Production Ready');
+        if (onOpenPreProduction) {
+          onOpenPreProduction(created);
+        }
+        handleReset();
+        return;
+      }
+
       // 1. LIVE BROADCAST CREATION FLOW
       if (format === 'LIVE') {
         setUploadStage('Scheduling real-time broadcast session...');
@@ -267,7 +310,7 @@ export default function ProjectWizardModal({
         className="surface-panel"
         style={{
           width: '100%',
-          maxWidth: step === 1 ? '760px' : '560px',
+          maxWidth: step === 1 ? '820px' : '560px',
           borderRadius: 'var(--radius-lg)',
           overflow: 'hidden',
           background: '#0c111d',
@@ -296,7 +339,9 @@ export default function ProjectWizardModal({
                 height: '36px',
                 borderRadius: '8px',
                 background:
-                  format === 'VOD'
+                  format === 'SCRIPT'
+                    ? 'rgba(56, 189, 248, 0.15)'
+                    : format === 'VOD'
                     ? 'rgba(20, 184, 166, 0.15)'
                     : format === 'SHORT'
                     ? 'rgba(99, 102, 241, 0.15)'
@@ -305,7 +350,9 @@ export default function ProjectWizardModal({
                 alignItems: 'center',
                 justifyContent: 'center',
                 border: `1px solid ${
-                  format === 'VOD'
+                  format === 'SCRIPT'
+                    ? '#38bdf8'
+                    : format === 'VOD'
                     ? 'var(--accent-teal)'
                     : format === 'SHORT'
                     ? '#6366F1'
@@ -313,6 +360,7 @@ export default function ProjectWizardModal({
                 }`,
               }}
             >
+              {format === 'SCRIPT' && <FileText size={18} color="#38bdf8" />}
               {format === 'VOD' && <Film size={18} color="var(--accent-teal)" />}
               {format === 'SHORT' && <Sparkles size={18} color="#818CF8" />}
               {format === 'LIVE' && <Radio size={18} color="var(--accent-red)" />}
@@ -321,14 +369,16 @@ export default function ProjectWizardModal({
               <h2 style={{ fontSize: '17px', fontWeight: 700, color: '#fff', margin: 0 }}>
                 {step === 1 && 'Create New Shoppable Experience'}
                 {step === 2 &&
-                  (format === 'VOD'
+                  (format === 'SCRIPT'
+                    ? 'Setup Pre-Production Script & Pitch'
+                    : format === 'VOD'
                     ? 'Upload 16:9 Master Video'
                     : format === 'SHORT'
                     ? 'Upload 9:16 Video Asset'
                     : 'Schedule Live Shopping Event')}
               </h2>
               <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                Step {step} of 2 • {step === 1 ? 'Choose Experience Format' : 'Asset Ingestion & AI Auto-Match'}
+                Step {step} of 2 • {step === 1 ? 'Choose Experience Format' : (format === 'SCRIPT' ? 'Project Name & Pre-Production Setup' : 'Asset Ingestion & AI Auto-Match')}
               </div>
             </div>
           </div>
@@ -370,10 +420,66 @@ export default function ProjectWizardModal({
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
                 Select the shoppable format you want to create:
-              </div>
+              </div>              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
+                {/* 1. Script & Shoot (Pre-Production First) */}
+                <div
+                  onClick={() => setFormat('SCRIPT')}
+                  style={{
+                    padding: '20px 16px',
+                    borderRadius: 'var(--radius-lg)',
+                    background:
+                      format === 'SCRIPT'
+                        ? 'linear-gradient(180deg, rgba(56, 189, 248, 0.15) 0%, rgba(56, 189, 248, 0.04) 100%)'
+                        : 'rgba(255, 255, 255, 0.02)',
+                    border: `1.5px solid ${format === 'SCRIPT' ? '#38bdf8' : 'rgba(255, 255, 255, 0.08)'}`,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div
+                      style={{
+                        padding: '8px',
+                        borderRadius: '8px',
+                        background: 'rgba(56, 189, 248, 0.2)',
+                        color: '#38bdf8',
+                      }}
+                    >
+                      <FileText size={22} />
+                    </div>
+                    {format === 'SCRIPT' && <CheckCircle2 size={18} color="#38bdf8" />}
+                  </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
-                {/* 1. 9:16 Shorts Card (Default & Recommended) */}
+                  <div>
+                    <div style={{ fontSize: '15px', fontWeight: 700, color: '#fff' }}>Script & Shoot</div>
+                    <div style={{ fontSize: '11px', color: '#38bdf8', fontWeight: 600, marginTop: '2px' }}>
+                      Pre-Production First
+                    </div>
+                  </div>
+
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                    AI pitch scripts, stage cues, and mobile QR teleprompter before recording. No video required yet.
+                  </div>
+
+                  <div
+                    style={{
+                      marginTop: 'auto',
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      background: 'rgba(0, 0, 0, 0.4)',
+                      fontSize: '10px',
+                      fontFamily: 'var(--font-mono)',
+                      color: 'var(--text-secondary)',
+                    }}
+                  >
+                    AI Co-Director + Prompter
+                  </div>
+                </div>
+
+                {/* 2. 9:16 Shorts Card */}
                 <div
                   onClick={() => setFormat('SHORT')}
                   style={{
@@ -431,7 +537,7 @@ export default function ProjectWizardModal({
                   </div>
                 </div>
 
-                {/* 2. 16:9 VOD Card */}
+                {/* 3. 16:9 VOD Card */}
                 <div
                   onClick={() => setFormat('VOD')}
                   style={{
@@ -489,7 +595,7 @@ export default function ProjectWizardModal({
                   </div>
                 </div>
 
-                {/* 3. Live Broadcast Card */}
+                {/* 4. Live Broadcast Card */}
                 <div
                   onClick={() => setFormat('LIVE')}
                   style={{
@@ -553,7 +659,52 @@ export default function ProjectWizardModal({
           {/* ================= STEP 2: DROP ASSET & LAUNCH ================= */}
           {step === 2 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              {format === 'LIVE' ? (
+              {format === 'SCRIPT' ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div>
+                    <label
+                      className="form-label"
+                      style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}
+                    >
+                      Project / Pitch Name *
+                    </label>
+                    <input
+                      type="text"
+                      className="input-field"
+                      placeholder="e.g. Summer Collection Showcase or Chef Knife Demo"
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      autoFocus
+                    />
+                  </div>
+
+                  {/* Pre-Production Flow Info Box */}
+                  <div
+                    style={{
+                      padding: '16px',
+                      borderRadius: 'var(--radius-md)',
+                      background: 'rgba(56, 189, 248, 0.08)',
+                      border: '1px solid rgba(56, 189, 248, 0.25)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '10px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#38bdf8', fontWeight: 600, fontSize: '13px' }}>
+                      <Smartphone size={16} />
+                      <span>Script First, Shoot Seamlessly</span>
+                    </div>
+                    <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                      No video file needed yet. You will jump straight into our Pre-Production Studio where you can select catalog products, generate AI pitch scripts with embedded shoppable cues, and scan the QR code to shoot on your phone with zero eye-line drift teleprompter.
+                    </p>
+                    <div style={{ display: 'flex', gap: '12px', marginTop: '4px', fontSize: '11px', color: 'var(--text-muted)' }}>
+                      <span>✓ AI Co-Director & Pitch Writer</span>
+                      <span>✓ Mobile QR Teleprompter</span>
+                      <span>✓ Auto-Sync into Timeline</span>
+                    </div>
+                  </div>
+                </div>
+              ) : format === 'LIVE' ? (
                 <div>
                   <label
                     className="form-label"
@@ -810,17 +961,17 @@ export default function ProjectWizardModal({
                 type="button"
                 className="btn btn-primary"
                 onClick={() => handleFinalSubmit()}
-                disabled={isSubmitting || (format !== 'LIVE' && !selectedFile && !videoUrl)}
+                disabled={isSubmitting || (format !== 'LIVE' && format !== 'SCRIPT' && !selectedFile && !videoUrl)}
               >
                 {isSubmitting ? (
                   <>
                     <Loader2 size={14} className="animate-spin" />
-                    <span>Uploading & Initializing...</span>
+                    <span>{format === 'SCRIPT' ? 'Setting up Pre-Production...' : 'Uploading & Initializing...'}</span>
                   </>
                 ) : (
                   <>
                     <Sparkles size={14} />
-                    <span>Launch Studio</span>
+                    <span>{format === 'SCRIPT' ? 'Launch Pre-Production' : 'Launch Studio'}</span>
                   </>
                 )}
               </button>

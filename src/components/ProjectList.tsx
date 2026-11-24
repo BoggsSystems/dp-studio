@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Video, Play, Edit3, ExternalLink, Trash2, Layers, ShoppingBag, CheckCircle, Sparkles, Smartphone, CheckCircle2, Film, Radio, Loader2 } from 'lucide-react';
+import { Plus, Video, Play, Edit3, ExternalLink, Trash2, Layers, ShoppingBag, CheckCircle, Sparkles, Smartphone, CheckCircle2, Film, Radio, Loader2, FileText } from 'lucide-react';
 import { Project, FormattedShortProject, StreamSession, Product } from '../types';
 import ProjectWizardModal from './ProjectWizardModal';
 import ConfirmModal from './ConfirmModal';
@@ -14,7 +14,7 @@ interface ProjectListProps {
   onDeleteProject?: (projectId: string) => void;
   onOpenShort?: (short?: FormattedShortProject) => void;
   onOpenLiveStudio?: (session: StreamSession) => void;
-  onOpenPreProduction?: () => void;
+  onOpenPreProduction?: (project?: Project) => void;
   availableProducts?: Product[];
 }
 
@@ -38,7 +38,7 @@ export default function ProjectList({
   availableProducts = [],
 }: ProjectListProps) {
   const [isWizardOpen, setIsWizardOpen] = useState(false);
-  const [categoryFilter, setCategoryFilter] = useState<'ALL' | 'VOD' | 'SHORTS'>('ALL');
+  const [categoryFilter, setCategoryFilter] = useState<'ALL' | 'VOD' | 'SHORTS' | 'SCRIPTS'>('ALL');
   const [savedShorts, setSavedShorts] = useState<FormattedShortProject[]>([]);
   const [deletingShortId, setDeletingShortId] = useState<string | null>(null);
   const [togglingPublishId, setTogglingPublishId] = useState<string | null>(null);
@@ -168,7 +168,16 @@ export default function ProjectList({
     setDeletingVodId(null);
   };
 
+  const isScriptProject = (proj: Project): boolean => {
+    return (
+      proj.mediaType === 'SCRIPT' ||
+      proj.status === 'SCRIPTING' ||
+      (!proj.masterVodUrl && !!(proj.metadata as any)?.preproductionScript)
+    );
+  };
+
   const isShortProject = (proj: Project): boolean => {
+    if (isScriptProject(proj)) return false;
     return (
       proj.mediaType === 'SHORT' ||
       (proj.masterVodUrl ? proj.masterVodUrl.includes('/shorts/') || proj.masterVodUrl.includes('_SHORT') : false) ||
@@ -176,7 +185,8 @@ export default function ProjectList({
     );
   };
 
-  const vodProjects = localProjects.filter((p) => !isShortProject(p));
+  const scriptProjects = localProjects.filter((p) => isScriptProject(p));
+  const vodProjects = localProjects.filter((p) => !isShortProject(p) && !isScriptProject(p));
   const shortProjects = localProjects.filter((p) => isShortProject(p));
   const totalCount = localProjects.length;
 
@@ -227,13 +237,22 @@ export default function ProjectList({
                 <Sparkles size={12} />
                 <span>9:16 Shorts ({shortProjects.length})</span>
               </button>
+              <button
+                type="button"
+                onClick={() => setCategoryFilter('SCRIPTS')}
+                className={`btn ${categoryFilter === 'SCRIPTS' ? 'btn--primary' : 'btn--ghost'}`}
+                style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+              >
+                <FileText size={12} color="#38bdf8" />
+                <span>Scripts ({scriptProjects.length})</span>
+              </button>
             </div>
 
             {onOpenPreProduction && (
               <button
                 type="button"
                 className="btn btn-secondary"
-                onClick={onOpenPreProduction}
+                onClick={() => onOpenPreProduction()}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -261,8 +280,9 @@ export default function ProjectList({
 
         {/* Project Grid or Sleek Center CTA */}
         {localProjects.filter((proj) => {
-          if (categoryFilter === 'VOD') return !isShortProject(proj);
+          if (categoryFilter === 'VOD') return !isShortProject(proj) && !isScriptProject(proj);
           if (categoryFilter === 'SHORTS') return isShortProject(proj);
+          if (categoryFilter === 'SCRIPTS') return isScriptProject(proj);
           return true;
         }).length === 0 ? (
           <div
@@ -307,7 +327,9 @@ export default function ProjectList({
                 margin: '0 0 10px 0',
               }}
             >
-              {categoryFilter === 'SHORTS'
+              {categoryFilter === 'SCRIPTS'
+                ? 'Create Your First Script & Pitch'
+                : categoryFilter === 'SHORTS'
                 ? 'Create Your First Shoppable Short'
                 : categoryFilter === 'VOD'
                 ? 'Create Your First Interactive 16:9 Video'
@@ -322,7 +344,9 @@ export default function ProjectList({
                 margin: '0 0 28px 0',
               }}
             >
-              {categoryFilter === 'SHORTS'
+              {categoryFilter === 'SCRIPTS'
+                ? 'Select catalog products, generate AI pitch scripts with shoppable cues, and shoot with the zero eye-line drift mobile prompter.'
+                : categoryFilter === 'SHORTS'
                 ? 'Transform vertical video with AI captions, dynamic animated product cards, and instant mobile checkout.'
                 : categoryFilter === 'VOD'
                 ? 'Upload a 16:9 master video to place frame-accurate product hotspots, interactive overlays, and synchronized drawers.'
@@ -353,7 +377,7 @@ export default function ProjectList({
                 <button
                   type="button"
                   className="btn btn-secondary"
-                  onClick={onOpenPreProduction}
+                  onClick={() => onOpenPreProduction()}
                   style={{
                     padding: '11px 20px',
                     fontSize: '13px',
@@ -412,7 +436,7 @@ export default function ProjectList({
               }}
             >
               <div
-                onClick={onOpenPreProduction}
+                onClick={() => onOpenPreProduction?.()}
                 style={{
                   padding: '12px',
                   borderRadius: '10px',
@@ -473,193 +497,268 @@ export default function ProjectList({
           >
             {localProjects
               .filter((proj) => {
-              if (categoryFilter === 'VOD') return !isShortProject(proj);
-              if (categoryFilter === 'SHORTS') return isShortProject(proj);
-              return true;
-            })
-            .map((proj) => {
-              const isShort = isShortProject(proj);
-              const pinCount = proj.productGroups?.length || 0;
-              const basketCount = proj.baskets?.length || 0;
-              const thumbSrc = getResolvedThumbnailUrl(proj.thumbnailUrl);
+                if (categoryFilter === 'VOD') return !isShortProject(proj) && !isScriptProject(proj);
+                if (categoryFilter === 'SHORTS') return isShortProject(proj);
+                if (categoryFilter === 'SCRIPTS') return isScriptProject(proj);
+                return true;
+              })
+              .map((proj) => {
+                const isScript = isScriptProject(proj);
+                const isShort = isShortProject(proj);
+                const pinCount = proj.productGroups?.length || 0;
+                const basketCount = proj.baskets?.length || 0;
+                const thumbSrc = getResolvedThumbnailUrl(proj.thumbnailUrl);
 
-              return (
-                <div
-                  key={proj.id}
-                  style={{
-                    background: 'var(--bg-canvas)',
-                    border: '1px solid var(--border-subtle)',
-                    borderRadius: 'var(--radius-md)',
-                    overflow: 'hidden',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    transition: 'all var(--transition-fast)',
-                  }}
-                >
-                  {/* Thumbnail / Preview Area */}
+                const handleCardClick = () => {
+                  if (isScript && onOpenPreProduction) {
+                    onOpenPreProduction(proj);
+                  } else {
+                    onSelectProject(proj);
+                  }
+                };
+
+                return (
                   <div
+                    key={proj.id}
                     style={{
-                      height: '180px',
-                      position: 'relative',
-                      background: '#0a0f1d',
+                      background: 'var(--bg-canvas)',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: 'var(--radius-md)',
+                      overflow: 'hidden',
                       display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
+                      flexDirection: 'column',
+                      transition: 'all var(--transition-fast)',
                     }}
-                    onClick={() => onSelectProject(proj)}
                   >
-                    {thumbSrc ? (
-                      <img
-                        src={thumbSrc}
-                        alt={proj.name}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                        onError={(e) => {
-                          (e.target as HTMLElement).style.display = 'none';
-                        }}
-                      />
-                    ) : (
-                      <div
-                        style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          gap: '8px',
-                          color: 'var(--text-muted)',
-                        }}
-                      >
-                        {isShort ? <Smartphone size={36} color="var(--accent-teal)" /> : <Play size={32} color="var(--accent-teal)" />}
-                        <span style={{ fontSize: '12px' }}>{isShort ? '9:16 Short Video' : 'Interactive Video Stream'}</span>
-                      </div>
-                    )}
-
-                    {/* Media Type Badge */}
+                    {/* Thumbnail / Preview Area */}
                     <div
                       style={{
-                        position: 'absolute',
-                        top: '10px',
-                        left: '10px',
-                        background: isShort
-                          ? 'linear-gradient(135deg, #6366F1 0%, #3B82F6 100%)'
-                          : 'rgba(0,0,0,0.75)',
-                        boxShadow: isShort ? '0 2px 8px rgba(99, 102, 241, 0.4)' : undefined,
-                        padding: '2px 8px',
-                        borderRadius: '4px',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        color: isShort ? '#fff' : 'var(--accent-teal)',
+                        height: '180px',
+                        position: 'relative',
+                        background: '#0a0f1d',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
                       }}
+                      onClick={handleCardClick}
                     >
-                      {isShort ? (
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                          <Sparkles size={11} /> 9:16 Short
-                        </span>
+                      {thumbSrc ? (
+                        <img
+                          src={thumbSrc}
+                          alt={proj.name}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          onError={(e) => {
+                            (e.target as HTMLElement).style.display = 'none';
+                          }}
+                        />
                       ) : (
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                          <Film size={11} /> 16:9 VOD
-                        </span>
+                        <div
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '8px',
+                            color: isScript ? '#38bdf8' : 'var(--text-muted)',
+                          }}
+                        >
+                          {isScript ? (
+                            <>
+                              <FileText size={36} color="#38bdf8" />
+                              <span style={{ fontSize: '12px', fontWeight: 600 }}>Script & Prompter</span>
+                              <span style={{ fontSize: '10px', color: '#94a3b8' }}>Shoot on phone when ready</span>
+                            </>
+                          ) : isShort ? (
+                            <>
+                              <Smartphone size={36} color="var(--accent-teal)" />
+                              <span style={{ fontSize: '12px' }}>9:16 Short Video</span>
+                            </>
+                          ) : (
+                            <>
+                              <Play size={32} color="var(--accent-teal)" />
+                              <span style={{ fontSize: '12px' }}>Interactive Video Stream</span>
+                            </>
+                          )}
+                        </div>
                       )}
-                    </div>
 
-                    {/* Status Badge */}
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: '10px',
-                        right: '10px',
-                        background: proj.status === 'READY' ? 'rgba(16, 185, 129, 0.9)' : 'rgba(255, 184, 0, 0.9)',
-                        padding: '2px 8px',
-                        borderRadius: '12px',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        color: '#000',
-                      }}
-                    >
-                      {proj.status === 'READY' ? 'Published' : 'Draft'}
-                    </div>
-                  </div>
-
-                  {/* Body */}
-                  <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', flex: 1 }}>
-                    <div>
+                      {/* Media Type Badge */}
                       <div
                         style={{
-                          fontSize: '15px',
+                          position: 'absolute',
+                          top: '10px',
+                          left: '10px',
+                          background: isScript
+                            ? 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)'
+                            : isShort
+                            ? 'linear-gradient(135deg, #6366F1 0%, #3B82F6 100%)'
+                            : 'rgba(0,0,0,0.75)',
+                          boxShadow: isScript
+                            ? '0 2px 8px rgba(2, 132, 199, 0.4)'
+                            : isShort
+                            ? '0 2px 8px rgba(99, 102, 241, 0.4)'
+                            : undefined,
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          fontSize: '11px',
                           fontWeight: 700,
-                          color: 'var(--text-primary)',
-                          margin: 0,
-                          lineHeight: 1.4,
-                          cursor: 'pointer',
+                          color: '#fff',
                         }}
-                        onClick={() => onSelectProject(proj)}
                       >
-                        {proj.name}
+                        {isScript ? (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <FileText size={11} /> Pre-Production
+                          </span>
+                        ) : isShort ? (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <Sparkles size={11} /> 9:16 Short
+                          </span>
+                        ) : (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <Film size={11} /> 16:9 VOD
+                          </span>
+                        )}
                       </div>
-                      <p
+
+                      {/* Status Badge */}
+                      <div
                         style={{
-                          fontSize: '12px',
-                          color: 'var(--text-muted)',
-                          margin: '4px 0 0 0',
-                          lineHeight: 1.5,
-                          display: '-webkit-box',
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: 'vertical',
-                          overflow: 'hidden',
+                          position: 'absolute',
+                          top: '10px',
+                          right: '10px',
+                          background:
+                            proj.status === 'READY'
+                              ? 'rgba(16, 185, 129, 0.9)'
+                              : isScript || proj.status === 'SCRIPTING'
+                              ? 'rgba(56, 189, 248, 0.9)'
+                              : 'rgba(255, 184, 0, 0.9)',
+                          padding: '2px 8px',
+                          borderRadius: '12px',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          color: '#000',
                         }}
                       >
-                        {proj.description || (isShort ? '9:16 Shoppable Short Video.' : 'Interactive shoppable video project.')}
-                      </p>
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', fontSize: '11px' }}>
-                      <div style={{ background: 'var(--bg-surface)', padding: '4px 8px', borderRadius: '4px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Layers size={12} color="var(--accent-teal)" />
-                        <span>{pinCount} Pins</span>
-                      </div>
-                      <div style={{ background: 'var(--bg-surface)', padding: '4px 8px', borderRadius: '4px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <ShoppingBag size={12} color="var(--accent-emerald)" />
-                        <span>{basketCount} Baskets</span>
-                      </div>
-                      <div style={{ marginLeft: 'auto', color: 'var(--accent-emerald)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <CheckCircle size={12} /> Ready
+                        {proj.status === 'READY'
+                          ? 'Published'
+                          : isScript || proj.status === 'SCRIPTING'
+                          ? 'Scripting'
+                          : 'Draft'}
                       </div>
                     </div>
 
-                    <div style={{ marginTop: 'auto', paddingTop: '12px', borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: '8px' }}>
-                      <button
-                        type="button"
-                        className="btn btn-secondary"
-                        style={{ flex: 1, padding: '6px 10px', fontSize: '12px' }}
-                        onClick={() => handleOpenPlayer(proj)}
-                      >
-                        <Play size={12} />
-                        <span>Launch Player</span>
-                      </button>
+                    {/* Body */}
+                    <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', flex: 1 }}>
+                      <div>
+                        <div
+                          style={{
+                            fontSize: '15px',
+                            fontWeight: 700,
+                            color: 'var(--text-primary)',
+                            margin: 0,
+                            lineHeight: 1.4,
+                            cursor: 'pointer',
+                          }}
+                          onClick={handleCardClick}
+                        >
+                          {proj.name}
+                        </div>
+                        <p
+                          style={{
+                            fontSize: '12px',
+                            color: 'var(--text-muted)',
+                            margin: '4px 0 0 0',
+                            lineHeight: 1.5,
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                          }}
+                        >
+                          {proj.description ||
+                            (isScript
+                              ? 'Pre-production script & teleprompter recording setup.'
+                              : isShort
+                              ? '9:16 Shoppable Short Video.'
+                              : 'Interactive shoppable video project.')}
+                        </p>
+                      </div>
 
-                      <button
-                        type="button"
-                        className="btn btn-primary"
-                        style={{ flex: 1, padding: '6px 10px', fontSize: '12px' }}
-                        onClick={() => onSelectProject(proj)}
-                      >
-                        <Edit3 size={12} />
-                        <span>{isShort ? 'Open in Shorts Studio' : 'Edit Project'}</span>
-                      </button>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', fontSize: '11px' }}>
+                        <div style={{ background: 'var(--bg-surface)', padding: '4px 8px', borderRadius: '4px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Layers size={12} color={isScript ? '#38bdf8' : 'var(--accent-teal)'} />
+                          <span>{pinCount} {isScript ? 'Cues' : 'Pins'}</span>
+                        </div>
+                        <div style={{ background: 'var(--bg-surface)', padding: '4px 8px', borderRadius: '4px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <ShoppingBag size={12} color="var(--accent-emerald)" />
+                          <span>{basketCount} Baskets</span>
+                        </div>
+                        <div style={{ marginLeft: 'auto', color: isScript ? '#38bdf8' : 'var(--accent-emerald)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <CheckCircle size={12} /> {isScript ? 'Ready to Shoot' : 'Ready'}
+                        </div>
+                      </div>
 
-                      <button
-                        type="button"
-                        className="btn btn-secondary"
-                        style={{ padding: '6px 10px', fontSize: '12px', color: 'var(--text-muted)' }}
-                        onClick={(e) => handleDeleteVod(e, proj.id)}
-                        title="Delete Project"
-                      >
-                        <Trash2 size={13} />
-                      </button>
+                      <div style={{ marginTop: 'auto', paddingTop: '12px', borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: '8px' }}>
+                        {isScript ? (
+                          <>
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              style={{ flex: 1, padding: '6px 10px', fontSize: '12px', color: '#38bdf8' }}
+                              onClick={handleCardClick}
+                            >
+                              <Smartphone size={12} />
+                              <span>Mobile Prompter</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              className="btn btn-primary"
+                              style={{ flex: 1, padding: '6px 10px', fontSize: '12px', background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)', border: 'none' }}
+                              onClick={handleCardClick}
+                            >
+                              <FileText size={12} />
+                              <span>Continue Script</span>
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              style={{ flex: 1, padding: '6px 10px', fontSize: '12px' }}
+                              onClick={() => handleOpenPlayer(proj)}
+                            >
+                              <Play size={12} />
+                              <span>Launch Player</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              className="btn btn-primary"
+                              style={{ flex: 1, padding: '6px 10px', fontSize: '12px' }}
+                              onClick={() => onSelectProject(proj)}
+                            >
+                              <Edit3 size={12} />
+                              <span>{isShort ? 'Open in Shorts Studio' : 'Edit Project'}</span>
+                            </button>
+                          </>
+                        )}
+
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          style={{ padding: '6px 10px', fontSize: '12px', color: 'var(--text-muted)' }}
+                          onClick={(e) => handleDeleteVod(e, proj.id)}
+                          title="Delete Project"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
           </div>
         )}
       </div>
@@ -671,7 +770,9 @@ export default function ProjectList({
         availableProducts={availableProducts}
         onProjectCreated={(newProj) => {
           onProjectCreated(newProj);
-          onSelectProject(newProj);
+          if (newProj.mediaType !== 'SCRIPT' && newProj.status !== 'SCRIPTING') {
+            onSelectProject(newProj);
+          }
         }}
         onOpenShortStudio={(draftId) => {
           if (onOpenShort) {
@@ -681,6 +782,11 @@ export default function ProjectList({
         onOpenLiveStudio={(session) => {
           if (onOpenLiveStudio) {
             onOpenLiveStudio(session);
+          }
+        }}
+        onOpenPreProduction={(createdProj) => {
+          if (onOpenPreProduction) {
+            onOpenPreProduction(createdProj);
           }
         }}
       />

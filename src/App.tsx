@@ -651,6 +651,16 @@ function StudioApp() {
                     }
                   }
                   setProject(activeSelected);
+
+                  const isScript =
+                    activeSelected.mediaType === 'SCRIPT' ||
+                    activeSelected.status === 'SCRIPTING' ||
+                    (!activeSelected.masterVodUrl && !!(activeSelected.metadata as any)?.preproductionScript);
+                  if (isScript) {
+                    setActiveTab('preproduction');
+                    return;
+                  }
+
                   const isShort =
                     activeSelected.mediaType === 'SHORT' ||
                     (activeSelected.masterVodUrl ? activeSelected.masterVodUrl.includes('/shorts/') || activeSelected.masterVodUrl.includes('_SHORT') : false) ||
@@ -666,6 +676,10 @@ function StudioApp() {
                 onProjectCreated={(newProj) => {
                   setProjects([newProj, ...projects]);
                   setProject(newProj);
+                  if (newProj.mediaType === 'SCRIPT' || newProj.status === 'SCRIPTING') {
+                    setActiveTab('preproduction');
+                    return;
+                  }
                   const isShort =
                     newProj.mediaType === 'SHORT' ||
                     (newProj.masterVodUrl ? newProj.masterVodUrl.includes('/shorts/') || newProj.masterVodUrl.includes('_SHORT') : false) ||
@@ -678,7 +692,10 @@ function StudioApp() {
                 onOpenLiveStudio={(session) => {
                   setActiveLiveSession(session);
                 }}
-                onOpenPreProduction={() => {
+                onOpenPreProduction={(proj?: Project) => {
+                  if (proj) {
+                    setProject(proj);
+                  }
                   setActiveTab('preproduction');
                 }}
               />

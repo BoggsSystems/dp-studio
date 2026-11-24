@@ -291,6 +291,15 @@ Don't wait—tap the product bubble directly on your screen to order before they
             <span style={{ fontSize: '11px', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '2px 8px', borderRadius: '12px', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
               Studio • Mobile QR Bridge
             </span>
+            {project ? (
+              <span style={{ fontSize: '11px', background: 'rgba(99, 102, 241, 0.15)', color: '#a5b4fc', padding: '2px 10px', borderRadius: '12px', border: '1px solid rgba(99, 102, 241, 0.35)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                📁 Project: <strong>{project.name}</strong>
+              </span>
+            ) : (
+              <span style={{ fontSize: '11px', background: 'rgba(255, 255, 255, 0.06)', color: '#94a3b8', padding: '2px 10px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                Draft Scratchpad
+              </span>
+            )}
           </div>
           <h1 style={{ fontSize: '26px', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>
             Script, Stage Cues & Mobile Teleprompter
