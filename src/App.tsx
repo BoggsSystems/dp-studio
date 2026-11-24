@@ -894,9 +894,16 @@ function StudioApp() {
                 catalogProducts={catalogProducts}
                 onProjectUpdate={(updated) => {
                   setProject(updated);
-                  setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+                  setProjects((prev) => {
+                    const exists = prev.some((p) => p.id === updated.id);
+                    if (exists) {
+                      return prev.map((p) => (p.id === updated.id ? updated : p));
+                    }
+                    return [updated, ...prev];
+                  });
                 }}
                 onNavigateToTimeline={() => setActiveTab('vod')}
+                onStartScratchpad={() => setProject(null)}
               />
             )}
           </main>

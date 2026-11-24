@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   Sparkles, 
   Smartphone, 
@@ -13,7 +13,12 @@ import {
   Zap, 
   AlertCircle,
   FileText,
-  Video 
+  Video,
+  FolderPlus,
+  X,
+  Loader2,
+  Plus,
+  Film
 } from 'lucide-react';
 import { Product, Project, ProductGroup } from '../../types';
 import { api } from '../../services/api';
@@ -27,6 +32,7 @@ interface PreProductionStudioProps {
   catalogProducts: Product[];
   onProjectUpdate: (updatedProject: Project) => void;
   onNavigateToTimeline: () => void;
+  onStartScratchpad?: () => void;
 }
 
 export default function PreProductionStudio({
@@ -34,6 +40,7 @@ export default function PreProductionStudio({
   catalogProducts,
   onProjectUpdate,
   onNavigateToTimeline,
+  onStartScratchpad,
 }: PreProductionStudioProps) {
   // 1. Product Basket (1-3 products)
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>(() => {
@@ -68,10 +75,139 @@ If you're tired of filling out endless career portals, check the link right here
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
   const [activeMode, setActiveMode] = useState<'co-director' | 'script-writer'>('co-director');
 
+  useEffect(() => {
+    if (project?.productGroups && project.productGroups.length > 0) {
+      const ids: string[] = [];
+      project.productGroups.forEach((g) => {
+        if (g.products) {
+          g.products.forEach((p) => {
+            if (p.id && !ids.includes(p.id)) ids.push(p.id);
+          });
+        }
+      });
+      if (ids.length > 0) setSelectedProductIds(ids.slice(0, 3));
+    }
+    if (project && (project.metadata as any)?.preproductionScript) {
+      setScriptText((project.metadata as any).preproductionScript);
+    }
+    if (project && (project.metadata as any)?.preproductionTargetWpm) {
+      setTargetWpm((project.metadata as any).preproductionTargetWpm);
+    }
+  }, [project?.id]);
+
   // 3. Mobile Bridge & Desktop Prompter Modal State
   const [bridgeModalOpen, setBridgeModalOpen] = useState(false);
   const [desktopPrompterOpen, setDesktopPrompterOpen] = useState(false);
   const [activeSession, setActiveSession] = useState<{ token: string; shortCode: string } | null>(null);
+
+  // 4. Create Project Modal State
+  const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = useState(false);
+  const [newProjectName, setNewProjectName] = useState('');
+  const [newProjectFormat, setNewProjectFormat] = useState<'SHORT' | 'VOD'>('SHORT');
+  const [isSubmittingProject, setIsSubmittingProject] = useState(false);
+
+  // Auto-suggest a smart project name based on script hook or selected products
+  const suggestProjectName = () => {
+    const firstLine = scriptText
+      .split('\n')
+      .map((l) => l.replace(/\[[^\]]*\]/g, '').trim())
+      .filter((l) => l.length > 5)[0];
+
+    if (firstLine) {
+      const cleaned = firstLine
+        .replace(/^(hey everyone!|hey guys!|hello!|hi!|today i want to show you|welcome back!)\s*/i, '')
+        .replace(/[!.,?]+$/, '')
+        .trim();
+      if (cleaned.length > 5 && cleaned.length < 50) {
+        return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+      }
+    }
+
+    const selectedProds = catalogProducts.filter((p) => selectedProductIds.includes(p.id));
+    if (selectedProds.length > 0) {
+      if (selectedProds.length === 1) {
+        return `${selectedProds[0].title} Showcase`;
+      }
+      return `${selectedProds[0].title} & ${selectedProds[1].title} Pitch`;
+    }
+
+    return 'New Shoppable Video Script';
+  };
+
+  const handleOpenCreateProjectModal = () => {
+    setNewProjectName(suggestProjectName());
+    setNewProjectFormat(project?.mediaType === 'VOD' ? 'VOD' : 'SHORT');
+    setIsCreateProjectModalOpen(true);
+  };
+
+  const handleConfirmCreateProject = async () => {
+    if (!newProjectName.trim()) {
+      toast.warning('Please enter a project title.');
+      return;
+    }
+    try {
+      setIsSubmittingProject(true);
+
+      const selectedProds = catalogProducts.filter((p) => selectedProductIds.includes(p.id));
+      const initialProductGroups: ProductGroup[] = selectedProds.length > 0 ? [
+        {
+          id: `group_${Date.now()}`,
+          title: 'Featured in Script',
+          timestampSeconds: 0,
+          viewingMode: 'SIDE_PANEL',
+          products: selectedProds,
+        }
+      ] : [];
+
+      const newProjPayload: Project = {
+        id: `proj_${Date.now()}`,
+        name: newProjectName.trim(),
+        description: cleanWords.slice(0, 20).join(' ') + (cleanWords.length > 20 ? '...' : ''),
+        category: 'Shopping & Commerce',
+        channel: newProjectFormat === 'SHORT' ? 'shorts' : 'about',
+        mediaType: newProjectFormat,
+        thumbnailBadge: newProjectFormat === 'SHORT' ? '9:16 Short' : '16:9 VOD',
+        status: 'SCRIPTING',
+        isActive: true,
+        productGroups: initialProductGroups,
+        metadata: {
+          preproductionScript: scriptText,
+          preproductionTargetWpm: targetWpm,
+          preproductionProductIds: selectedProductIds,
+          scriptTone: scriptTone,
+        },
+      };
+
+      const saved = await api.saveProject(newProjPayload);
+      const effectiveProject = saved || newProjPayload;
+
+      onProjectUpdate(effectiveProject);
+      setIsCreateProjectModalOpen(false);
+      toast.success(`🎉 Project "${effectiveProject.name}" created and linked!`);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to create project.');
+    } finally {
+      setIsSubmittingProject(false);
+    }
+  };
+
+  const handleStartFreshScratchpad = () => {
+    if (onStartScratchpad) {
+      onStartScratchpad();
+    }
+    setScriptText(
+      `Hey everyone! Today I want to show you something really special.
+[SHOW_PRODUCT: Featured Product]
+Here is why this completely changes how you experience your daily workflow.
+[PAUSE 2s]
+Tap the link right here in the video to grab yours before the drop ends!
+[CALL_TO_ACTION: Shop Now]`
+    );
+    if (catalogProducts.length > 0) {
+      setSelectedProductIds([catalogProducts[0].id]);
+    }
+    toast.info('Started fresh ideation scratchpad. Brainstorm freely!');
+  };
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -292,12 +428,34 @@ Don't wait—tap the product bubble directly on your screen to order before they
               Studio • Mobile QR Bridge
             </span>
             {project ? (
-              <span style={{ fontSize: '11px', background: 'rgba(99, 102, 241, 0.15)', color: '#a5b4fc', padding: '2px 10px', borderRadius: '12px', border: '1px solid rgba(99, 102, 241, 0.35)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                📁 Project: <strong>{project.name}</strong>
-              </span>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '11px', background: 'rgba(99, 102, 241, 0.15)', color: '#a5b4fc', padding: '2px 10px', borderRadius: '12px', border: '1px solid rgba(99, 102, 241, 0.35)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                  📁 Project: <strong>{project.name}</strong>
+                </span>
+                <button
+                  type="button"
+                  onClick={handleStartFreshScratchpad}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                    borderRadius: '10px',
+                    padding: '2px 8px',
+                    fontSize: '11px',
+                    color: '#94a3b8',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
+                  title="Unlink from this project to brainstorm a fresh idea from scratch"
+                >
+                  <Plus size={11} />
+                  <span>New Brainstorm</span>
+                </button>
+              </div>
             ) : (
-              <span style={{ fontSize: '11px', background: 'rgba(255, 255, 255, 0.06)', color: '#94a3b8', padding: '2px 10px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
-                Draft Scratchpad
+              <span style={{ fontSize: '11px', background: 'rgba(56, 189, 248, 0.12)', color: '#38bdf8', padding: '2px 10px', borderRadius: '12px', border: '1px solid rgba(56, 189, 248, 0.25)', fontWeight: 600 }}>
+                💡 Ideation Scratchpad (Unlinked)
               </span>
             )}
           </div>
@@ -379,6 +537,33 @@ Don't wait—tap the product bubble directly on your screen to order before they
               </span>
             </button>
           </div>
+
+          {/* Turn into Project Button */}
+          <button
+            type="button"
+            onClick={handleOpenCreateProjectModal}
+            style={{
+              background: !project
+                ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+                : 'linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(5, 150, 105, 0.3) 100%)',
+              border: '1px solid rgba(16, 185, 129, 0.5)',
+              color: '#ffffff',
+              padding: '10px 18px',
+              borderRadius: '10px',
+              fontSize: '13px',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              cursor: 'pointer',
+              boxShadow: !project ? '0 4px 16px rgba(16, 185, 129, 0.35)' : 'none',
+              transition: 'all 0.15s ease',
+            }}
+            title={!project ? 'Convert this brainstorm into an official project in your catalog' : 'Save this script as a new project in your catalog'}
+          >
+            <FolderPlus size={16} color="#34d399" />
+            <span>{!project ? 'Turn into Project' : 'Save as New Project'}</span>
+          </button>
 
           <button
             onClick={handleSaveDraft}
@@ -800,6 +985,262 @@ Don't wait—tap the product bubble directly on your screen to order before they
             handleTakeReceived({ videoUrl, durationSeconds });
           }}
         />
+      )}
+
+      {/* Turn into Project Modal */}
+      {isCreateProjectModalOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '20px',
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsCreateProjectModalOpen(false);
+          }}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: '520px',
+              background: 'linear-gradient(180deg, #111827 0%, #0b0f19 100%)',
+              border: '1px solid var(--border-hairline)',
+              borderRadius: '16px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 40px rgba(16, 185, 129, 0.15)',
+              overflow: 'hidden',
+            }}
+          >
+            {/* Modal Header */}
+            <div
+              style={{
+                padding: '20px 24px',
+                borderBottom: '1px solid var(--border-subtle)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '10px',
+                    background: 'rgba(16, 185, 129, 0.15)',
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#34d399',
+                  }}
+                >
+                  <FolderPlus size={18} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#fff' }}>
+                    Turn Script into Video Project
+                  </h3>
+                  <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#94a3b8' }}>
+                    Convert this brainstorm into an official project in your catalog.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsCreateProjectModalOpen(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#64748b',
+                  cursor: 'pointer',
+                  padding: '4px',
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {/* Project Title Input */}
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#e2e8f0', marginBottom: '6px' }}>
+                  Project Title
+                </label>
+                <input
+                  type="text"
+                  value={newProjectName}
+                  onChange={(e) => setNewProjectName(e.target.value)}
+                  placeholder="e.g., Summer Collection Showcase..."
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    fontSize: '13px',
+                    background: 'rgba(0, 0, 0, 0.4)',
+                    border: '1px solid var(--border-hairline)',
+                    borderRadius: '8px',
+                    color: '#fff',
+                    outline: 'none',
+                  }}
+                />
+              </div>
+
+              {/* Deliverable Format Selector */}
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#e2e8f0', marginBottom: '8px' }}>
+                  Target Deliverable Video Format
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div
+                    onClick={() => setNewProjectFormat('SHORT')}
+                    style={{
+                      padding: '14px',
+                      borderRadius: '10px',
+                      background: newProjectFormat === 'SHORT' ? 'rgba(99, 102, 241, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+                      border: `1.5px solid ${newProjectFormat === 'SHORT' ? '#6366f1' : 'var(--border-hairline)'}`,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: '36px',
+                        height: '36px',
+                        borderRadius: '8px',
+                        background: 'rgba(99, 102, 241, 0.2)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#818cf8',
+                      }}
+                    >
+                      <Smartphone size={18} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: 700, color: '#fff' }}>9:16 Short</div>
+                      <div style={{ fontSize: '11px', color: '#94a3b8' }}>Reels / TikTok / Shorts</div>
+                    </div>
+                  </div>
+
+                  <div
+                    onClick={() => setNewProjectFormat('VOD')}
+                    style={{
+                      padding: '14px',
+                      borderRadius: '10px',
+                      background: newProjectFormat === 'VOD' ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+                      border: `1.5px solid ${newProjectFormat === 'VOD' ? '#38bdf8' : 'var(--border-hairline)'}`,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: '36px',
+                        height: '36px',
+                        borderRadius: '8px',
+                        background: 'rgba(56, 189, 248, 0.2)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#38bdf8',
+                      }}
+                    >
+                      <Film size={18} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: 700, color: '#fff' }}>16:9 VOD</div>
+                      <div style={{ fontSize: '11px', color: '#94a3b8' }}>Landscape / Interactive</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Context Summary */}
+              <div
+                style={{
+                  padding: '12px 14px',
+                  background: 'rgba(255, 255, 255, 0.03)',
+                  border: '1px solid var(--border-hairline)',
+                  borderRadius: '10px',
+                  fontSize: '12px',
+                  color: '#94a3b8',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Attached Catalog Products:</span>
+                  <strong style={{ color: '#fff' }}>{selectedProductIds.length} Products</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Pacing & Estimated Duration:</span>
+                  <strong style={{ color: '#fff' }}>{targetWpm} WPM (~{estimatedSeconds}s)</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Initial Status:</span>
+                  <strong style={{ color: '#38bdf8' }}>Ready for Phone Teleprompter Take</strong>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div
+              style={{
+                padding: '16px 24px',
+                background: 'rgba(0, 0, 0, 0.25)',
+                borderTop: '1px solid var(--border-subtle)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'flex-end',
+                gap: '12px',
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setIsCreateProjectModalOpen(false)}
+                className="btn btn-secondary"
+                style={{ padding: '8px 16px', fontSize: '13px' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmCreateProject}
+                disabled={isSubmittingProject || !newProjectName.trim()}
+                className="btn btn-primary"
+                style={{
+                  padding: '8px 20px',
+                  fontSize: '13px',
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  border: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 16px rgba(16, 185, 129, 0.35)',
+                }}
+              >
+                {isSubmittingProject ? (
+                  <Loader2 size={15} className="spinner" />
+                ) : (
+                  <Sparkles size={15} />
+                )}
+                <span>{isSubmittingProject ? 'Creating Project...' : 'Create & Link Project'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
