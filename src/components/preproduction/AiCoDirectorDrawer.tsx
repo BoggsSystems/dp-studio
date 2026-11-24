@@ -215,6 +215,117 @@ function renderFormattedMarkdown(content: string): React.ReactNode {
   );
 }
 
+function SuggestedProductRow({
+  prod,
+  isSelected,
+  catalogProducts,
+  onToggle,
+}: {
+  prod: Product;
+  isSelected: boolean;
+  catalogProducts: Product[];
+  onToggle: () => void;
+}) {
+  const [imgFailed, setImgFailed] = useState(false);
+
+  // 1. Check if item exists in catalog and has a valid image
+  const matchedCatalogProd = catalogProducts.find(
+    (c) => c.id === prod.id || (c.title && prod.title && c.title.toLowerCase().trim() === prod.title.toLowerCase().trim())
+  );
+  const resolvedImageUrl = matchedCatalogProd?.imageUrl || prod.imageUrl;
+
+  const hasValidImage =
+    !imgFailed &&
+    resolvedImageUrl &&
+    resolvedImageUrl.startsWith('http') &&
+    !resolvedImageUrl.includes('example.com') &&
+    !resolvedImageUrl.includes('via.placeholder') &&
+    !resolvedImageUrl.includes('...') &&
+    !resolvedImageUrl.includes('none');
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        background: isSelected ? 'rgba(56, 189, 248, 0.12)' : 'rgba(255, 255, 255, 0.03)',
+        padding: '8px 10px',
+        borderRadius: '8px',
+        border: isSelected ? '1px solid rgba(56, 189, 248, 0.5)' : '1px solid rgba(255, 255, 255, 0.06)',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
+        {hasValidImage ? (
+          <img
+            src={resolvedImageUrl}
+            alt={prod.title}
+            onError={() => setImgFailed(true)}
+            style={{ width: '36px', height: '36px', borderRadius: '6px', objectFit: 'cover', flexShrink: 0 }}
+          />
+        ) : (
+          <div
+            style={{
+              width: '36px',
+              height: '36px',
+              borderRadius: '6px',
+              background: 'rgba(56, 189, 248, 0.12)',
+              border: '1px solid rgba(56, 189, 248, 0.25)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              color: '#38bdf8',
+            }}
+          >
+            <ShoppingBag size={16} />
+          </div>
+        )}
+        <div style={{ minWidth: 0 }}>
+          <div
+            style={{
+              fontSize: '12px',
+              fontWeight: 600,
+              color: '#f1f5f9',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {prod.title}
+          </div>
+          <div style={{ fontSize: '11px', color: '#38bdf8', fontWeight: 700 }}>
+            ${prod.price.toFixed(2)}
+          </div>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        onClick={onToggle}
+        style={{
+          background: isSelected ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255, 255, 255, 0.06)',
+          border: isSelected ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.1)',
+          color: isSelected ? '#38bdf8' : '#e2e8f0',
+          padding: '4px 10px',
+          borderRadius: '6px',
+          fontSize: '11px',
+          fontWeight: 600,
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px',
+          marginLeft: '8px',
+          flexShrink: 0,
+        }}
+      >
+        {isSelected ? <Check size={12} /> : <Plus size={12} />}
+        <span>{isSelected ? 'In Basket' : 'Add to Basket'}</span>
+      </button>
+    </div>
+  );
+}
+
 export default function AiCoDirectorDrawer({
   isOpen,
   onClose,
@@ -522,60 +633,15 @@ export default function AiCoDirectorDrawer({
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      {m.suggestedProducts.map((prod) => {
-                        const isSelected = selectedProductIds.includes(prod.id);
-                        return (
-                          <div
-                            key={prod.id}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              background: 'rgba(0, 0, 0, 0.3)',
-                              padding: '8px 10px',
-                              borderRadius: '8px',
-                              border: isSelected ? '1px solid rgba(56, 189, 248, 0.5)' : '1px solid rgba(255, 255, 255, 0.06)',
-                            }}
-                          >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
-                              <img
-                                src={prod.imageUrl || 'https://via.placeholder.com/40'}
-                                alt={prod.title}
-                                style={{ width: '36px', height: '36px', borderRadius: '6px', objectFit: 'cover' }}
-                              />
-                              <div style={{ minWidth: 0 }}>
-                                <div style={{ fontSize: '12px', fontWeight: 600, color: '#f1f5f9', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                  {prod.title}
-                                </div>
-                                <div style={{ fontSize: '11px', color: '#38bdf8', fontWeight: 700 }}>
-                                  \${prod.price.toFixed(2)}
-                                </div>
-                              </div>
-                            </div>
-
-                            <button
-                              onClick={() => onToggleProduct(prod)}
-                              style={{
-                                background: isSelected ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255, 255, 255, 0.06)',
-                                border: isSelected ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.1)',
-                                color: isSelected ? '#38bdf8' : '#e2e8f0',
-                                padding: '4px 10px',
-                                borderRadius: '6px',
-                                fontSize: '11px',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                marginLeft: '8px',
-                              }}
-                            >
-                              {isSelected ? <Check size={12} /> : <Plus size={12} />}
-                              <span>{isSelected ? 'In Basket' : 'Add to Basket'}</span>
-                            </button>
-                          </div>
-                        );
-                      })}
+                      {m.suggestedProducts.map((prod) => (
+                        <SuggestedProductRow
+                          key={prod.id}
+                          prod={prod}
+                          isSelected={selectedProductIds.includes(prod.id)}
+                          catalogProducts={catalogProducts}
+                          onToggle={() => onToggleProduct(prod)}
+                        />
+                      ))}
                     </div>
                   </div>
                 )}
