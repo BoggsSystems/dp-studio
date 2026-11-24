@@ -4,6 +4,7 @@ import Header, { StudioTab } from './components/Header';
 import VideoUploadZone from './components/VideoUploadZone';
 import TimelineScrubber from './components/TimelineScrubber';
 import ProductBasketEditor from './components/ProductBasketEditor';
+import RecipeManifestEditor from './components/RecipeManifestEditor';
 import ProductCatalog from './components/ProductCatalog';
 import AiAutopilotPanel from './components/AiAutopilotPanel';
 import ShortsFormatterStudio from './components/ShortsFormatterStudio';
@@ -804,7 +805,7 @@ function StudioApp() {
                   </div>
 
                   {/* Right Column: Product Group & Basket Configuration */}
-                  <div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                     <ProductBasketEditor
                       selectedGroup={selectedGroup}
                       onUpdateGroup={handleUpdateGroup}
@@ -812,6 +813,18 @@ function StudioApp() {
                       currentTime={currentTime}
                       catalogProducts={catalogProducts}
                       onCatalogUpdated={setCatalogProducts}
+                    />
+
+                    {/* Instacart Shoppable Recipe Manifest Editor */}
+                    <RecipeManifestEditor
+                      initialManifest={project.recipeManifest}
+                      recipeTitleDefault={project.name}
+                      onSave={(manifest) => {
+                        const updated = { ...project, recipeManifest: manifest };
+                        setProject(updated);
+                        setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+                        toast.success('Instacart Recipe Manifest updated!');
+                      }}
                     />
                   </div>
                 </div>

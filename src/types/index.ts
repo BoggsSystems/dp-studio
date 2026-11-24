@@ -54,7 +54,27 @@ export interface ProductGroup {
   thumbnailUrl?: string;
 }
 
+export interface RecipeIngredient {
+  id: string;
+  name: string;
+  amount?: string;
+  unit?: string;
+  optional?: boolean;
+}
+
+export interface RecipeManifest {
+  title: string;
+  servings?: number;
+  prepTimeMinutes?: number;
+  cookTimeMinutes?: number;
+  difficulty?: 'Easy' | 'Intermediate' | 'Michelin / Advanced';
+  ingredients: RecipeIngredient[];
+  instructions?: string[];
+  instacartUrl?: string;
+}
+
 export interface ProductBasketItem {
+
   id?: string;
   productId: string;
   product?: Product;
@@ -88,6 +108,7 @@ export interface Project {
   isActive: boolean;
   productGroups: ProductGroup[];
   baskets?: ProductBasket[];
+  recipeManifest?: RecipeManifest;
   metadata?: any;
   createdAt?: string;
   updatedAt?: string;
