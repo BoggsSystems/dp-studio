@@ -22,8 +22,10 @@ import { useAuth } from '../context/AuthContext';
 import BillingModal from './BillingModal';
 import AccountMenu from './AccountMenu';
 import { ShopVideoLogo } from './icons/ShopVideoLogo';
+import ChannelSwitcher from './ChannelSwitcher';
 
 export type StudioTab = 'projects' | 'vod' | 'products' | 'live' | 'campaigns' | 'clips' | 'quiz' | 'analytics' | 'preproduction' | 'storefront';
+
 
 
 interface HeaderProps {
@@ -71,9 +73,15 @@ export default function Header({
             </div>
           </div>
 
+          <div style={{ height: '24px', width: '1px', background: 'var(--border-subtle)' }} />
+
+          {/* Active Brand Channel Switcher */}
+          <ChannelSwitcher />
+
           {project && (
             <>
               <div style={{ height: '24px', width: '1px', background: 'var(--border-subtle)' }} />
+
 
               {/* Current Project Info */}
               <div

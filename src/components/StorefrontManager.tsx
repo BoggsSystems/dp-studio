@@ -11,8 +11,10 @@ import {
   Palette
 } from "lucide-react";
 import { Project } from "../types";
+import { useChannels } from "../context/ChannelContext";
 
 export type CreatorAccentColor = "sky" | "blue" | "pink" | "amber" | "emerald" | "purple";
+
 
 export interface SocialProfile {
   id: string;
@@ -66,24 +68,34 @@ const ACCENT_COLORS: { id: CreatorAccentColor; name: string; hex: string }[] = [
   { id: "purple", name: "Electric Violet", hex: "#7c3aed" },
 ];
 
-export default function StorefrontManager({ creatorHandle = "jeffboggs" }: StorefrontManagerProps) {
-  const [handle, setHandle] = useState(creatorHandle.toLowerCase().replace(/^@/, ""));
+export default function StorefrontManager({ creatorHandle }: StorefrontManagerProps) {
+  const { channels, activeChannel, setActiveChannel, setIsManagerModalOpen } = useChannels();
+  const currentHandle = (activeChannel?.handle || creatorHandle || "jeffboggs").toLowerCase().replace(/^@/, "");
+  const [handle, setHandle] = useState(currentHandle);
+
+  useEffect(() => {
+    if (activeChannel?.handle) {
+      setHandle(activeChannel.handle.toLowerCase().replace(/^@/, ""));
+    }
+  }, [activeChannel?.handle]);
+
   const [profile, setProfile] = useState<SocialProfile>({
     id: "creator-" + handle,
     handle,
-    displayName: "Jeffrey Boggs",
-    avatarUrl: "https://pub-2af6e082fcb44c58add86361dad9d14b.r2.dev/thumbnails/opportunity-os-about.jpg",
-    bannerUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1600&q=80",
-    bio: "Founder & Systems Architect @ Opportunity OS & ShopVideo.tv. Building high-velocity autonomous agent systems and shoppable video infrastructure.",
+    displayName: activeChannel?.displayName || "Jeffrey Boggs",
+    avatarUrl: activeChannel?.avatarUrl || "https://pub-2af6e082fcb44c58add86361dad9d14b.r2.dev/thumbnails/opportunity-os-about.jpg",
+    bannerUrl: activeChannel?.bannerUrl || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1600&q=80",
+    bio: activeChannel?.bio || "Founder & Systems Architect @ Opportunity OS & ShopVideo.tv.",
     isVerified: true,
-    category: "AI Engineering & Systems Architecture",
-    accentColor: "sky",
+    category: activeChannel?.category || "AI Engineering & Systems Architecture",
+    accentColor: activeChannel?.accentColor || "sky",
     socialLinks: {
       website: "https://boggs.build",
       youtube: "https://youtube.com/@jeffreyboggs",
       tiktok: "https://tiktok.com/@boggs.build",
     },
   });
+
 
   const [videos, setVideos] = useState<VideoDistributionItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -232,6 +244,75 @@ export default function StorefrontManager({ creatorHandle = "jeffboggs" }: Store
 
   return (
     <div style={{ maxWidth: "1280px", margin: "0 auto", padding: "24px 16px" }}>
+      {/* Multi-Brand Channel Selector */}
+      <div 
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: "12px",
+          marginBottom: "20px",
+          padding: "12px 18px",
+          background: "rgba(15, 23, 42, 0.75)",
+          border: "1px solid rgba(255, 255, 255, 0.08)",
+          borderRadius: "14px",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+          <span style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            Managing Brand Storefront:
+          </span>
+          {channels.map((chan) => {
+            const isSelected = chan.handle === handle;
+            return (
+              <button
+                key={chan.handle}
+                type="button"
+                onClick={() => {
+                  setActiveChannel(chan);
+                  setHandle(chan.handle);
+                }}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  padding: "5px 14px",
+                  borderRadius: "20px",
+                  background: isSelected ? "rgba(56, 189, 248, 0.2)" : "rgba(255, 255, 255, 0.04)",
+                  border: isSelected ? "1px solid #38bdf8" : "1px solid rgba(255, 255, 255, 0.08)",
+                  color: isSelected ? "#38bdf8" : "#94a3b8",
+                  fontSize: "12px",
+                  fontWeight: isSelected ? 700 : 500,
+                  cursor: "pointer",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                <span>@{chan.handle}</span>
+                <span style={{ fontSize: "11px", color: isSelected ? "#e0f2fe" : "#64748b" }}>({chan.displayName})</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setIsManagerModalOpen(true)}
+          style={{
+            padding: "5px 12px",
+            background: "transparent",
+            border: "1px dashed rgba(56, 189, 248, 0.4)",
+            borderRadius: "6px",
+            color: "#38bdf8",
+            fontSize: "12px",
+            fontWeight: 600,
+            cursor: "pointer",
+          }}
+        >
+          + Add Another Brand Channel
+        </button>
+      </div>
+
       {/* Top Banner / Live Link Preview */}
       <div 
         style={{

@@ -31,6 +31,9 @@ import CompleteInviteModal from './components/CompleteInviteModal';
 import PreProductionStudio from './components/preproduction/PreProductionStudio';
 import MobilePrompterBooth from './components/record/MobilePrompterBooth';
 import StorefrontManager from './components/StorefrontManager';
+import { ChannelProvider } from './context/ChannelContext';
+import ChannelManagerModal from './components/ChannelManagerModal';
+
 
 
 function buildFormattedShortFromProject(targetProj: Project): FormattedShortProject {
@@ -927,7 +930,9 @@ function StudioApp() {
       {isDeployOpen && project && <DeployModal project={project} onClose={() => setIsDeployOpen(false)} />}
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
       <InviteCollaboratorModal isOpen={isInviteModalOpen} onClose={() => setIsInviteModalOpen(false)} />
+      <ChannelManagerModal />
       <StudioIntroductionModal
+
         isOpen={isIntroModalOpen}
         onClose={() => setIsIntroModalOpen(false)}
         onExploreWorkspace={() => {
@@ -994,7 +999,10 @@ export default function App() {
 
   return (
     <AuthProvider>
-      <StudioApp />
+      <ChannelProvider>
+        <StudioApp />
+      </ChannelProvider>
     </AuthProvider>
   );
 }
+
