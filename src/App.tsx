@@ -30,6 +30,8 @@ import InviteCollaboratorModal from './components/InviteCollaboratorModal';
 import CompleteInviteModal from './components/CompleteInviteModal';
 import PreProductionStudio from './components/preproduction/PreProductionStudio';
 import MobilePrompterBooth from './components/record/MobilePrompterBooth';
+import StorefrontManager from './components/StorefrontManager';
+
 
 function buildFormattedShortFromProject(targetProj: Project): FormattedShortProject {
   const meta = (targetProj.metadata as any) || {};
@@ -904,6 +906,17 @@ function StudioApp() {
                 }}
                 onNavigateToTimeline={() => setActiveTab('vod')}
                 onStartScratchpad={() => setProject(null)}
+              />
+            )}
+
+            {/* SHOPVIDEO SOCIAL STOREFRONT MANAGER TAB */}
+            {activeTab === 'storefront' && (
+              <StorefrontManager
+                creatorHandle={user?.fullName ? user.fullName.toLowerCase().replace(/\s+/g, '') : 'jeffboggs'}
+                onNavigateToShorts={(proj) => {
+                  setProject(proj);
+                  setActiveTab('clips');
+                }}
               />
             )}
           </main>

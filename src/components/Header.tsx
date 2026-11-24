@@ -14,7 +14,8 @@ import {
   BarChart3,
   UserPlus,
   CreditCard,
-  Smartphone
+  Smartphone,
+  Globe
 } from 'lucide-react';
 import { Project } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -22,7 +23,8 @@ import BillingModal from './BillingModal';
 import AccountMenu from './AccountMenu';
 import { ShopVideoLogo } from './icons/ShopVideoLogo';
 
-export type StudioTab = 'projects' | 'vod' | 'products' | 'live' | 'campaigns' | 'clips' | 'quiz' | 'analytics' | 'preproduction';
+export type StudioTab = 'projects' | 'vod' | 'products' | 'live' | 'campaigns' | 'clips' | 'quiz' | 'analytics' | 'preproduction' | 'storefront';
+
 
 interface HeaderProps {
   activeTab: StudioTab;
@@ -164,6 +166,14 @@ export default function Header({
           >
             <BarChart3 size={14} color={activeTab === 'analytics' ? 'var(--accent-teal)' : undefined} />
             <span>Analytics</span>
+          </button>
+
+          <button
+            className={`tab-btn ${activeTab === 'storefront' ? 'active' : ''}`}
+            onClick={() => setActiveTab('storefront')}
+          >
+            <Globe size={14} color={activeTab === 'storefront' ? 'var(--accent-teal)' : '#38bdf8'} />
+            <span>🌐 My Storefront</span>
           </button>
         </div>
 

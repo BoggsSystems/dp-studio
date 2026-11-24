@@ -8,17 +8,30 @@ interface DeployModalProps {
 }
 
 export default function DeployModal({ project, onClose }: DeployModalProps) {
-  const [activeTab, setActiveTab] = useState<'script' | 'iframe' | 'react' | 'qr'>('script');
+  const [activeTab, setActiveTab] = useState<'social' | 'script' | 'iframe' | 'react' | 'qr'>('social');
   const [copiedType, setCopiedType] = useState<string | null>(null);
   const [isSyncingEdge, setIsSyncingEdge] = useState(false);
   const [edgeManifestUrl, setEdgeManifestUrl] = useState<string | null>(null);
 
-  const apiBase = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
+  const initialSocial = Boolean(
+    (project.metadata as any)?.distributions?.socialPage?.status === 'PUBLISHED' ||
+    (project.metadata as any)?.isPublishedToSocial
+  );
+  const [isPublishedToSocial, setIsPublishedToSocial] = useState(initialSocial);
+  const [isTogglingSocial, setIsTogglingSocial] = useState(false);
+
+  const apiBase = (
+    (import.meta as any).env?.VITE_API_URL ||
+    (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+      ? 'http://localhost:9000'
+      : 'https://digitpop.opportunity-system.com')
+  ).replace(/\/+$/, '');
   const playerBase = (import.meta.env.VITE_PLAYER_URL || 'https://player.shopvideo.tv').replace(/\/+$/, '');
   const playerUrl = `${playerBase}/ad/${project.id}`;
   const scriptSnippet = `<script src="${playerBase}/embed.js" data-shopvideo-id="${project.id}" async></script>`;
   const iframeSnippet = `<iframe\n  width="100%"\n  height="540"\n  src="${playerUrl}?embed=1"\n  title="${project.name}"\n  frameborder="0"\n  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"\n  allowfullscreen\n></iframe>`;
   const reactSnippet = `import { ShopVideoPlayer } from '@shopvideo/player-react';\n\nexport default function ShoppableFeature() {\n  return (\n    <ShopVideoPlayer\n      projectId="${project.id}"\n      mode="responsive"\n      onProductClick={(product) => console.log('1-Click checkout:', product)}\n    />\n  );\n}`;
+
 
   const handleCopy = (text: string, type: string) => {
     navigator.clipboard.writeText(text);
@@ -46,6 +59,25 @@ export default function DeployModal({ project, onClose }: DeployModalProps) {
     }
   };
 
+  const handleToggleSocialPublish = async () => {
+    setIsTogglingSocial(true);
+    const newStatus = !isPublishedToSocial;
+    try {
+      const res = await fetch(`${apiBase}/api/publisher/social/videos/${project.id}/distribution`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isPublishedToSocial: newStatus }),
+      });
+      if (res.ok) {
+        setIsPublishedToSocial(newStatus);
+      }
+    } catch (e) {
+      console.warn('Social toggle warning:', e);
+    } finally {
+      setIsTogglingSocial(false);
+    }
+  };
+
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -64,6 +96,13 @@ export default function DeployModal({ project, onClose }: DeployModalProps) {
         <div className="modal-body">
           {/* Format Tabs */}
           <div style={{ display: 'flex', gap: '8px', marginBottom: '18px', flexWrap: 'wrap' }}>
+            <button
+              className={`btn ${activeTab === 'social' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setActiveTab('social')}
+              style={{ fontSize: '12px' }}
+            >
+              <Globe size={13} /> 📱 ShopVideo Social
+            </button>
             <button
               className={`btn ${activeTab === 'script' ? 'btn-primary' : 'btn-secondary'}`}
               onClick={() => setActiveTab('script')}
@@ -93,6 +132,97 @@ export default function DeployModal({ project, onClose }: DeployModalProps) {
               <QrCode size={13} /> Mobile App QR Code
             </button>
           </div>
+
+          {activeTab === 'social' && (
+            <div>
+              <div 
+                style={{
+                  background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.12) 0%, rgba(15, 23, 42, 0.9) 100%)',
+                  border: '1px solid rgba(56, 189, 248, 0.3)',
+                  borderRadius: '12px',
+                  padding: '20px',
+                  marginBottom: '16px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', marginBottom: '14px' }}>
+                  <div>
+                    <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#f8fafc', margin: '0 0 4px 0' }}>
+                      Publish to ShopVideo Social Storefront
+                    </h4>
+                    <p style={{ fontSize: '12px', color: '#94a3b8', margin: 0 }}>
+                      Distribute this shoppable reel directly to your public creator storefront at{' '}
+                      <strong style={{ color: '#38bdf8' }}>shop.shopvideo.tv/@jeffboggs</strong>
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={handleToggleSocialPublish}
+                    disabled={isTogglingSocial}
+                    style={{
+                      padding: '8px 18px',
+                      background: isPublishedToSocial ? 'rgba(239, 68, 68, 0.15)' : '#0284c7',
+                      border: isPublishedToSocial ? '1px solid rgba(239, 68, 68, 0.4)' : 'none',
+                      borderRadius: '8px',
+                      color: isPublishedToSocial ? '#f87171' : '#ffffff',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      cursor: isTogglingSocial ? 'not-allowed' : 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                    }}
+                  >
+                    {isPublishedToSocial ? 'Remove from Social' : '🚀 Publish to Social'}
+                  </button>
+                </div>
+
+                <div 
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'space-between', 
+                    padding: '10px 14px', 
+                    background: '#020617', 
+                    borderRadius: '8px',
+                    border: '1px solid rgba(255,255,255,0.06)' 
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span 
+                      style={{ 
+                        width: '8px', 
+                        height: '8px', 
+                        borderRadius: '50%', 
+                        background: isPublishedToSocial ? '#4ade80' : '#64748b' 
+                      }} 
+                    />
+                    <span style={{ fontSize: '12px', color: '#e2e8f0' }}>
+                      Status: {isPublishedToSocial ? 'Live on Storefront' : 'Draft / Off-air'}
+                    </span>
+                  </div>
+
+                  <a
+                    href="https://shop.shopvideo.tv/@jeffboggs"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      fontSize: '12px',
+                      color: '#38bdf8',
+                      textDecoration: 'none',
+                      fontWeight: 600,
+                    }}
+                  >
+                    <span>View Live Storefront</span>
+                    <ExternalLink size={12} />
+                  </a>
+                </div>
+              </div>
+            </div>
+          )}
+
 
           {activeTab === 'script' && (
             <div>
