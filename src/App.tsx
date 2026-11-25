@@ -1,10 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { CheckCircle } from 'lucide-react';
 import Header, { StudioTab } from './components/Header';
 import VideoUploadZone from './components/VideoUploadZone';
 import TimelineScrubber from './components/TimelineScrubber';
 import ProductBasketEditor from './components/ProductBasketEditor';
 import RecipeManifestEditor from './components/RecipeManifestEditor';
+import { CHEF_BOYARJEFF_STUDIO_PROJECTS } from './services/chefBoyarjeffData';
 import ProductCatalog from './components/ProductCatalog';
 import AiAutopilotPanel from './components/AiAutopilotPanel';
 import ShortsFormatterStudio from './components/ShortsFormatterStudio';
@@ -130,6 +131,54 @@ function StudioApp() {
   const [activeTab, setActiveTab] = useState<StudioTab>('projects');
   const [projects, setProjects] = useState<Project[]>([]);
   const [project, setProject] = useState<Project | null>(null);
+
+  // Channel-partitioned projects list
+  const channelFilteredProjects = useMemo(() => {
+    const handle = activeChannel?.handle || 'jeffboggs';
+    if (handle === 'chefboyarjeff') {
+      const serverChef = projects.filter(
+        (p) =>
+          p.channel === 'chefboyarjeff' ||
+          p.category === 'Culinary & Cooking' ||
+          p.category === 'Culinary & Smart Kitchen' ||
+          !!p.recipeManifest
+      );
+      const serverChefIds = new Set(serverChef.map((p) => p.id));
+      return [
+        ...serverChef,
+        ...CHEF_BOYARJEFF_STUDIO_PROJECTS.filter((p) => !serverChefIds.has(p.id)),
+      ];
+    }
+
+    // Default channel: Jeffrey Boggs / Opportunity OS
+    return projects.filter(
+      (p) =>
+        p.channel !== 'chefboyarjeff' &&
+        p.category !== 'Culinary & Cooking' &&
+        p.category !== 'Culinary & Smart Kitchen' &&
+        !p.recipeManifest
+    );
+  }, [projects, activeChannel?.handle]);
+
+  // Synchronize active project whenever active channel switches
+  useEffect(() => {
+    if (channelFilteredProjects.length > 0) {
+      const isCurrentInChannel = project && channelFilteredProjects.some((p) => p.id === project.id);
+      if (!isCurrentInChannel) {
+        const nextProj = channelFilteredProjects[0];
+        setProject(nextProj);
+        if (nextProj.durationSeconds) setDuration(nextProj.durationSeconds);
+        if (nextProj.productGroups && nextProj.productGroups.length > 0) {
+          setSelectedGroupId(nextProj.productGroups[0].id);
+        } else {
+          setSelectedGroupId(null);
+        }
+      }
+    } else {
+      setProject(null);
+      setSelectedGroupId(null);
+    }
+  }, [activeChannel?.handle, channelFilteredProjects]);
   const [catalogProducts, setCatalogProducts] = useState<Product[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [activeLiveSession, setActiveLiveSession] = useState<StreamSession | null>(null);
@@ -655,7 +704,7 @@ function StudioApp() {
             {/* PROJECTS CATALOG TAB */}
             {activeTab === 'projects' && (
               <ProjectList
-                projects={projects}
+                projects={channelFilteredProjects}
                 availableProducts={catalogProducts}
                 onSelectProject={async (selected) => {
                   let activeSelected = selected;

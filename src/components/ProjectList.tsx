@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Video, Play, Edit3, ExternalLink, Trash2, Layers, ShoppingBag, CheckCircle, Sparkles, Smartphone, CheckCircle2, Film, Radio, Loader2, FileText, Search, X, LayoutGrid, List, ArrowUpDown, Filter, SlidersHorizontal } from 'lucide-react';
+import { Plus, Video, Play, Edit3, ExternalLink, Trash2, Layers, ShoppingBag, CheckCircle, Sparkles, Smartphone, CheckCircle2, Film, Radio, Loader2, FileText, Search, X, LayoutGrid, List, ArrowUpDown, Filter, SlidersHorizontal, ChefHat } from 'lucide-react';
 import { Project, FormattedShortProject, StreamSession, Product } from '../types';
 import ProjectWizardModal from './ProjectWizardModal';
 import ConfirmModal from './ConfirmModal';
 import { toast } from '../services/toast';
 import { api } from '../services/api';
 import { getAllShortProjects, getShortProject, loadShortProjectIntoActiveDraft, deleteShortProject, setShortPublishedInCloud, deleteVodProjectFromCloud } from '../services/videoStorage';
+import { useChannels } from '../context/ChannelContext';
 
 interface ProjectListProps {
   projects: Project[];
@@ -37,6 +38,7 @@ export default function ProjectList({
   onOpenPreProduction,
   availableProducts = [],
 }: ProjectListProps) {
+  const { activeChannel } = useChannels();
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<'ALL' | 'VOD' | 'SHORTS' | 'SCRIPTS'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
@@ -260,14 +262,31 @@ export default function ProjectList({
         <div className="panel-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
           <div>
             <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Video size={18} color="var(--accent-teal)" />
-              <span>Shoppable Video & Shorts Catalog</span>
+              {activeChannel?.handle === 'chefboyarjeff' ? (
+                <>
+                  <ChefHat size={20} color="#f59e0b" />
+                  <span>Chef Boyarjeff Video & Recipe Catalog</span>
+                  <span className="badge" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24', border: '1px solid rgba(245, 158, 11, 0.3)', fontSize: '12px' }}>
+                    @{activeChannel.handle}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Video size={18} color="var(--accent-teal)" />
+                  <span>Shoppable Video & Shorts Catalog</span>
+                  <span className="badge badge--teal" style={{ fontSize: '12px' }}>
+                    @{activeChannel?.handle || 'jeffboggs'}
+                  </span>
+                </>
+              )}
               <span className="badge badge--teal" style={{ fontSize: '12px' }}>
                 {totalCount} Projects
               </span>
             </div>
             <div className="panel-desc">
-              Manage interactive 16:9 shoppable video catalogs and viral 9:16 Shorts in one unified hub.
+              {activeChannel?.handle === 'chefboyarjeff'
+                ? 'Curate Michelin-star recipe masterclasses, precision molecular culinary gear, and 1-click Instacart grocery manifests.'
+                : 'Manage interactive 16:9 shoppable video catalogs and viral 9:16 Shorts in one unified hub.'}
             </div>
           </div>
 
