@@ -17,7 +17,8 @@ import {
   ExternalLink,
   Maximize2,
   Minimize2,
-  Copy
+  Copy,
+  Utensils
 } from 'lucide-react';
 import { Product, CoDirectorMessage } from '../../types';
 import { api } from '../../services/api';
@@ -498,6 +499,25 @@ export default function AiCoDirectorDrawer({
           whiteSpace: 'nowrap',
         }}
       >
+        <button
+          onClick={() => handleSend('Extract the complete Recipe & Ingredient Manifest from this script into an Instacart-ready grocery checklist with exact quantities, units, and servings.')}
+          style={{
+            background: 'rgba(16, 185, 129, 0.12)',
+            border: '1px solid rgba(16, 185, 129, 0.35)',
+            color: '#6ee7b7',
+            padding: '5px 10px',
+            borderRadius: '16px',
+            fontSize: '11px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '5px',
+          }}
+        >
+          <Utensils size={12} />
+          <span>🥕 Extract Recipe Manifest (Instacart)</span>
+        </button>
+
         <button
           onClick={() => handleSend('Deconstruct the 4 Charles Prime Rib dinner at home: prepping the recipe, the dry brine, the reverse sear technique, and the shoppable tools needed.')}
           style={{

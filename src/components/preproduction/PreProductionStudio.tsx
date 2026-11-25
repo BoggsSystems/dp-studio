@@ -18,15 +18,19 @@ import {
   X,
   Loader2,
   Plus,
-  Film
+  Film,
+  ChefHat,
+  Utensils
 } from 'lucide-react';
-import { Product, Project, ProductGroup, CoDirectorMessage } from '../../types';
+import { Product, Project, ProductGroup, CoDirectorMessage, RecipeManifest } from '../../types';
 import { api } from '../../services/api';
 import { toast } from '../../services/toast';
 import { resolveProductImageUrl, handleImageError } from '../../utils/imageUtils';
+import { useChannels } from '../../context/ChannelContext';
 import MobileBridgeModal from './MobileBridgeModal';
 import AiCoDirectorDrawer from './AiCoDirectorDrawer';
 import DesktopPrompterModal from '../teleprompter/DesktopPrompterModal';
+import RecipeManifestEditor from '../RecipeManifestEditor';
 
 interface PreProductionStudioProps {
   project: Project | null;
@@ -114,11 +118,23 @@ If you're tired of filling out endless career portals, check the link right here
   const [desktopPrompterOpen, setDesktopPrompterOpen] = useState(false);
   const [activeSession, setActiveSession] = useState<{ token: string; shortCode: string } | null>(null);
 
-  // 4. Create Project Modal State
+  // 4. Create Project Modal State & Culinary Awareness
+  const { activeChannel } = useChannels();
   const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectFormat, setNewProjectFormat] = useState<'SHORT' | 'VOD'>('SHORT');
   const [isSubmittingProject, setIsSubmittingProject] = useState(false);
+  const [isRecipeProject, setIsRecipeProject] = useState(false);
+  const [recipeManifest, setRecipeManifest] = useState<RecipeManifest | undefined>(project?.recipeManifest);
+  const [isRecipeDrawerOpen, setIsRecipeDrawerOpen] = useState(false);
+
+  // Auto-detect culinary keywords or channel
+  const isCulinaryDetected = (() => {
+    if (activeChannel?.handle === 'chefboyarjeff') return true;
+    const text = scriptText.toLowerCase();
+    const keywords = ['recipe', 'cook', 'shallot', 'garlic', 'duck', 'beef', 'steak', 'sauce', 'butter', 'wine', 'sear', 'simmer', 'tbsp', 'tsp', 'michelin', 'truffle', 'oyster', 'pasta', 'parmesan', 'caviar', 'bake', 'pan-sear', 'ingredient'];
+    return keywords.some((k) => text.includes(k));
+  })();
 
   // Auto-suggest a smart project name based on script hook or selected products
   const suggestProjectName = () => {
@@ -145,12 +161,17 @@ If you're tired of filling out endless career portals, check the link right here
       return `${selectedProds[0].title} & ${selectedProds[1].title} Pitch`;
     }
 
+    if (isCulinaryDetected) {
+      return 'Michelin Star Recipe Masterclass';
+    }
+
     return 'New Shoppable Video Script';
   };
 
   const handleOpenCreateProjectModal = () => {
     setNewProjectName(suggestProjectName());
     setNewProjectFormat(project?.mediaType === 'VOD' ? 'VOD' : 'SHORT');
+    setIsRecipeProject(isCulinaryDetected || !!project?.recipeManifest);
     setIsCreateProjectModalOpen(true);
   };
 
@@ -173,17 +194,30 @@ If you're tired of filling out endless career portals, check the link right here
         }
       ] : [];
 
+      const effectiveCategory = isRecipeProject ? 'Culinary & Cooking' : 'Shopping & Commerce';
+      const effectiveChannel = activeChannel ? activeChannel.handle : (newProjectFormat === 'SHORT' ? 'shorts' : 'about');
+
       const newProjPayload: Project = {
         id: `proj_${Date.now()}`,
         name: newProjectName.trim(),
         description: cleanWords.slice(0, 20).join(' ') + (cleanWords.length > 20 ? '...' : ''),
-        category: 'Shopping & Commerce',
-        channel: newProjectFormat === 'SHORT' ? 'shorts' : 'about',
+        category: effectiveCategory,
+        channel: effectiveChannel,
         mediaType: newProjectFormat,
         thumbnailBadge: newProjectFormat === 'SHORT' ? '9:16 Short' : '16:9 VOD',
         status: 'SCRIPTING',
         isActive: true,
         productGroups: initialProductGroups,
+        recipeManifest: isRecipeProject
+          ? (recipeManifest || {
+              title: newProjectName.trim(),
+              servings: 2,
+              prepTimeMinutes: 15,
+              cookTimeMinutes: 25,
+              difficulty: 'Michelin / Advanced',
+              ingredients: [],
+            })
+          : undefined,
         metadata: {
           preproductionScript: scriptText,
           preproductionTargetWpm: targetWpm,
@@ -553,6 +587,32 @@ Don't wait—tap the product bubble directly on your screen to order before they
               </span>
             </button>
           </div>
+
+          {/* Recipe Manifest Button (Instacart) */}
+          {(isCulinaryDetected || isRecipeProject || recipeManifest) && (
+            <button
+              type="button"
+              onClick={() => setIsRecipeDrawerOpen(true)}
+              style={{
+                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.25) 100%)',
+                border: '1px solid rgba(16, 185, 129, 0.5)',
+                color: '#34d399',
+                padding: '10px 16px',
+                borderRadius: '10px',
+                fontSize: '13px',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+              title="Configure Recipe Ingredients Manifest for Instacart delivery"
+            >
+              <ChefHat size={16} color="#34d399" />
+              <span>🥕 Recipe Manifest ({recipeManifest?.ingredients?.length || 0})</span>
+            </button>
+          )}
 
           {/* Turn into Project Button */}
           <button
@@ -1188,6 +1248,86 @@ Don't wait—tap the product bubble directly on your screen to order before they
                 </div>
               </div>
 
+              {/* Culinary & Instacart Recipe Toggle */}
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#e2e8f0', marginBottom: '8px' }}>
+                  Shoppable Grocery Delivery (Instacart)
+                </label>
+                <div
+                  onClick={() => setIsRecipeProject(!isRecipeProject)}
+                  style={{
+                    padding: '14px',
+                    borderRadius: '10px',
+                    background: isRecipeProject ? 'rgba(16, 185, 129, 0.12)' : 'rgba(255, 255, 255, 0.03)',
+                    border: `1.5px solid ${isRecipeProject ? '#10b981' : 'var(--border-hairline)'}`,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div
+                      style={{
+                        width: '36px',
+                        height: '36px',
+                        borderRadius: '8px',
+                        background: 'rgba(16, 185, 129, 0.2)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#34d399',
+                      }}
+                    >
+                      <ChefHat size={18} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: 700, color: '#fff' }}>
+                        🥕 Shoppable Recipe Manifest
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#94a3b8' }}>
+                        {recipeManifest?.ingredients?.length
+                          ? `${recipeManifest.ingredients.length} ingredients ready for 1-click Instacart grocery order`
+                          : isCulinaryDetected
+                          ? 'Cooking content detected • 1-Click local supermarket delivery'
+                          : 'Enable for cooking reels & recipe delivery'}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    {isRecipeProject && (
+                      <span
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsRecipeDrawerOpen(true);
+                        }}
+                        style={{
+                          fontSize: '11px',
+                          color: '#34d399',
+                          textDecoration: 'underline',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Edit Manifest
+                      </span>
+                    )}
+                    <div
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '20px',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        background: isRecipeProject ? '#10b981' : 'rgba(255, 255, 255, 0.1)',
+                        color: isRecipeProject ? '#fff' : '#94a3b8',
+                      }}
+                    >
+                      {isRecipeProject ? 'ENABLED' : 'OFF'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Context Summary */}
               <div
                 style={{
@@ -1202,6 +1342,12 @@ Don't wait—tap the product bubble directly on your screen to order before they
                   gap: '6px',
                 }}
               >
+                {isRecipeProject && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Category & Delivery:</span>
+                    <strong style={{ color: '#34d399' }}>Culinary & Cooking (Instacart Enabled)</strong>
+                  </div>
+                )}
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span>Attached Catalog Products:</span>
                   <strong style={{ color: '#fff' }}>{selectedProductIds.length} Products</strong>
@@ -1261,6 +1407,65 @@ Don't wait—tap the product bubble directly on your screen to order before they
                 <span>{isSubmittingProject ? 'Creating Project...' : 'Create & Link Project'}</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pre-Production Recipe Manifest Editor Modal */}
+      {isRecipeDrawerOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.8)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+            padding: '20px',
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsRecipeDrawerOpen(false);
+          }}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: '680px',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              background: '#0b0f19',
+              border: '1px solid var(--border-hairline)',
+              borderRadius: '16px',
+              padding: '24px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 40px rgba(16, 185, 129, 0.2)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <ChefHat size={22} color="#34d399" />
+                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: '#fff' }}>
+                  Pre-Production Recipe Manifest & Instacart Cart
+                </h3>
+              </div>
+              <button
+                onClick={() => setIsRecipeDrawerOpen(false)}
+                style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '4px' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <RecipeManifestEditor
+              initialManifest={recipeManifest}
+              recipeTitleDefault={newProjectName || suggestProjectName()}
+              onSave={(manifest) => {
+                setRecipeManifest(manifest);
+                setIsRecipeProject(true);
+                setIsRecipeDrawerOpen(false);
+                toast.success('Pre-production recipe manifest saved!');
+              }}
+            />
           </div>
         </div>
       )}

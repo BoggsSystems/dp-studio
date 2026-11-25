@@ -32,7 +32,7 @@ import CompleteInviteModal from './components/CompleteInviteModal';
 import PreProductionStudio from './components/preproduction/PreProductionStudio';
 import MobilePrompterBooth from './components/record/MobilePrompterBooth';
 import StorefrontManager from './components/StorefrontManager';
-import { ChannelProvider } from './context/ChannelContext';
+import { ChannelProvider, useChannels } from './context/ChannelContext';
 import ChannelManagerModal from './components/ChannelManagerModal';
 
 
@@ -126,6 +126,7 @@ function StudioApp() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
+  const { activeChannel } = useChannels();
   const [activeTab, setActiveTab] = useState<StudioTab>('projects');
   const [projects, setProjects] = useState<Project[]>([]);
   const [project, setProject] = useState<Project | null>(null);
@@ -461,12 +462,25 @@ function StudioApp() {
   };
 
   const handleNewProject = () => {
+    const isChef = activeChannel?.handle === 'chefboyarjeff';
     const newP: Project = {
       id: `proj_${Date.now()}`,
-      name: 'New Shoppable Video Project',
+      name: isChef ? 'New Michelin Recipe Masterclass' : 'New Shoppable Video Project',
+      category: isChef ? 'Culinary & Cooking' : 'Shopping & Commerce',
+      channel: activeChannel?.handle || 'default',
       status: 'PROCESSING',
       isActive: true,
       productGroups: [],
+      recipeManifest: isChef
+        ? {
+            title: 'New Michelin Recipe Masterclass',
+            servings: 2,
+            prepTimeMinutes: 15,
+            cookTimeMinutes: 25,
+            difficulty: 'Michelin / Advanced',
+            ingredients: [],
+          }
+        : undefined,
     };
     setProjects([newP, ...projects]);
     setProject(newP);
