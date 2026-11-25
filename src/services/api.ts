@@ -1,4 +1,4 @@
-import { Project, Clip, AiTagDetection, User, Campaign, StreamSession, ProductGroup, ViewingMode, Product, ChannelMetricSummary, ProductPerformanceSummary, AnalyticsOverviewResponse, ProjectDistributionResponse, ProjectAnalyticsSummary, ProductAggregatedSummary, ProductAggregatedVideoBreakdown } from '../types';
+import { Project, Clip, AiTagDetection, User, Campaign, StreamSession, ProductGroup, ViewingMode, Product, ChannelMetricSummary, ProductPerformanceSummary, AnalyticsOverviewResponse, ProjectDistributionResponse, ProjectAnalyticsSummary, ProductAggregatedSummary, ProductAggregatedVideoBreakdown, RecipeManifest } from '../types';
 
 const API_BASE_URL = (
   import.meta.env.VITE_API_URL ||
@@ -1911,10 +1911,14 @@ Generate 4 viral titles now in JSON format.`;
     catalogProducts?: Product[];
     currentScript?: string;
     selectedProductIds?: string[];
+    channelHandle?: string;
+    channelCategory?: string;
   }): Promise<{
     reply: string;
     suggestedProducts?: Product[];
     generatedScript?: string | null;
+    recipeManifest?: RecipeManifest;
+    platingConceptPrompt?: string | null;
   }> {
     // 1. Try server endpoint
     try {
@@ -2058,6 +2062,103 @@ Wall-to-wall pink with zero grey band.
 [SHOW_PRODUCT: Maldon Smoked Sea Salt Flakes (8.5oz)]
 Finish with English oak smoked salt.
 [CALL_TO_ACTION: Tap the product tags below to grab the exact reverse sear kit!]`,
+        platingConceptPrompt: 'Editorial Michelin plating of a thick-cut 4 Charles prime rib slice, glossy bone marrow au jus reduction pooling on matte black stoneware plate, fresh micro-thyme, Maldon smoked pyramid flakes catching warm moody side-lighting, 85mm macro lens f/2.0, photorealistic 8k.',
+        recipeManifest: {
+          title: '4 Charles Prime Rib & Bone Marrow Jus',
+          servings: 6,
+          prepTimeMinutes: 30,
+          cookTimeMinutes: 240,
+          difficulty: 'Michelin / Advanced',
+          ingredients: [
+            { id: 'ing_1', name: 'Prime Bone-In Ribeye Roast (3-4 ribs)', amount: '8', unit: 'lbs' },
+            { id: 'ing_2', name: 'Kosher Salt (Diamond Crystal)', amount: '3', unit: 'tbsp' },
+            { id: 'ing_3', name: 'Fresh Rosemary & Thyme Bundle', amount: '1', unit: 'bunch' },
+            { id: 'ing_4', name: 'Whole Heads of Garlic', amount: '2', unit: 'heads' },
+            { id: 'ing_5', name: 'Beef Bone Marrow Canoes', amount: '4', unit: 'pieces' },
+            { id: 'ing_6', name: 'Maldon Smoked Sea Salt Flakes', amount: '1', unit: 'tin' }
+          ],
+          instructions: [
+            'Dry brine uncovered on a wire rack in refrigerator for 48 hours.',
+            'Roast low and slow at 225°F until internal temp registers exactly 120°F.',
+            'Rest for 35 minutes while pre-heating cast iron with tallow for hard 90-second finishing crust.',
+            'Carve single-stroke against the grain with granton blade.'
+          ]
+        }
+      };
+    }
+
+    if (payload.channelHandle?.replace(/^@/, '') === 'chefboyarjeff' || payload.channelCategory === 'Culinary' || lower.includes('michelin') || lower.includes('dish') || lower.includes('cook') || lower.includes('duck')) {
+      return {
+        reply: `### 👨‍🍳 Chef Boyarjeff Culinary Deconstruction: "${lastMsg || 'Michelin Technique'}"
+Here is your **5-Stage Michelin Deconstruction Pipeline**:
+
+1. **Iconic Discovery**: Deconstructing iconic fine-dining technique for an accessible 60-second home kitchen masterclass.
+2. **Visual Benchmark**: Plating concept prompt rendered below—craft the hero shot first to set your standard.
+3. **Culinary Physics**: Cold-pan fat rendering, slow cross-hatch scoring, and basting with foaming European butter at 135°F internal.
+4. **Teleprompter Script**: High-retention narrative with integrated product cues and dynamic viewer pauses.
+5. **Instacart Grocery Manifest**: Complete ingredient breakdown ready for 1-click delivery checkout.`,
+        suggestedProducts: payload.catalogProducts && payload.catalogProducts.length > 0 ? payload.catalogProducts.slice(0, 3) : [
+          {
+            id: 'prod_culinary_tweezers',
+            title: 'Offset Precision Plating Tweezers (8-inch)',
+            price: 18.99,
+            currency: 'USD',
+            description: 'Surgical-grade stainless steel tweezers for microgreen placement and delicate plating.',
+            category: 'Kitchen Tools',
+            externalUrl: 'https://amazon.com',
+            imageUrl: 'https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=400&auto=format&fit=crop&q=80',
+            source: 'AMAZON',
+            vendor: 'Amazon / Chef Tools',
+            inventoryCount: 35,
+          },
+          {
+            id: 'prod_cast_iron_pan',
+            title: 'Heavyweight Pre-Seasoned Cast Iron Skillet (12-inch)',
+            price: 49.95,
+            currency: 'USD',
+            description: 'Exceptional heat retention engineered for high-heat searing and butter-basting.',
+            category: 'Cookware',
+            externalUrl: 'https://amazon.com',
+            imageUrl: 'https://images.unsplash.com/photo-1593618998160-e34014e67546?w=400&auto=format&fit=crop&q=80',
+            source: 'AMAZON',
+            vendor: 'Amazon / Lodge',
+            inventoryCount: 22,
+          }
+        ],
+        platingConceptPrompt: 'Editorial Michelin 3-star culinary photography, crispy-skinned seared Muscovy duck breast sliced on bias, glossy blackberry port reduction drizzle, micro-thyme garnish, served on a handmade charcoal ceramic shallow bowl, shallow depth of field, natural window lighting, 85mm f/1.8 macro lens, photorealistic 8k.',
+        recipeManifest: {
+          title: 'Pan-Roasted Muscovy Duck Breast with Blackberry Port Gastrique',
+          servings: 2,
+          prepTimeMinutes: 20,
+          cookTimeMinutes: 18,
+          difficulty: 'Michelin / Advanced',
+          ingredients: [
+            { id: 'ing_duck_1', name: 'Muscovy Duck Breasts', amount: '2', unit: 'whole breasts' },
+            { id: 'ing_duck_2', name: 'Shallots, finely minced', amount: '2', unit: 'shallots' },
+            { id: 'ing_duck_3', name: 'Fresh French Thyme', amount: '4', unit: 'sprigs' },
+            { id: 'ing_duck_4', name: 'Tawny Port Wine', amount: '0.5', unit: 'cup' },
+            { id: 'ing_duck_5', name: 'Unsalted European Cultured Butter', amount: '3', unit: 'tbsp' },
+            { id: 'ing_duck_6', name: 'Fresh Blackberries', amount: '6', unit: 'oz' },
+            { id: 'ing_duck_7', name: 'Maldon Flaky Sea Salt', amount: '1', unit: 'pinch' }
+          ],
+          instructions: [
+            'Score duck skin in tight diamond pattern without piercing flesh; season liberally with kosher salt.',
+            'Place skin-side down in cold cast-iron pan over medium-low heat; slowly render fat for 10-12 minutes.',
+            'Flip when deep golden; add butter, crushed garlic, and thyme. Baste for 3-4 minutes to 132°F internal.',
+            'Deglaze pan with shallots, port wine, and blackberries; mount cold butter off heat for glossy gastrique.'
+          ]
+        },
+        generatedScript: `Most people ruin duck breast because they treat it like steak.
+[PAUSE 1.5s]
+You never start duck in a hot pan. Cold pan, skin side down, low heat.
+[SHOW_PRODUCT: Heavyweight Pre-Seasoned Cast Iron Skillet (12-inch)]
+Watch this fat render out slowly—that's how you get glass-crisp skin without burning.
+[PAUSE 1.5s]
+Flip. Add cultured butter, crushed garlic, and fresh thyme.
+Baste until it hits exactly 132 degrees.
+[SHOW_PRODUCT: Offset Precision Plating Tweezers (8-inch)]
+Finish with the blackberry port gastrique and fresh microgreens.
+[CALL_TO_ACTION: Tap the grocery cart to get all ingredients delivered from Whole Foods in 1 hour!]`
       };
     }
 

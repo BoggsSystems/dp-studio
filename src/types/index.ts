@@ -338,6 +338,8 @@ export interface CoDirectorMessage {
   content: string;
   suggestedProducts?: Product[];
   generatedScript?: string | null;
+  recipeManifest?: RecipeManifest;
+  platingConceptPrompt?: string | null;
   timestamp: string;
 }
 

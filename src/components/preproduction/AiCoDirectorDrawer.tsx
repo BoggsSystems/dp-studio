@@ -18,12 +18,18 @@ import {
   Maximize2,
   Minimize2,
   Copy,
-  Utensils
+  Utensils,
+  Camera,
+  ChefHat,
+  CheckCircle2,
+  Rocket,
+  Terminal
 } from 'lucide-react';
-import { Product, CoDirectorMessage } from '../../types';
+import { Product, CoDirectorMessage, RecipeManifest } from '../../types';
 import { api } from '../../services/api';
 import { toast } from '../../services/toast';
 import { resolveProductImageUrl } from '../../utils/imageUtils';
+import { useChannels } from '../../context/ChannelContext';
 
 interface AiCoDirectorDrawerProps {
   isOpen: boolean;
@@ -32,6 +38,7 @@ interface AiCoDirectorDrawerProps {
   selectedProductIds: string[];
   onToggleProduct: (product: Product) => void;
   onApplyScript: (script: string) => void;
+  onAdoptRecipeManifest?: (manifest: RecipeManifest) => void;
   currentScript: string;
   messages?: CoDirectorMessage[];
   setMessages?: React.Dispatch<React.SetStateAction<CoDirectorMessage[]>>;
@@ -341,15 +348,23 @@ export default function AiCoDirectorDrawer({
   selectedProductIds,
   onToggleProduct,
   onApplyScript,
+  onAdoptRecipeManifest,
   currentScript,
   messages: externalMessages,
   setMessages: externalSetMessages,
 }: AiCoDirectorDrawerProps) {
+  const { activeChannel } = useChannels();
+  const isCulinary = activeChannel?.handle?.replace(/^@/, '') === 'chefboyarjeff' || activeChannel?.category === 'Culinary';
+
+  const defaultWelcomeContent = isCulinary
+    ? `👋 I'm Chef Boyarjeff's **AI Culinary Co-Director & Recipe Architect**.\n\nTell me which Michelin dish or fine-dining technique you'd like to deconstruct (e.g. *"Deconstruct The French Laundry's Oysters & Pearls"*, *"Pan-seared Muscovy duck with blackberry port gastrique"*, or *"Reverse-seared 4 Charles prime rib"*).\n\nI follow your **5-Stage Pipeline**: scouring iconic menus, creating the plating visual benchmark prompt first, unpacking the culinary physics, drafting the 60s teleprompter cues, and generating your 1-click Instacart grocery basket!`
+    : `👋 I'm your **AI Creative Co-Director & Shoppable Merchandiser**.\n\nTell me what video you want to produce (e.g. *"Opportunity OS live job app pipeline teardown"*, *"Antigravity multi-agent telemetry demo"*, or *"Speedrun an unboxing of my desk setup"*). I'll help you structure the narrative, identify high-converting physical products, and draft the prompter script with dynamic stage cues!`;
+
   const [internalMessages, setInternalMessages] = useState<CoDirectorMessage[]>([
     {
       id: 'welcome',
       role: 'assistant',
-      content: `👋 I\'m your **AI Creative Co-Director & Shoppable Merchandiser**.\n\nTell me what video you want to produce (e.g. *\"Deconstruct the 4 Charles Prime Rib dinner\"*, *\"Speedrun an unboxing of my desk setup\"*, or *\"A 30s TikTok routine\"*)—I\'ll help you prep the recipe, identify all the physical products you\'ll need to monetize, and draft the prompter script with dynamic stage cues!`,
+      content: defaultWelcomeContent,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
@@ -361,6 +376,7 @@ export default function AiCoDirectorDrawer({
   const [isSending, setIsSending] = useState(false);
   const [expandedScriptIds, setExpandedScriptIds] = useState<Record<string, boolean>>({});
   const [copiedScriptId, setCopiedScriptId] = useState<string | null>(null);
+  const [copiedPromptId, setCopiedPromptId] = useState<string | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -393,6 +409,8 @@ export default function AiCoDirectorDrawer({
         catalogProducts,
         currentScript,
         selectedProductIds,
+        channelHandle: activeChannel?.handle,
+        channelCategory: activeChannel?.category,
       });
 
       const assistantMsg: CoDirectorMessage = {
@@ -401,6 +419,8 @@ export default function AiCoDirectorDrawer({
         content: response.reply,
         suggestedProducts: response.suggestedProducts,
         generatedScript: response.generatedScript,
+        recipeManifest: response.recipeManifest,
+        platingConceptPrompt: response.platingConceptPrompt,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
 
@@ -499,100 +519,201 @@ export default function AiCoDirectorDrawer({
           whiteSpace: 'nowrap',
         }}
       >
-        <button
-          onClick={() => handleSend('Extract the complete Recipe & Ingredient Manifest from this script into an Instacart-ready grocery checklist with exact quantities, units, and servings.')}
-          style={{
-            background: 'rgba(16, 185, 129, 0.12)',
-            border: '1px solid rgba(16, 185, 129, 0.35)',
-            color: '#6ee7b7',
-            padding: '5px 10px',
-            borderRadius: '16px',
-            fontSize: '11px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '5px',
-          }}
-        >
-          <Utensils size={12} />
-          <span>🥕 Extract Recipe Manifest (Instacart)</span>
-        </button>
+        {isCulinary ? (
+          <>
+            <button
+              onClick={() => handleSend('Scour iconic Michelin 3-star restaurant menus (The French Laundry, Osteria Francescana, Alinea) and suggest 3 legendary dishes to deconstruct at home for a 60-second reel.')}
+              style={{
+                background: 'rgba(245, 158, 11, 0.12)',
+                border: '1px solid rgba(245, 158, 11, 0.35)',
+                color: '#fbbf24',
+                padding: '5px 10px',
+                borderRadius: '16px',
+                fontSize: '11px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+              }}
+            >
+              <ChefHat size={12} />
+              <span>🍽️ Scour Michelin Menus</span>
+            </button>
 
-        <button
-          onClick={() => handleSend('Deconstruct the 4 Charles Prime Rib dinner at home: prepping the recipe, the dry brine, the reverse sear technique, and the shoppable tools needed.')}
-          style={{
-            background: 'rgba(244, 63, 94, 0.1)',
-            border: '1px solid rgba(244, 63, 94, 0.3)',
-            color: '#fda4af',
-            padding: '5px 10px',
-            borderRadius: '16px',
-            fontSize: '11px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '5px',
-          }}
-        >
-          <Flame size={12} />
-          <span>🥩 4 Charles Prime Rib</span>
-        </button>
+            <button
+              onClick={() => handleSend('Generate the visual plating concept & camera composition prompt for this dish before cooking so we have our visual benchmark.')}
+              style={{
+                background: 'rgba(168, 85, 247, 0.12)',
+                border: '1px solid rgba(168, 85, 247, 0.35)',
+                color: '#c084fc',
+                padding: '5px 10px',
+                borderRadius: '16px',
+                fontSize: '11px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+              }}
+            >
+              <Camera size={12} />
+              <span>📸 Plating Concept First</span>
+            </button>
 
-        <button
-          onClick={() => handleSend('Brainstorm a high-retention shoppable video reviewing Tim Hortons coffee, featuring the Original Blend ground tin and Keurig pods to sell on screen.')}
-          style={{
-            background: 'rgba(239, 68, 68, 0.1)',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
-            color: '#fca5a5',
-            padding: '5px 10px',
-            borderRadius: '16px',
-            fontSize: '11px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '5px',
-          }}
-        >
-          <Coffee size={12} />
-          <span>☕ Tim Hortons Coffee</span>
-        </button>
+            <button
+              onClick={() => handleSend('Explain the culinary physics, internal temperatures, gelatin melt curves, and emulsion technique tricks for this recipe.')}
+              style={{
+                background: 'rgba(56, 189, 248, 0.12)',
+                border: '1px solid rgba(56, 189, 248, 0.35)',
+                color: '#7dd3fc',
+                padding: '5px 10px',
+                borderRadius: '16px',
+                fontSize: '11px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+              }}
+            >
+              <Sparkles size={12} />
+              <span>🔬 Culinary Physics & Science</span>
+            </button>
 
-        <button
-          onClick={() => handleSend('Brainstorm an unboxing and speedrun review of our store products with a 30-second high energy hook.')}
-          style={{
-            background: 'rgba(56, 189, 248, 0.1)',
-            border: '1px solid rgba(56, 189, 248, 0.3)',
-            color: '#7dd3fc',
-            padding: '5px 10px',
-            borderRadius: '16px',
-            fontSize: '11px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '5px',
-          }}
-        >
-          <Lightbulb size={12} />
-          <span>📦 Product Unboxing</span>
-        </button>
+            <button
+              onClick={() => handleSend('Extract the complete Recipe & Ingredient Manifest from this script into an Instacart-ready grocery checklist with exact quantities, units, and servings.')}
+              style={{
+                background: 'rgba(16, 185, 129, 0.12)',
+                border: '1px solid rgba(16, 185, 129, 0.35)',
+                color: '#6ee7b7',
+                padding: '5px 10px',
+                borderRadius: '16px',
+                fontSize: '11px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+              }}
+            >
+              <Utensils size={12} />
+              <span>🥕 Extract Instacart Manifest</span>
+            </button>
 
-        <button
-          onClick={() => handleSend('Draft an urgent scarcity pitch script for a limited weekend flash drop.')}
-          style={{
-            background: 'rgba(251, 191, 36, 0.1)',
-            border: '1px solid rgba(251, 191, 36, 0.3)',
-            color: '#fde68a',
-            padding: '5px 10px',
-            borderRadius: '16px',
-            fontSize: '11px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '5px',
-          }}
-        >
-          <Sparkles size={12} />
-          <span>⚡ Weekend Drop Hook</span>
-        </button>
+            <button
+              onClick={() => handleSend('Deconstruct the 4 Charles Prime Rib dinner at home: prepping the recipe, the dry brine, the reverse sear technique, and the shoppable tools needed.')}
+              style={{
+                background: 'rgba(244, 63, 94, 0.1)',
+                border: '1px solid rgba(244, 63, 94, 0.3)',
+                color: '#fda4af',
+                padding: '5px 10px',
+                borderRadius: '16px',
+                fontSize: '11px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+              }}
+            >
+              <Flame size={12} />
+              <span>🥩 4 Charles Prime Rib</span>
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              onClick={() => handleSend('Deconstruct the Opportunity OS autonomous job-hunting engine into a high-retention 60-second technical teardown with screen recordings and GitHub repo callouts.')}
+              style={{
+                background: 'rgba(56, 189, 248, 0.12)',
+                border: '1px solid rgba(56, 189, 248, 0.35)',
+                color: '#38bdf8',
+                padding: '5px 10px',
+                borderRadius: '16px',
+                fontSize: '11px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+              }}
+            >
+              <Rocket size={12} />
+              <span>🚀 Opportunity OS Teardown</span>
+            </button>
+
+            <button
+              onClick={() => handleSend('Draft a high-conversion script showcasing our Antigravity multi-agent orchestration architecture and real-time observability dashboard.')}
+              style={{
+                background: 'rgba(129, 140, 248, 0.12)',
+                border: '1px solid rgba(129, 140, 248, 0.35)',
+                color: '#a5b4fc',
+                padding: '5px 10px',
+                borderRadius: '16px',
+                fontSize: '11px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+              }}
+            >
+              <Terminal size={12} />
+              <span>🤖 Multi-Agent Telemetry</span>
+            </button>
+
+            <button
+              onClick={() => handleSend('Create a fast-paced tutorial script on scaling engineering career velocity using autonomous AI pairs and full-stack CI/CD.')}
+              style={{
+                background: 'rgba(52, 211, 153, 0.12)',
+                border: '1px solid rgba(52, 211, 153, 0.35)',
+                color: '#6ee7b7',
+                padding: '5px 10px',
+                borderRadius: '16px',
+                fontSize: '11px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+              }}
+            >
+              <Sparkles size={12} />
+              <span>💼 SWE Career Velocity</span>
+            </button>
+
+            <button
+              onClick={() => handleSend('Brainstorm an unboxing and speedrun review of our workstation products with a 30-second high energy hook.')}
+              style={{
+                background: 'rgba(251, 191, 36, 0.1)',
+                border: '1px solid rgba(251, 191, 36, 0.3)',
+                color: '#fde68a',
+                padding: '5px 10px',
+                borderRadius: '16px',
+                fontSize: '11px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+              }}
+            >
+              <Lightbulb size={12} />
+              <span>📦 Studio Tech Unboxing</span>
+            </button>
+
+            <button
+              onClick={() => handleSend('Brainstorm a high-retention shoppable video reviewing Tim Hortons coffee, featuring the Original Blend ground tin and Keurig pods to sell on screen.')}
+              style={{
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                color: '#fca5a5',
+                padding: '5px 10px',
+                borderRadius: '16px',
+                fontSize: '11px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+              }}
+            >
+              <Coffee size={12} />
+              <span>☕ Tim Hortons Coffee</span>
+            </button>
+          </>
+        )}
       </div>
 
       {/* Messages Scroll Area */}
@@ -800,6 +921,150 @@ export default function AiCoDirectorDrawer({
                     </div>
                   );
                 })()}
+
+                {/* Plating Visual Benchmark Prompt */}
+                {m.platingConceptPrompt && (
+                  <div
+                    style={{
+                      background: 'rgba(168, 85, 247, 0.08)',
+                      border: '1px solid rgba(168, 85, 247, 0.3)',
+                      borderRadius: '12px',
+                      padding: '14px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 700, color: '#c084fc', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        <Camera size={14} />
+                        <span>Visual Plating Benchmark (AI Image Prompt)</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(m.platingConceptPrompt || '');
+                          setCopiedPromptId(m.id);
+                          toast.success('📸 Plating concept prompt copied to clipboard!');
+                          setTimeout(() => setCopiedPromptId(null), 2000);
+                        }}
+                        style={{
+                          background: 'rgba(255, 255, 255, 0.08)',
+                          border: '1px solid rgba(255, 255, 255, 0.12)',
+                          color: '#e2e8f0',
+                          padding: '4px 8px',
+                          borderRadius: '6px',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
+                      >
+                        {copiedPromptId === m.id ? <Check size={12} color="#34d399" /> : <Copy size={12} />}
+                        <span>{copiedPromptId === m.id ? 'Copied' : 'Copy Prompt'}</span>
+                      </button>
+                    </div>
+
+                    <div
+                      style={{
+                        background: 'rgba(5, 10, 20, 0.65)',
+                        border: '1px solid rgba(168, 85, 247, 0.2)',
+                        padding: '10px 12px',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        color: '#f3e8ff',
+                        fontStyle: 'italic',
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      "{m.platingConceptPrompt}"
+                    </div>
+                  </div>
+                )}
+
+                {/* Instacart Shoppable Recipe Manifest Card */}
+                {m.recipeManifest && (
+                  <div
+                    style={{
+                      background: 'rgba(16, 185, 129, 0.08)',
+                      border: '1px solid rgba(16, 185, 129, 0.32)',
+                      borderRadius: '12px',
+                      padding: '14px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '10px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 700, color: '#34d399', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        <Utensils size={14} />
+                        <span>Instacart Shoppable Recipe Manifest</span>
+                      </div>
+                      {onAdoptRecipeManifest && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onAdoptRecipeManifest(m.recipeManifest!);
+                            toast.success('🥕 Adopted recipe manifest into Pre-Production project!');
+                          }}
+                          style={{
+                            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                            border: 'none',
+                            color: '#ffffff',
+                            padding: '5px 12px',
+                            borderRadius: '6px',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            boxShadow: '0 2px 8px rgba(16, 185, 129, 0.35)',
+                          }}
+                        >
+                          <CheckCircle2 size={12} />
+                          <span>Adopt Recipe Manifest 🥕</span>
+                        </button>
+                      )}
+                    </div>
+
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: '#ffffff' }}>
+                      {m.recipeManifest.title}
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '12px', fontSize: '11px', color: '#a7f3d0' }}>
+                      {m.recipeManifest.servings && <span>🍽️ {m.recipeManifest.servings} Servings</span>}
+                      {m.recipeManifest.prepTimeMinutes && <span>⏱️ Prep: {m.recipeManifest.prepTimeMinutes}m</span>}
+                      {m.recipeManifest.cookTimeMinutes && <span>🔥 Cook: {m.recipeManifest.cookTimeMinutes}m</span>}
+                      {m.recipeManifest.difficulty && <span>⭐ {m.recipeManifest.difficulty}</span>}
+                    </div>
+
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '2px' }}>
+                      {m.recipeManifest.ingredients.slice(0, 8).map((ing, idx) => (
+                        <span
+                          key={idx}
+                          style={{
+                            fontSize: '11px',
+                            padding: '3px 8px',
+                            borderRadius: '12px',
+                            background: 'rgba(16, 185, 129, 0.15)',
+                            border: '1px solid rgba(16, 185, 129, 0.25)',
+                            color: '#e6fffa',
+                          }}
+                        >
+                          {ing.amount ? `${ing.amount} ${ing.unit || ''} ` : ''}{ing.name}
+                        </span>
+                      ))}
+                      {m.recipeManifest.ingredients.length > 8 && (
+                        <span style={{ fontSize: '11px', color: '#6ee7b7', alignSelf: 'center' }}>
+                          +{m.recipeManifest.ingredients.length - 8} more
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 <div style={{ fontSize: '10px', color: '#64748b', alignSelf: isUser ? 'flex-end' : 'flex-start' }}>
                   {m.timestamp}

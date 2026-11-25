@@ -118,8 +118,24 @@ If you're tired of filling out endless career portals, check the link right here
   const [desktopPrompterOpen, setDesktopPrompterOpen] = useState(false);
   const [activeSession, setActiveSession] = useState<{ token: string; shortCode: string } | null>(null);
 
-  // 4. Create Project Modal State & Culinary Awareness
   const { activeChannel } = useChannels();
+
+  // Sync Co-Director welcome message to channel if no custom chat history yet
+  useEffect(() => {
+    if (coDirectorMessages.length <= 1 && coDirectorMessages[0]?.id === 'welcome') {
+      const isCulinary = activeChannel?.handle?.replace(/^@/, '') === 'chefboyarjeff' || activeChannel?.category === 'Culinary';
+      const welcomeContent = isCulinary
+        ? `👋 I'm Chef Boyarjeff's **AI Culinary Co-Director & Recipe Architect**.\n\nTell me which Michelin dish or fine-dining technique you'd like to deconstruct (e.g. *"Deconstruct The French Laundry's Oysters & Pearls"*, *"Pan-seared Muscovy duck with blackberry port gastrique"*, or *"Reverse-seared 4 Charles prime rib"*).\n\nI follow your **5-Stage Pipeline**: scouring iconic menus, creating the plating visual benchmark prompt first, unpacking the culinary physics, drafting the 60s teleprompter cues, and generating your 1-click Instacart grocery basket!`
+        : `👋 I'm your **AI Creative Co-Director & Shoppable Merchandiser**.\n\nTell me what video you want to produce (e.g. *"Opportunity OS live job app pipeline teardown"*, *"Antigravity multi-agent telemetry demo"*, or *"Speedrun an unboxing of my desk setup"*). I'll help you structure the narrative, identify high-converting physical products, and draft the prompter script with dynamic stage cues!`;
+      setCoDirectorMessages([{
+        id: 'welcome',
+        role: 'assistant',
+        content: welcomeContent,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      }]);
+    }
+  }, [activeChannel?.handle]);
+
   const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectFormat, setNewProjectFormat] = useState<'SHORT' | 'VOD'>('SHORT');
@@ -877,6 +893,11 @@ Don't wait—tap the product bubble directly on your screen to order before they
             onApplyScript={(newScript) => {
               setScriptText(newScript);
               setActiveMode('script-writer');
+            }}
+            onAdoptRecipeManifest={(manifest) => {
+              setRecipeManifest(manifest);
+              setIsRecipeProject(true);
+              setIsRecipeDrawerOpen(true);
             }}
             currentScript={scriptText}
             messages={coDirectorMessages}
